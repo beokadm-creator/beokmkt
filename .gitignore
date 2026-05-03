@@ -22,6 +22,11 @@ functions/node_modules
 /build
 /dist
 
+# firebase
+.firebase
+firebase-debug.log*
+.runtimeconfig.json
+
 # misc
 .DS_Store
 *.pem
