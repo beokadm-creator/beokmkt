@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     let errorDetails = ''
 
     try {
-      let response: Response
+      let response: Response | null = null
 
       switch (provider) {
         case 'openai':
@@ -320,7 +320,7 @@ export async function GET(request: NextRequest) {
             clearTimeout(timeoutId)
 
             if (!isValid) {
-              const errorData = await response.json().catch(() => null)
+              const errorData = response ? await response.json().catch(() => null) : null
               errorDetails = errorData?.error?.message || 'Anthropic API 연결 실패'
             }
           } catch (anthropicError) {
@@ -380,7 +380,7 @@ export async function GET(request: NextRequest) {
             clearTimeout(timeoutId)
 
             if (!isValid) {
-              const errorData = await response.json().catch(() => null)
+              const errorData = response ? await response.json().catch(() => null) : null
               errorDetails = errorData?.message || 'Cohere API 연결 실패'
             }
           } catch (cohereError) {
@@ -441,7 +441,7 @@ export async function GET(request: NextRequest) {
             clearTimeout(timeoutId)
 
             if (!isValid) {
-              const errorData = await response.json().catch(() => null)
+              const errorData = response ? await response.json().catch(() => null) : null
               errorDetails = errorData?.message || 'Mistral API 연결 실패'
             }
           } catch (mistralError) {
