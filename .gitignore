@@ -50,3 +50,6 @@ next-env.d.ts
 
 # local dev data
 /data
+
+# render executor artifacts
+/executors/render-executor/artifacts/
