@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import ActivityTimeline from '../components/ActivityTimeline'
 import StatusBadge from '../components/StatusBadge'
 import { apiJson } from '../lib/api'
 
@@ -128,23 +129,33 @@ export default function PublishJobDetailPage() {
 
       {job ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="md:col-span-2 rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
-            <div className="text-xs text-zinc-400">설정</div>
-            <div className="mt-2 grid grid-cols-1 gap-2 text-sm text-zinc-100">
-              <div className="flex items-center justify-between">
-                <span>platform</span>
-                <span className="text-zinc-300">{job.platform}</span>
+          <div className="md:col-span-2 flex flex-col gap-4">
+            <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+              <div className="text-xs text-zinc-400">설정</div>
+              <div className="mt-2 grid grid-cols-1 gap-2 text-sm text-zinc-100">
+                <div className="flex items-center justify-between">
+                  <span>platform</span>
+                  <span className="text-zinc-300">{job.platform}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>visibility</span>
+                  <span className="text-zinc-300">{job.payload.visibility}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>title</span>
+                  <span className="text-zinc-300">{job.payload.title ?? '-'}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span>visibility</span>
-                <span className="text-zinc-300">{job.payload.visibility}</span>
+              <div className="mt-4 text-xs text-zinc-400">설명</div>
+              <div className="mt-2 whitespace-pre-wrap text-sm text-zinc-300">{job.payload.description ?? '-'}</div>
+              <div className="mt-4 text-xs text-zinc-400">해시태그</div>
+              <div className="mt-2 flex flex-wrap gap-2 text-sm text-zinc-300">
+                {job.payload.hashtags.length ? job.payload.hashtags.map((tag) => <span key={tag}>{tag}</span>) : <span>-</span>}
               </div>
-              <div className="flex items-center justify-between">
-                <span>title</span>
-                <span className="text-zinc-300">{job.payload.title ?? '-'}</span>
-              </div>
+              {job.error_message ? <div className="mt-3 text-sm text-rose-200">{job.error_message}</div> : null}
             </div>
-            {job.error_message ? <div className="mt-3 text-sm text-rose-200">{job.error_message}</div> : null}
+
+            <ActivityTimeline key={job.id} targetType="publish_job" targetId={job.id} />
           </div>
 
           <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
@@ -171,4 +182,3 @@ export default function PublishJobDetailPage() {
     </div>
   )
 }
-

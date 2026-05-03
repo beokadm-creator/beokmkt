@@ -9,12 +9,19 @@ const COLORS: Record<string, string> = {
   awaiting_review: 'border-amber-900/60 bg-amber-950/30 text-amber-200',
   approved: 'border-emerald-900/60 bg-emerald-950/30 text-emerald-200',
   rejected: 'border-rose-900/60 bg-rose-950/30 text-rose-200',
+  revision_required: 'border-rose-900/60 bg-rose-950/30 text-rose-200',
 
   queued: 'border-amber-900/60 bg-amber-950/30 text-amber-200',
   processing: 'border-amber-900/60 bg-amber-950/30 text-amber-200',
+  rendering: 'border-amber-900/60 bg-amber-950/30 text-amber-200',
+  rendered: 'border-sky-900/60 bg-sky-950/30 text-sky-200',
   failed: 'border-rose-900/60 bg-rose-950/30 text-rose-200',
+  uploading: 'border-sky-900/60 bg-sky-950/30 text-sky-200',
   uploaded: 'border-sky-900/60 bg-sky-950/30 text-sky-200',
   published: 'border-emerald-900/60 bg-emerald-950/30 text-emerald-200',
+  cancelled: 'border-zinc-800 bg-zinc-900/40 text-zinc-300',
+  passed: 'border-emerald-900/60 bg-emerald-950/30 text-emerald-200',
+  pending: 'border-amber-900/60 bg-amber-950/30 text-amber-200',
 }
 
 export default function StatusBadge(props: { value: string }) {
@@ -25,4 +32,3 @@ export default function StatusBadge(props: { value: string }) {
     </span>
   )
 }
-

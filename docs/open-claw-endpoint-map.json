@@ -1,0 +1,477 @@
+{
+  "name": "beokmkt-open-claw-endpoint-map",
+  "version": 1,
+  "base_urls": {
+    "local_api": "http://localhost:8787",
+    "local_api_health": "http://localhost:8787/api/health",
+    "local_render_executor_example": "http://localhost:8788",
+    "local_render_executor_health_example": "http://localhost:8788/health",
+    "web_render_executor_example": "http://localhost:8791",
+    "web_render_executor_health_example": "http://localhost:8791/health"
+  },
+  "base_url_notes": {
+    "api_server": "Local API server defaults to process.env.PORT or 8787.",
+    "render_executor": "Render executor URL is environment-driven. The API reads it from RENDER_EXECUTOR_URL or per-request webhook override fields.",
+    "web_render_executor": "Web render executor example URLs are reference defaults only, not source-of-truth API bindings."
+  },
+  "response_shapes": {
+    "api_success": {
+      "data": {},
+      "meta": {}
+    },
+    "api_error": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "string",
+        "details": {}
+      }
+    },
+    "executor_success": {
+      "status": "rendered",
+      "external_job_id": "string",
+      "qc_status": "passed",
+      "output": {
+        "asset_url": "string",
+        "thumbnail_url": "string|null",
+        "duration_sec": 30,
+        "render_provider": "string",
+        "executed_at": "iso_datetime"
+      }
+    },
+    "executor_failure": {
+      "status": "failed",
+      "error_code": "TEMPORARY",
+      "error_message": "string",
+      "next_retry_at": "iso_datetime|null"
+    }
+  },
+  "headers": {
+    "recommended": {
+      "Content-Type": "application/json"
+    },
+    "idempotency_header": "Idempotency-Key",
+    "idempotency_rule": "Send on POST /api/ai/* requests. Reuse only for exact same logical operation."
+  },
+  "recommended_paths": {
+    "one_shot": [
+      "POST /api/ai/execute-pipeline",
+      "GET /api/ai/failed-jobs",
+      "POST /api/ai/run-retry-sweep",
+      "POST /api/ai/restore-and-retry-dead-letter-jobs"
+    ],
+    "staged": [
+      "POST /api/ai/generate-ideas",
+      "POST /api/ai/generate-script",
+      "POST /api/ai/create-render-job",
+      "POST /api/ai/execute-render-job",
+      "POST /api/ai/create-publish-job",
+      "POST /api/ai/execute-publish-job"
+    ]
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "category": "health",
+      "purpose": "API server health check"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/generate-ideas",
+      "category": "pipeline",
+      "purpose": "Generate short ideas from one eligible source item",
+      "minimum_body": {
+        "source_item_id": "src_123"
+      },
+      "optional_fields": [
+        "count",
+        "target_duration_sec",
+        "platform_targets",
+        "auto_approve_lead",
+        "ai_provider",
+        "ai_api_key",
+        "ai_model"
+      ],
+      "returns": [
+        "idea_ids",
+        "lead_idea_id"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/generate-script",
+      "category": "pipeline",
+      "purpose": "Generate a script from one approved short idea",
+      "minimum_body": {
+        "short_idea_id": "idea_123"
+      },
+      "optional_fields": [
+        "duration_sec",
+        "approve_idea",
+        "auto_approve",
+        "script_text",
+        "subtitle_text",
+        "caption_text",
+        "hashtags"
+      ],
+      "returns": [
+        "script_id",
+        "status"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/create-render-job",
+      "category": "pipeline",
+      "purpose": "Create a queued render job from an approved script",
+      "minimum_body": {
+        "script_id": "script_123"
+      },
+      "optional_fields": [
+        "approve_script",
+        "auto_approve",
+        "template_id",
+        "render_profile"
+      ],
+      "returns": [
+        "render_job_id",
+        "qc_status"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/execute-render-job",
+      "category": "pipeline",
+      "purpose": "Execute a render job through configured executor webhook",
+      "minimum_body": {
+        "render_job_id": "render_123"
+      },
+      "optional_fields": [
+        "render_webhook_url",
+        "render_webhook_token",
+        "render_webhook_headers",
+        "options"
+      ],
+      "notes": [
+        "options.tts_text is supported",
+        "options.background_image_url is supported",
+        "options.web_generator.* is passed to web render adapter flow"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/create-publish-job",
+      "category": "pipeline",
+      "purpose": "Create a publish job from render job and platform account",
+      "minimum_body": {
+        "render_job_id": "render_123",
+        "platform_account_id": "acct_123"
+      },
+      "optional_fields": [
+        "platform",
+        "approve_render",
+        "auto_approve",
+        "title",
+        "description",
+        "hashtags",
+        "visibility"
+      ],
+      "returns": [
+        "publish_job_id",
+        "status"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/execute-publish-job",
+      "category": "pipeline",
+      "purpose": "Execute publish job through configured publish executor webhook",
+      "minimum_body": {
+        "publish_job_id": "publish_123"
+      },
+      "optional_fields": [
+        "publish_webhook_url",
+        "publish_webhook_token",
+        "publish_webhook_headers",
+        "execute_render_first"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/run-pipeline",
+      "category": "pipeline",
+      "purpose": "Create ideas, script, render job, publish job without final execution",
+      "minimum_body": {
+        "source_item_id": "src_123",
+        "platform_account_id": "acct_123"
+      },
+      "optional_fields": [
+        "idea_count",
+        "duration_sec",
+        "platform",
+        "auto_approve_render",
+        "auto_approve_publish",
+        "publish_title",
+        "publish_description",
+        "hashtags",
+        "visibility"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/execute-pipeline",
+      "category": "pipeline",
+      "purpose": "One-shot full pipeline creation plus execution",
+      "minimum_body": {
+        "source_item_id": "src_123",
+        "platform_account_id": "acct_123"
+      },
+      "best_for_agent": true,
+      "returns": [
+        "idea_ids",
+        "lead_idea_id",
+        "script_id",
+        "render_job_id",
+        "publish_job_id",
+        "statuses",
+        "execution"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/failed-jobs",
+      "category": "recovery",
+      "purpose": "List retryable failed jobs that are not dead-lettered",
+      "query_fields": [
+        "job_type",
+        "limit",
+        "only_due",
+        "provider",
+        "platform"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/dead-letter-jobs",
+      "category": "recovery",
+      "purpose": "List dead-letter jobs",
+      "query_fields": [
+        "job_type",
+        "limit",
+        "provider",
+        "platform"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/retry-failed-jobs",
+      "category": "recovery",
+      "purpose": "Retry failed jobs in batch",
+      "minimum_body": {
+        "job_type": "all",
+        "limit": 10,
+        "only_due": true
+      },
+      "optional_fields": [
+        "provider",
+        "platform",
+        "render",
+        "publish"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/restore-dead-letter-jobs",
+      "category": "recovery",
+      "purpose": "Restore dead-letter jobs without immediate execution",
+      "minimum_body": {
+        "job_type": "all",
+        "limit": 10
+      },
+      "optional_fields": [
+        "job_ids",
+        "provider",
+        "platform",
+        "render",
+        "publish"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/restore-and-retry-dead-letter-jobs",
+      "category": "recovery",
+      "purpose": "Restore dead-letter jobs and immediately execute them",
+      "minimum_body": {
+        "job_type": "all",
+        "limit": 10
+      },
+      "optional_fields": [
+        "job_ids",
+        "provider",
+        "platform",
+        "render",
+        "publish"
+      ],
+      "best_for_agent": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/run-retry-sweep",
+      "category": "recovery",
+      "purpose": "Batch process due retry candidates",
+      "minimum_body": {
+        "job_type": "all",
+        "limit": 20,
+        "only_due": true
+      },
+      "optional_fields": [
+        "provider",
+        "platform",
+        "render",
+        "publish"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/platform-accounts/:id/set-status",
+      "category": "platform_accounts",
+      "purpose": "Set platform account connectivity state",
+      "minimum_body": {
+        "status": "connected"
+      },
+      "optional_fields": [
+        "access_token_expires_at"
+      ],
+      "valid_status_values": [
+        "connected",
+        "disconnected"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/run-platform-account-sweep",
+      "category": "platform_accounts",
+      "purpose": "Detect expired and soon-to-expire platform accounts",
+      "minimum_body": {
+        "limit": 50,
+        "warning_window_minutes": 60
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/ops-metrics",
+      "category": "ops",
+      "purpose": "Summarize render, publish, dead-letter, and account risk metrics",
+      "query_fields": [
+        "limit",
+        "warning_window_minutes"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/short-ideas",
+      "category": "reads",
+      "purpose": "List short ideas"
+    },
+    {
+      "method": "GET",
+      "path": "/api/short-ideas/:id",
+      "category": "reads",
+      "purpose": "Fetch one short idea"
+    },
+    {
+      "method": "GET",
+      "path": "/api/scripts",
+      "category": "reads",
+      "purpose": "List scripts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/scripts/:id",
+      "category": "reads",
+      "purpose": "Fetch one script"
+    },
+    {
+      "method": "GET",
+      "path": "/api/render-jobs",
+      "category": "reads",
+      "purpose": "List render jobs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/render-jobs/:id",
+      "category": "reads",
+      "purpose": "Fetch one render job"
+    },
+    {
+      "method": "GET",
+      "path": "/api/publish-jobs",
+      "category": "reads",
+      "purpose": "List publish jobs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/publish-jobs/:id",
+      "category": "reads",
+      "purpose": "Fetch one publish job"
+    },
+    {
+      "method": "GET",
+      "path": "/api/platform-accounts",
+      "category": "reads",
+      "purpose": "List platform accounts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/audit-logs",
+      "category": "reads",
+      "purpose": "List audit logs"
+    }
+  ],
+  "executors": {
+    "local_render_executor": {
+      "base_url_source": "RENDER_EXECUTOR_URL",
+      "example_base_url": "http://localhost:8788",
+      "health_path": "/health",
+      "render_path": "/",
+      "purpose": [
+        "tts",
+        "subtitles",
+        "optional background image",
+        "ffmpeg render output"
+      ]
+    },
+    "web_render_executor": {
+      "base_url_source": "environment-specific deployment",
+      "example_base_url": "http://localhost:8791",
+      "health_path": "/health",
+      "render_path": "/",
+      "purpose": [
+        "browser automation adapter entrypoint",
+        "fallback to local render executor"
+      ]
+    }
+  },
+  "executor_request_contract": {
+    "kind": "render",
+    "render_job_id": "render_123",
+    "script_id": "script_123",
+    "short_idea_id": "idea_123",
+    "render_profile": "shorts_1080x1920",
+    "script": {
+      "script_text": "...",
+      "subtitle_text": "...",
+      "duration_sec": 30
+    },
+    "options": {}
+  },
+  "agent_recommendations": [
+    "Check API and executor health before render or full pipeline calls",
+    "Prefer POST /api/ai/execute-pipeline for one-shot automation",
+    "Use GET /api/ai/failed-jobs after failures",
+    "Use POST /api/ai/run-retry-sweep for normal retries",
+    "Use POST /api/ai/restore-and-retry-dead-letter-jobs for dead-letter recovery",
+    "If publish fails for connectivity reasons, call POST /api/ai/platform-accounts/:id/set-status",
+    "Use GET /api/ai/ops-metrics before and after recovery actions"
+  ]
+}

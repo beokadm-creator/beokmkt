@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import ActivityTimeline from '../components/ActivityTimeline'
 import StatusBadge from '../components/StatusBadge'
 import { apiJson } from '../lib/api'
 
@@ -26,6 +27,12 @@ export default function ShortIdeaDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
+  const [reviewForm, setReviewForm] = useState({
+    approvalComment: '',
+    rejectionReason: '',
+    rejectionComment: '',
+    durationSec: '30',
+  })
 
   const title = useMemo(() => idea?.title ?? '숏폼 아이디어', [idea?.title])
 
@@ -50,7 +57,7 @@ export default function ShortIdeaDetailPage() {
     try {
       await apiJson(`/api/short-ideas/${id}/approve`, {
         method: 'POST',
-        body: JSON.stringify({ comment: 'approved via console' }),
+        body: JSON.stringify({ comment: reviewForm.approvalComment.trim() || 'console approved' }),
       })
       await refresh()
     } catch (e) {
@@ -66,7 +73,10 @@ export default function ShortIdeaDetailPage() {
     try {
       await apiJson(`/api/short-ideas/${id}/reject`, {
         method: 'POST',
-        body: JSON.stringify({ reason: 'rejected via console' }),
+        body: JSON.stringify({
+          reason: reviewForm.rejectionReason.trim() || '보완 필요',
+          comment: reviewForm.rejectionComment.trim() || null,
+        }),
       })
       await refresh()
     } catch (e) {
@@ -83,7 +93,7 @@ export default function ShortIdeaDetailPage() {
       await apiJson(`/api/short-ideas/${id}/generate-script`, {
         method: 'POST',
         idempotencyKey: `gen-script-${id}-${Date.now()}`,
-        body: JSON.stringify({ duration_sec: idea?.target_duration_sec ?? 30 }),
+        body: JSON.stringify({ duration_sec: Number(reviewForm.durationSec) || idea?.target_duration_sec || 30 }),
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : '대본 생성 실패')
@@ -139,19 +149,70 @@ export default function ShortIdeaDetailPage() {
 
       {idea ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="md:col-span-2 rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
-            <div className="text-xs text-zinc-400">훅</div>
-            <div className="mt-2 text-sm text-zinc-100">{idea.hook}</div>
-            <div className="mt-4 text-xs text-zinc-400">앵글</div>
-            <div className="mt-2 text-sm text-zinc-100">{idea.angle}</div>
-            <div className="mt-4 text-xs text-zinc-400">CTA</div>
-            <div className="mt-2 text-sm text-zinc-100">{idea.cta ?? '-'}</div>
-            {idea.rejection_reason ? (
-              <>
-                <div className="mt-4 text-xs text-zinc-400">리젝 사유</div>
-                <div className="mt-2 text-sm text-rose-200">{idea.rejection_reason}</div>
-              </>
-            ) : null}
+          <div className="md:col-span-2 flex flex-col gap-4">
+            <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+              <div className="text-xs text-zinc-400">훅</div>
+              <div className="mt-2 text-sm text-zinc-100">{idea.hook}</div>
+              <div className="mt-4 text-xs text-zinc-400">앵글</div>
+              <div className="mt-2 text-sm text-zinc-100">{idea.angle}</div>
+              <div className="mt-4 text-xs text-zinc-400">CTA</div>
+              <div className="mt-2 text-sm text-zinc-100">{idea.cta ?? '-'}</div>
+              {idea.rejection_reason ? (
+                <>
+                  <div className="mt-4 text-xs text-zinc-400">리젝 사유</div>
+                  <div className="mt-2 text-sm text-rose-200">{idea.rejection_reason}</div>
+                </>
+              ) : null}
+            </div>
+
+            <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+              <div className="text-xs text-zinc-400">검수 입력</div>
+              <div className="mt-3 grid grid-cols-1 gap-3">
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">승인 코멘트</span>
+                  <textarea
+                    className="min-h-20 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+                    value={reviewForm.approvalComment}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, approvalComment: e.target.value }))}
+                    placeholder="예: 훅 강하고 리스크 낮아 승인"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">리젝 사유</span>
+                  <input
+                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm"
+                    value={reviewForm.rejectionReason}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, rejectionReason: e.target.value }))}
+                    placeholder="예: 메시지 훅 약함"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">리젝 메모</span>
+                  <textarea
+                    className="min-h-20 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+                    value={reviewForm.rejectionComment}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, rejectionComment: e.target.value }))}
+                    placeholder="예: 첫 3초를 더 공격적으로 수정 필요"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">대본 길이(초)</span>
+                  <input
+                    type="number"
+                    min={10}
+                    max={120}
+                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm"
+                    value={reviewForm.durationSec}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, durationSec: e.target.value }))}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <ActivityTimeline key={idea.id} targetType="short_idea" targetId={idea.id} />
           </div>
 
           <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
@@ -184,4 +245,3 @@ export default function ShortIdeaDetailPage() {
     </div>
   )
 }
-

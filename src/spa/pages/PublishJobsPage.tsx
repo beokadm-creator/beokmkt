@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import StatusBadge from '../components/StatusBadge'
 import { apiJson } from '../lib/api'
 
@@ -15,11 +15,22 @@ type PublishJob = {
 type ListResponse = { items: PublishJob[]; total: number; limit: number; offset: number }
 
 export default function PublishJobsPage() {
-  const [status, setStatus] = useState('')
-  const [platform, setPlatform] = useState('')
+  const location = useLocation()
+  const spFromUrl = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const statusFromUrl = spFromUrl.get('status') ?? ''
+  const platformFromUrl = spFromUrl.get('platform') ?? ''
+
+  const [status, setStatus] = useState(statusFromUrl)
+  const [platform, setPlatform] = useState(platformFromUrl)
   const [data, setData] = useState<ListResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setStatus(statusFromUrl)
+    setPlatform(platformFromUrl)
+  }, [platformFromUrl, statusFromUrl])
 
   const queryString = useMemo(() => {
     const sp = new URLSearchParams()
@@ -30,22 +41,80 @@ export default function PublishJobsPage() {
     return sp.toString()
   }, [platform, status])
 
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     setIsLoading(true)
-    apiJson<ListResponse>(`/api/publish-jobs?${queryString}`)
-      .then((d) => {
-        setData(d)
-        setError(null)
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : '불러오기 실패'))
-      .finally(() => setIsLoading(false))
+    try {
+      const d = await apiJson<ListResponse>(`/api/publish-jobs?${queryString}`)
+      setData(d)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오기 실패')
+    } finally {
+      setIsLoading(false)
+    }
   }, [queryString])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  const awaitingApprovalCount = useMemo(
+    () => data?.items.filter((item) => item.status === 'awaiting_approval').length ?? 0,
+    [data?.items]
+  )
+
+  async function onApprove(id: string) {
+    setBusyId(id)
+    try {
+      await apiJson(`/api/publish-jobs/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ comment: '목록 빠른 업로드 승인' }),
+      })
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '업로드 승인 실패')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function onRetry(id: string) {
+    setBusyId(id)
+    try {
+      await apiJson(`/api/publish-jobs/${id}/retry`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: '목록 빠른 재시도' }),
+      })
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '재시도 실패')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function onCancel(id: string) {
+    setBusyId(id)
+    try {
+      await apiJson(`/api/publish-jobs/${id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: '목록 빠른 취소' }),
+      })
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '취소 실패')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold">업로드 (Publish Jobs)</div>
-        <div className="text-xs text-zinc-500">{isLoading ? '로딩 중…' : data ? `total ${data.total}` : null}</div>
+        <div className="text-xs text-zinc-500">
+          {isLoading ? '로딩 중…' : data ? `total ${data.total} · 승인 대기 ${awaitingApprovalCount}` : null}
+        </div>
       </div>
 
       <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
@@ -87,10 +156,11 @@ export default function PublishJobsPage() {
         <table className="w-full table-fixed">
           <thead className="bg-zinc-950">
             <tr className="text-left text-xs text-zinc-400">
-              <th className="w-[44%] px-4 py-3">id</th>
-              <th className="w-[16%] px-4 py-3">platform</th>
-              <th className="w-[20%] px-4 py-3">status</th>
-              <th className="w-[20%] px-4 py-3">retry</th>
+              <th className="w-[30%] px-4 py-3">id</th>
+              <th className="w-[14%] px-4 py-3">platform</th>
+              <th className="w-[18%] px-4 py-3">status</th>
+              <th className="w-[12%] px-4 py-3">retry</th>
+              <th className="w-[26%] px-4 py-3">action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900 bg-zinc-950/40">
@@ -111,11 +181,50 @@ export default function PublishJobsPage() {
                   <StatusBadge value={it.status} />
                 </td>
                 <td className="px-4 py-3 text-zinc-300">{it.retry_count}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {it.status === 'awaiting_approval' ? (
+                      <button
+                        type="button"
+                        disabled={busyId === it.id}
+                        onClick={() => onApprove(it.id)}
+                        className="h-8 rounded-lg bg-white px-2 text-xs font-medium text-zinc-950 disabled:opacity-60"
+                      >
+                        승인
+                      </button>
+                    ) : null}
+                    {it.status === 'failed' ? (
+                      <button
+                        type="button"
+                        disabled={busyId === it.id}
+                        onClick={() => onRetry(it.id)}
+                        className="h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 disabled:opacity-60"
+                      >
+                        재시도
+                      </button>
+                    ) : null}
+                    {it.status !== 'cancelled' && it.status !== 'uploaded' ? (
+                      <button
+                        type="button"
+                        disabled={busyId === it.id}
+                        onClick={() => onCancel(it.id)}
+                        className="h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 disabled:opacity-60"
+                      >
+                        취소
+                      </button>
+                    ) : null}
+                    {it.status === 'cancelled' || it.status === 'uploaded' ? (
+                      <Link className="text-xs text-zinc-500 underline" to={`/publish-jobs/${it.id}`}>
+                        상세
+                      </Link>
+                    ) : null}
+                  </div>
+                </td>
               </tr>
             ))}
             {!data?.items.length ? (
               <tr>
-                <td className="px-4 py-8 text-sm text-zinc-500" colSpan={4}>
+                <td className="px-4 py-8 text-sm text-zinc-500" colSpan={5}>
                   데이터가 없습니다. 렌더 작업 상세에서 “업로드 작업 생성”을 실행하세요.
                 </td>
               </tr>
@@ -126,4 +235,3 @@ export default function PublishJobsPage() {
     </div>
   )
 }
-

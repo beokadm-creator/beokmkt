@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import StatusBadge from '../components/StatusBadge'
 import { apiJson } from '../lib/api'
@@ -18,10 +18,17 @@ export default function ScriptsPage() {
   const location = useLocation()
   const spFromUrl = useMemo(() => new URLSearchParams(location.search), [location.search])
   const shortIdeaId = spFromUrl.get('short_idea_id') ?? ''
+  const statusFromUrl = spFromUrl.get('status') ?? ''
 
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(statusFromUrl)
   const [data, setData] = useState<ListResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setStatus(statusFromUrl)
+  }, [statusFromUrl])
 
   const queryString = useMemo(() => {
     const sp = new URLSearchParams()
@@ -32,20 +39,70 @@ export default function ScriptsPage() {
     return sp.toString()
   }, [shortIdeaId, status])
 
-  useEffect(() => {
-    apiJson<ListResponse>(`/api/scripts?${queryString}`)
-      .then((d) => {
-        setData(d)
-        setError(null)
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : '불러오기 실패'))
+  const refresh = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const d = await apiJson<ListResponse>(`/api/scripts?${queryString}`)
+      setData(d)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오기 실패')
+    } finally {
+      setIsLoading(false)
+    }
   }, [queryString])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  const awaitingCount = useMemo(
+    () => data?.items.filter((item) => item.status === 'awaiting_review').length ?? 0,
+    [data?.items]
+  )
+
+  async function onApprove(id: string) {
+    setBusyId(id)
+    try {
+      await apiJson(`/api/scripts/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ comment: '목록 빠른 승인', fact_check_status: 'passed' }),
+      })
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '승인 실패')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function onRequestRevision(id: string) {
+    setBusyId(id)
+    try {
+      await apiJson(`/api/scripts/${id}/request-revision`, {
+        method: 'POST',
+        idempotencyKey: `quick-revise-${id}-${Date.now()}`,
+        body: JSON.stringify({
+          reason: '목록 검수에서 수정 요청',
+          instructions: '첫 문단 훅 강화 후 재검토',
+          comment: '리듬감과 CTA를 조금 더 선명하게 정리 필요',
+        }),
+      })
+      await refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '수정 요청 실패')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold">대본</div>
-        <div className="text-xs text-zinc-500">{data ? `total ${data.total}` : null}</div>
+        <div className="text-xs text-zinc-500">
+          {isLoading ? '로딩 중…' : data ? `total ${data.total} · 검수 대기 ${awaitingCount}` : null}
+        </div>
       </div>
 
       <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
@@ -80,10 +137,11 @@ export default function ScriptsPage() {
         <table className="w-full table-fixed">
           <thead className="bg-zinc-950">
             <tr className="text-left text-xs text-zinc-400">
-              <th className="w-[44%] px-4 py-3">id</th>
-              <th className="w-[16%] px-4 py-3">version</th>
-              <th className="w-[16%] px-4 py-3">duration</th>
-              <th className="w-[24%] px-4 py-3">status</th>
+              <th className="w-[34%] px-4 py-3">id</th>
+              <th className="w-[12%] px-4 py-3">version</th>
+              <th className="w-[14%] px-4 py-3">duration</th>
+              <th className="w-[18%] px-4 py-3">status</th>
+              <th className="w-[22%] px-4 py-3">action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900 bg-zinc-950/40">
@@ -104,11 +162,37 @@ export default function ScriptsPage() {
                 <td className="px-4 py-3">
                   <StatusBadge value={it.status} />
                 </td>
+                <td className="px-4 py-3">
+                  {it.status === 'awaiting_review' ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={busyId === it.id}
+                        onClick={() => onApprove(it.id)}
+                        className="h-8 rounded-lg bg-white px-2 text-xs font-medium text-zinc-950 disabled:opacity-60"
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyId === it.id}
+                        onClick={() => onRequestRevision(it.id)}
+                        className="h-8 rounded-lg border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-200 disabled:opacity-60"
+                      >
+                        수정 요청
+                      </button>
+                    </div>
+                  ) : (
+                    <Link className="text-xs text-zinc-500 underline" to={`/scripts/${it.id}`}>
+                      상세
+                    </Link>
+                  )}
+                </td>
               </tr>
             ))}
             {!data?.items.length ? (
               <tr>
-                <td className="px-4 py-8 text-sm text-zinc-500" colSpan={4}>
+                <td className="px-4 py-8 text-sm text-zinc-500" colSpan={5}>
                   데이터가 없습니다. 아이디어에서 “대본 생성”을 실행하세요.
                 </td>
               </tr>
@@ -119,4 +203,3 @@ export default function ScriptsPage() {
     </div>
   )
 }
-

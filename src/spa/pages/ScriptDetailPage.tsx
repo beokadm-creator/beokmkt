@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import ActivityTimeline from '../components/ActivityTimeline'
 import StatusBadge from '../components/StatusBadge'
 import { apiJson } from '../lib/api'
 
@@ -12,6 +13,7 @@ type Script = {
   subtitle_text: string
   status: string
   fact_check_status: string
+  revision_reason?: string | null
   created_at: string
 }
 
@@ -24,6 +26,13 @@ export default function ScriptDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
+  const [reviewForm, setReviewForm] = useState({
+    approvalComment: '',
+    factCheckStatus: 'passed',
+    revisionReason: '',
+    revisionInstructions: '',
+    revisionComment: '',
+  })
 
   const title = useMemo(() => (script ? `대본 v${script.version}` : '대본'), [script])
 
@@ -48,7 +57,10 @@ export default function ScriptDetailPage() {
     try {
       await apiJson(`/api/scripts/${id}/approve`, {
         method: 'POST',
-        body: JSON.stringify({ comment: 'approved via console', fact_check_status: 'passed' }),
+        body: JSON.stringify({
+          comment: reviewForm.approvalComment.trim() || 'console approved',
+          fact_check_status: reviewForm.factCheckStatus,
+        }),
       })
       await refresh()
     } catch (e) {
@@ -65,7 +77,11 @@ export default function ScriptDetailPage() {
       await apiJson(`/api/scripts/${id}/request-revision`, {
         method: 'POST',
         idempotencyKey: `revise-${id}-${Date.now()}`,
-        body: JSON.stringify({ reason: 'revision requested via console', instructions: '첫 3초 훅 강화' }),
+        body: JSON.stringify({
+          reason: reviewForm.revisionReason.trim() || '수정 필요',
+          instructions: reviewForm.revisionInstructions.trim() || '첫 3초 훅 강화',
+          comment: reviewForm.revisionComment.trim() || null,
+        }),
       })
       await refresh()
     } catch (e) {
@@ -139,11 +155,73 @@ export default function ScriptDetailPage() {
 
       {script ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="md:col-span-2 rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
-            <div className="text-xs text-zinc-400">대본</div>
-            <pre className="mt-2 whitespace-pre-wrap text-sm text-zinc-100">{script.script_text}</pre>
-            <div className="mt-4 text-xs text-zinc-400">자막</div>
-            <pre className="mt-2 whitespace-pre-wrap text-sm text-zinc-100">{script.subtitle_text}</pre>
+          <div className="md:col-span-2 flex flex-col gap-4">
+            <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+              <div className="text-xs text-zinc-400">대본</div>
+              <pre className="mt-2 whitespace-pre-wrap text-sm text-zinc-100">{script.script_text}</pre>
+              <div className="mt-4 text-xs text-zinc-400">자막</div>
+              <pre className="mt-2 whitespace-pre-wrap text-sm text-zinc-100">{script.subtitle_text}</pre>
+            </div>
+
+            <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+              <div className="text-xs text-zinc-400">검수 입력</div>
+              <div className="mt-3 grid grid-cols-1 gap-3">
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">승인 코멘트</span>
+                  <textarea
+                    className="min-h-20 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+                    value={reviewForm.approvalComment}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, approvalComment: e.target.value }))}
+                    placeholder="예: 사실 검수 완료, 렌더 진행 가능"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">팩트체크 상태</span>
+                  <select
+                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm"
+                    value={reviewForm.factCheckStatus}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, factCheckStatus: e.target.value }))}
+                  >
+                    <option value="passed">passed</option>
+                    <option value="pending">pending</option>
+                    <option value="needs_review">needs_review</option>
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">수정 사유</span>
+                  <input
+                    className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm"
+                    value={reviewForm.revisionReason}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, revisionReason: e.target.value }))}
+                    placeholder="예: 구조는 좋지만 오프닝 임팩트 부족"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">수정 지시</span>
+                  <textarea
+                    className="min-h-20 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+                    value={reviewForm.revisionInstructions}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, revisionInstructions: e.target.value }))}
+                    placeholder="예: 첫 문장을 질문형으로 바꾸고 CTA를 더 짧게 정리"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-xs text-zinc-400">검수 메모</span>
+                  <textarea
+                    className="min-h-20 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+                    value={reviewForm.revisionComment}
+                    onChange={(e) => setReviewForm((current) => ({ ...current, revisionComment: e.target.value }))}
+                    placeholder="예: 정보는 유지하되 템포를 더 빠르게"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <ActivityTimeline key={script.id} targetType="script" targetId={script.id} />
           </div>
           <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
             <div className="text-xs text-zinc-400">메타</div>
@@ -163,6 +241,12 @@ export default function ScriptDetailPage() {
                 </Link>
               </div>
             </div>
+            {script.revision_reason ? (
+              <>
+                <div className="mt-4 text-xs text-zinc-400">현재 수정 지시</div>
+                <div className="mt-2 text-sm text-zinc-300">{script.revision_reason}</div>
+              </>
+            ) : null}
           </div>
         </div>
       ) : null}

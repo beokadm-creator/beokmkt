@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiJson } from '../lib/api'
 import StatusBadge from '../components/StatusBadge'
 
@@ -100,7 +101,24 @@ export default function DashboardPage() {
           <div className="mt-3 text-sm text-zinc-500">데이터 준비 중…</div>
         )}
       </div>
+
+      <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+        <div className="text-sm font-semibold">운영 바로가기</div>
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
+          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/short-ideas?status=awaiting_review">
+            아이디어 검수 대기
+          </Link>
+          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/scripts?status=awaiting_review">
+            대본 검수 대기
+          </Link>
+          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/render-jobs">
+            렌더 운영 보기
+          </Link>
+          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/publish-jobs?status=awaiting_approval">
+            업로드 승인 대기
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
-
