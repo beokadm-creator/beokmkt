@@ -24,6 +24,7 @@ function withDefaults(store) {
     approvals: store.approvals ?? [],
     workflow_events: store.workflow_events ?? [],
     audit_logs: store.audit_logs ?? [],
+    oauth_states: store.oauth_states ?? [],
     idempotency: store.idempotency ?? {},
   }
 }

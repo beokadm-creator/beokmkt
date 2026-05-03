@@ -1,12 +1,13 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { GoogleAuthProvider, User, onIdTokenChanged, signInWithPopup, signOut } from 'firebase/auth'
-import { auth } from './firebase'
+import { auth, firebaseAuthConfigError } from './firebase'
 
 const TOKEN_KEY = 'beokmkt_id_token'
 
 type AuthState = {
   user: User | null
   isReady: boolean
+  configError: string | null
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -18,6 +19,13 @@ export function AuthProvider(props: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
+    if (!auth) {
+      localStorage.removeItem(TOKEN_KEY)
+      setUser(null)
+      setIsReady(true)
+      return
+    }
+
     const unsub = onIdTokenChanged(auth, async (u) => {
       setUser(u)
       if (u) {
@@ -35,11 +43,17 @@ export function AuthProvider(props: { children: ReactNode }) {
     return {
       user,
       isReady,
+      configError: firebaseAuthConfigError,
       signInWithGoogle: async () => {
+        if (!auth) throw new Error(firebaseAuthConfigError ?? 'Firebase Auth is not configured')
         const provider = new GoogleAuthProvider()
         await signInWithPopup(auth, provider)
       },
       signOut: async () => {
+        if (!auth) {
+          localStorage.removeItem(TOKEN_KEY)
+          return
+        }
         await signOut(auth)
       },
     }
@@ -57,4 +71,3 @@ export function useAuth() {
 export function getCachedIdToken() {
   return localStorage.getItem(TOKEN_KEY)
 }
-

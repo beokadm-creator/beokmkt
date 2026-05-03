@@ -312,7 +312,7 @@ export default function RenderJobDetailPage() {
               </div>
 
               <div className="mt-3 text-xs text-zinc-500">
-                연결 계정이 없으면 <Link to="/settings/platform-accounts" className="underline">플랫폼 계정 설정</Link>에서 데모 계정을 먼저 연결하세요.
+                연결 계정이 없으면 <Link to="/settings/platform-accounts" className="underline">플랫폼 계정 설정</Link>에서 YouTube 계정을 먼저 연동하세요.
               </div>
 
               <button

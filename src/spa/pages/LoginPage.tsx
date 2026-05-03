@@ -33,10 +33,20 @@ export default function LoginPage() {
         <div className="text-lg font-semibold">beokmkt 콘솔 로그인</div>
         <div className="mt-2 text-sm text-zinc-400">Firebase Auth로 로그인합니다.</div>
 
+        {auth.configError ? (
+          <div className="mt-6 rounded-xl border border-amber-900/60 bg-amber-950/30 p-4 text-sm text-amber-200">
+            <div className="font-medium">Firebase 설정이 필요합니다.</div>
+            <div className="mt-2 break-words text-amber-100">{auth.configError}</div>
+            <div className="mt-2 text-amber-300/80">
+              프로젝트 루트 `.env`에 Firebase 웹앱 값을 넣고 `npm run dev:spa`를 다시 시작하세요.
+            </div>
+          </div>
+        ) : null}
+
         <button
           type="button"
           onClick={onGoogle}
-          disabled={isBusy}
+          disabled={isBusy || Boolean(auth.configError)}
           className="mt-8 inline-flex h-11 items-center justify-center rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 disabled:opacity-60"
         >
           {isBusy ? '로그인 중…' : 'Google로 로그인'}
@@ -47,4 +57,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

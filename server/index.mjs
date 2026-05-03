@@ -1,6 +1,8 @@
+import 'dotenv/config'
 import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import crypto from 'crypto'
 import { getIdempotency, loadStore, newId, nowIso, saveStore, setIdempotency } from './store.mjs'
 
 const app = express()
@@ -99,7 +101,7 @@ function defaultModelForProvider(provider) {
     mistral: 'mistral-small-latest',
     cohere: 'command-r',
     zhipu: 'glm-4-flash',
-    zai: 'glm-4-flash',
+    zai: 'glm-5.1',
   }
   return table[provider] ?? 'gpt-4o-mini'
 }
@@ -152,6 +154,292 @@ function maybeParseJson(text) {
     }
   }
   return null
+}
+
+const GOOGLE_OAUTH_SCOPE = [
+  'https://www.googleapis.com/auth/youtube.upload',
+  'https://www.googleapis.com/auth/youtube.readonly',
+]
+
+function envValue(name) {
+  return typeof process.env[name] === 'string' ? process.env[name].trim() : ''
+}
+
+function appBaseUrl(req) {
+  const explicit = envValue('APP_BASE_URL')
+  if (explicit) return explicit.replace(/\/+$/, '')
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http'
+  const host = req.headers['x-forwarded-host'] || req.get('host')
+  return `${proto}://${host}`.replace(/\/+$/, '')
+}
+
+function spaBaseUrl(req) {
+  const explicit = envValue('SPA_BASE_URL')
+  if (explicit) return explicit.replace(/\/+$/, '')
+  const referer = typeof req.get('referer') === 'string' ? req.get('referer') : ''
+  if (referer) {
+    try {
+      const parsed = new URL(referer)
+      return parsed.origin
+    } catch {}
+  }
+  const fallback = envValue('VITE_API_TARGET')
+  if (fallback) {
+    try {
+      const parsed = new URL(fallback)
+      if (parsed.port === '8787') return 'http://localhost:5173'
+    } catch {}
+  }
+  return 'http://localhost:5173'
+}
+
+function googleOauthConfig(req) {
+  const clientId = envValue('GOOGLE_CLIENT_ID')
+  const clientSecret = envValue('GOOGLE_CLIENT_SECRET')
+  const redirectUri = envValue('GOOGLE_REDIRECT_URI') || `${appBaseUrl(req)}/api/auth/google/callback`
+  return { clientId, clientSecret, redirectUri }
+}
+
+function createStateToken() {
+  return crypto.randomBytes(24).toString('hex')
+}
+
+function minutesFromNowIso(minutes) {
+  return new Date(Date.now() + minutes * 60 * 1000).toISOString()
+}
+
+function sanitizePlatformAccount(account) {
+  if (!account) return null
+  return {
+    id: account.id,
+    platform: account.platform,
+    account_name: account.account_name,
+    status: account.status,
+    access_token_expires_at: account.access_token_expires_at ?? null,
+    channel_id: account.channel_id ?? null,
+    channel_title: account.channel_title ?? null,
+    token_last_refreshed_at: account.token_last_refreshed_at ?? null,
+    last_error_code: account.last_error_code ?? null,
+    last_error_message: account.last_error_message ?? null,
+    created_at: account.created_at ?? null,
+    updated_at: account.updated_at ?? null,
+    deleted_at: account.deleted_at ?? null,
+  }
+}
+
+function defaultPlatformAccountsReturnUrl(req) {
+  return `${spaBaseUrl(req)}/settings/platform-accounts`
+}
+
+function resolveReturnToUrl(req, rawValue) {
+  const allowedOrigin = spaBaseUrl(req)
+  if (isNonEmptyString(rawValue)) {
+    try {
+      const parsed = new URL(rawValue)
+      if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.origin === allowedOrigin) {
+        return parsed.toString()
+      }
+    } catch {}
+  }
+  const envDefault = envValue('GOOGLE_OAUTH_DEFAULT_RETURN_TO')
+  if (envDefault) {
+    try {
+      const parsed = new URL(envDefault)
+      if (parsed.origin === allowedOrigin) return parsed.toString()
+    } catch {}
+  }
+  return defaultPlatformAccountsReturnUrl(req)
+}
+
+function withQueryParams(url, params) {
+  const next = new URL(url)
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    next.searchParams.set(key, String(value))
+  })
+  return next.toString()
+}
+
+function createHttpError(status, errorCode, message, details = undefined) {
+  const error = new Error(message)
+  error.statusCode = status
+  error.errorCode = errorCode
+  error.details = details
+  return error
+}
+
+async function googleTokenRequest(params) {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params).toString(),
+  })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) {
+    throw createHttpError(
+      res.status,
+      'AUTH_ERROR',
+      data?.error_description || data?.error || `Google token HTTP ${res.status}`,
+      { response: data }
+    )
+  }
+  return data
+}
+
+async function fetchGoogleChannelProfile(accessToken) {
+  const res = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) {
+    throw createHttpError(
+      res.status,
+      res.status === 401 ? 'AUTH_ERROR' : 'NETWORK_ERROR',
+      data?.error?.message || `YouTube channels HTTP ${res.status}`,
+      { response: data }
+    )
+  }
+  const item = Array.isArray(data?.items) ? data.items[0] : null
+  if (!item?.id) throw createHttpError(404, 'NOT_FOUND', 'YouTube channel not found')
+  return {
+    channel_id: item.id,
+    channel_title: item?.snippet?.title ?? 'YouTube channel',
+  }
+}
+
+function consumeOauthState(stateToken) {
+  const index = store.oauth_states.findIndex((item) => item?.state === stateToken)
+  if (index < 0) return null
+  const [entry] = store.oauth_states.splice(index, 1)
+  return entry
+}
+
+function cleanupOauthStates(now = Date.now()) {
+  store.oauth_states = store.oauth_states.filter((item) => {
+    const expiresAt = typeof item?.expires_at === 'string' ? Date.parse(item.expires_at) : NaN
+    return Number.isNaN(expiresAt) || expiresAt > now
+  })
+}
+
+async function refreshGooglePlatformAccountTokens(account, actorType = 'system') {
+  if (!account) throw createHttpError(404, 'NOT_FOUND', 'platform account not found')
+  if (!isNonEmptyString(account.refresh_token)) {
+    account.status = 'disconnected'
+    account.last_error_code = 'AUTH_ERROR'
+    account.last_error_message = 'Missing refresh token'
+    account.updated_at = nowIso()
+    await saveStore(store)
+    throw createHttpError(401, 'AUTH_ERROR', 'Missing refresh token')
+  }
+
+  const config = googleOauthConfig({ headers: {}, protocol: 'http', get() { return '' } })
+  if (!config.clientId || !config.clientSecret) {
+    throw createHttpError(500, 'CONFIG_REQUIRED', 'Google OAuth is not configured')
+  }
+
+  const tokenData = await googleTokenRequest({
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    refresh_token: account.refresh_token,
+    grant_type: 'refresh_token',
+  })
+
+  const expiresInSec = Math.max(60, Number(tokenData?.expires_in ?? 3600) || 3600)
+  account.access_token = tokenData.access_token
+  if (isNonEmptyString(tokenData.refresh_token)) account.refresh_token = tokenData.refresh_token
+  account.access_token_expires_at = new Date(Date.now() + expiresInSec * 1000).toISOString()
+  account.token_last_refreshed_at = nowIso()
+  account.status = 'connected'
+  account.last_error_code = null
+  account.last_error_message = null
+  account.updated_at = nowIso()
+  addAuditLog('platform_account.tokens_refreshed', 'platform_account', account.id, actorType)
+  await saveStore(store)
+  return account
+}
+
+async function ensureGoogleAccessToken(account, actorType = 'system') {
+  const rawExpiresAt = account?.access_token_expires_at
+  const accessToken = typeof account?.access_token === 'string' ? account.access_token.trim() : ''
+  if (!accessToken) return refreshGooglePlatformAccountTokens(account, actorType)
+  if (!isNonEmptyString(rawExpiresAt)) return account
+  const ts = Date.parse(rawExpiresAt)
+  if (Number.isNaN(ts)) return account
+  if (ts <= Date.now() + 60_000) return refreshGooglePlatformAccountTokens(account, actorType)
+  return account
+}
+
+async function uploadYouTubeShort(account, publishJob, renderJob) {
+  const assetUrl = renderJob?.output?.asset_url
+  if (!isNonEmptyString(assetUrl)) {
+    throw createHttpError(422, 'INVALID_PAYLOAD', 'render asset_url is required for YouTube upload')
+  }
+
+  const refreshed = await ensureGoogleAccessToken(account, 'ai')
+  const mediaResponse = await fetch(assetUrl)
+  if (!mediaResponse.ok) {
+    throw createHttpError(mediaResponse.status, 'NETWORK_ERROR', `Failed to fetch render asset HTTP ${mediaResponse.status}`)
+  }
+  const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer())
+  const title = isNonEmptyString(publishJob?.payload?.title) ? publishJob.payload.title.trim() : 'BeokMKT Shorts'
+  const description = [
+    isNonEmptyString(publishJob?.payload?.description) ? publishJob.payload.description.trim() : '',
+    Array.isArray(publishJob?.payload?.hashtags) ? publishJob.payload.hashtags.join(' ') : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+  const privacyStatus = isNonEmptyString(publishJob?.payload?.visibility) ? publishJob.payload.visibility.trim() : 'private'
+
+  const metadata = {
+    snippet: {
+      title: title.slice(0, 100),
+      description: description.slice(0, 5000),
+    },
+    status: {
+      privacyStatus,
+      selfDeclaredMadeForKids: false,
+    },
+  }
+
+  const boundary = `beokmkt-${crypto.randomBytes(12).toString('hex')}`
+  const metadataPart = Buffer.from(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
+    'utf8'
+  )
+  const mediaHeader = Buffer.from(
+    `--${boundary}\r\nContent-Type: video/mp4\r\nContent-Transfer-Encoding: binary\r\n\r\n`,
+    'utf8'
+  )
+  const closing = Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8')
+  const requestBody = Buffer.concat([metadataPart, mediaHeader, mediaBuffer, closing])
+
+  const uploadRes = await fetch('https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=multipart', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${refreshed.access_token}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+      'Content-Length': String(requestBody.length),
+    },
+    body: requestBody,
+  })
+  const uploadData = await uploadRes.json().catch(() => null)
+  if (!uploadRes.ok) {
+    throw createHttpError(
+      uploadRes.status,
+      uploadRes.status === 401 ? 'AUTH_ERROR' : 'NETWORK_ERROR',
+      uploadData?.error?.message || `YouTube upload HTTP ${uploadRes.status}`,
+      { response: uploadData }
+    )
+  }
+
+  const mediaId = typeof uploadData?.id === 'string' ? uploadData.id : newId()
+  return {
+    platform_media_id: mediaId,
+    permalink: `https://www.youtube.com/shorts/${mediaId}`,
+    uploaded_at: nowIso(),
+    publish_provider: 'youtube-data-api',
+    render_asset_url: assetUrl,
+  }
 }
 
 async function generateAiText(config, systemPrompt, userPrompt) {
@@ -215,7 +503,7 @@ async function generateAiText(config, systemPrompt, userPrompt) {
     openai: 'https://api.openai.com/v1/chat/completions',
     mistral: 'https://api.mistral.ai/v1/chat/completions',
     zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    zai: 'https://api.z.ai/v1/chat/completions',
+    zai: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
   }
 
   const endpoint = endpointTable[config.provider]
@@ -839,7 +1127,7 @@ async function executePublishJobById(publishJobId, body = {}, actorType = 'ai') 
     : null
   if (!account) throw new Error('platform_account_not_found')
   if (account.status !== 'connected') throw new Error('platform_account_not_connected')
-  const accountExpiresAt = account.access_token_expires_at
+  const targetPlatform = publishJob.platform || account.platform || 'youtube'
   if (isDeadLettered(publishJob)) throw new Error('job_dead_lettered')
   if (!['queued', 'failed', 'uploading'].includes(publishJob.status)) throw new Error('job_not_runnable')
   if (isExecutionLocked(publishJob)) throw new Error('job_locked')
@@ -862,17 +1150,18 @@ async function executePublishJobById(publishJobId, body = {}, actorType = 'ai') 
   await saveStore(store)
 
   const webhook = buildWebhookConfig('publish', body)
-  if (isNonEmptyString(accountExpiresAt)) {
-    const ts = Date.parse(accountExpiresAt)
-    if (!Number.isNaN(ts) && ts <= Date.now()) {
-      const errorCode = 'PLATFORM_ACCOUNT_NOT_CONNECTED'
+  if (targetPlatform === 'youtube') {
+    try {
+      await ensureGoogleAccessToken(account, actorType)
+    } catch (error) {
+      const errorCode = resolveExecutionErrorCode(error, 'AUTH_ERROR')
       const retryPolicy = computeRetryPolicy(errorCode, attemptCount, body)
       publishJob.status = 'failed'
-      publishJob.error_message = 'platform account token expired'
+      publishJob.error_message = error instanceof Error ? error.message : 'platform account token refresh failed'
       publishJob.execution = {
         ...(publishJob.execution ?? {}),
-        adapter: webhook.url ? 'webhook' : 'local',
-        provider: typeof body.publish_provider === 'string' ? body.publish_provider : 'ai-uploader',
+        adapter: webhook.url ? 'webhook' : 'youtube-api',
+        provider: typeof body.publish_provider === 'string' ? body.publish_provider : 'youtube-data-api',
         attempt_count: attemptCount,
         last_attempt_at: lastAttemptAt,
         last_error_code: errorCode,
@@ -922,7 +1211,7 @@ async function executePublishJobById(publishJobId, body = {}, actorType = 'ai') 
   let result = {
     platform_media_id: mediaId,
     permalink:
-      typeof body.permalink === 'string' && body.permalink.trim() ? body.permalink.trim() : defaultPublishPermalink(publishJob.platform || account.platform || 'youtube', mediaId),
+      typeof body.permalink === 'string' && body.permalink.trim() ? body.permalink.trim() : defaultPublishPermalink(targetPlatform, mediaId),
     uploaded_at: nowIso(),
     publish_provider: typeof body.publish_provider === 'string' ? body.publish_provider : 'ai-uploader',
     render_asset_url: renderJob.output?.asset_url ?? null,
@@ -946,10 +1235,10 @@ async function executePublishJobById(publishJobId, body = {}, actorType = 'ai') 
       const webhookResult = await callWebhookExecutorWithMeta(webhook, {
         kind: 'publish',
         publish_job_id: publishJobId,
-        platform: publishJob.platform || account.platform || 'youtube',
+        platform: targetPlatform,
         publish_job: publishJob,
         render_job: renderJob,
-        account,
+        account: sanitizePlatformAccount(account),
         options: body,
       })
       const external = webhookResult?.data
@@ -1077,7 +1366,59 @@ async function executePublishJobById(publishJobId, body = {}, actorType = 'ai') 
     }
   }
 
-  if (!webhook.url) {
+  if (!webhook.url && targetPlatform === 'youtube') {
+    try {
+      result = await uploadYouTubeShort(account, publishJob, renderJob)
+      finalStatus = publishJob.payload?.visibility === 'public' ? 'published' : 'uploaded'
+      execution = {
+        ...execution,
+        adapter: 'youtube-api',
+        provider: result.publish_provider,
+      }
+      execution = appendExecutionTrace(execution, {
+        at: result.uploaded_at,
+        kind: 'publish',
+        adapter: 'youtube-api',
+        duration_ms: null,
+        http_status: 200,
+        status: finalStatus,
+        error_code: null,
+        error_message: null,
+        external_job_id: result.platform_media_id ?? null,
+      })
+    } catch (error) {
+      const errorCode = resolveExecutionErrorCode(error, 'NETWORK_ERROR')
+      const retryPolicy = computeRetryPolicy(errorCode, attemptCount, body)
+      publishJob.status = 'failed'
+      publishJob.error_message = error instanceof Error ? error.message : 'YouTube upload failed'
+      publishJob.execution = {
+        ...appendExecutionTrace(execution, {
+          at: nowIso(),
+          kind: 'publish',
+          adapter: 'youtube-api',
+          duration_ms: null,
+          http_status: Number(error?.statusCode ?? error?.details?.http_status ?? 0) || null,
+          status: 'failed',
+          error_code: errorCode,
+          error_message: publishJob.error_message,
+          external_job_id: null,
+        }),
+        adapter: 'youtube-api',
+        provider: 'youtube-data-api',
+        last_error_code: errorCode,
+        next_retry_at: retryPolicy.next_retry_at,
+        max_attempts: retryPolicy.max_attempts,
+        dead_lettered_at: retryPolicy.dead_lettered_at,
+        dead_letter_reason: retryPolicy.dead_letter_reason,
+      }
+      publishJob.updated_at = nowIso()
+      addAuditLog('publish_job.execution_failed', 'publish_job', publishJobId, actorType)
+      await saveStore(store)
+      return { id: publishJobId, status: 'failed', error_message: publishJob.error_message, render_job_id: renderJob.id }
+    }
+  }
+
+  if (!webhook.url && targetPlatform !== 'youtube') {
     execution = appendExecutionTrace(execution, {
       at: result.uploaded_at,
       kind: 'publish',
@@ -3338,34 +3679,164 @@ app.post('/api/publish-jobs/:id/cancel', async (req, res) => {
   ok(res, { id, status: job.status })
 })
 
+app.get('/api/auth/google', async (req, res) => {
+  const config = googleOauthConfig(req)
+  if (!config.clientId || !config.clientSecret) {
+    return fail(res, 500, 'CONFIG_REQUIRED', 'Google OAuth is not configured', {})
+  }
+
+  cleanupOauthStates()
+  const returnTo = resolveReturnToUrl(req, typeof req.query.return_to === 'string' ? req.query.return_to : '')
+  const state = createStateToken()
+  store.oauth_states.unshift({
+    state,
+    return_to: returnTo,
+    created_at: nowIso(),
+    expires_at: minutesFromNowIso(15),
+  })
+  await saveStore(store)
+
+  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+  authUrl.searchParams.set('client_id', config.clientId)
+  authUrl.searchParams.set('redirect_uri', config.redirectUri)
+  authUrl.searchParams.set('response_type', 'code')
+  authUrl.searchParams.set('scope', GOOGLE_OAUTH_SCOPE.join(' '))
+  authUrl.searchParams.set('access_type', 'offline')
+  authUrl.searchParams.set('prompt', 'consent')
+  authUrl.searchParams.set('include_granted_scopes', 'true')
+  authUrl.searchParams.set('state', state)
+
+  ok(res, { auth_url: authUrl.toString(), redirect_uri: config.redirectUri, return_to: returnTo })
+})
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  const stateToken = typeof req.query.state === 'string' ? req.query.state : ''
+  const code = typeof req.query.code === 'string' ? req.query.code : ''
+  const fallbackReturnTo = resolveReturnToUrl(req, '')
+
+  if (!stateToken || !code) {
+    return res.redirect(withQueryParams(fallbackReturnTo, { google_oauth: 'error', message: 'missing_state_or_code' }))
+  }
+
+  cleanupOauthStates()
+  const stateEntry = consumeOauthState(stateToken)
+  await saveStore(store)
+  if (!stateEntry) {
+    return res.redirect(withQueryParams(fallbackReturnTo, { google_oauth: 'error', message: 'invalid_or_expired_state' }))
+  }
+
+  const returnTo = resolveReturnToUrl(req, stateEntry.return_to)
+  const config = googleOauthConfig(req)
+  if (!config.clientId || !config.clientSecret) {
+    return res.redirect(withQueryParams(returnTo, { google_oauth: 'error', message: 'google_oauth_not_configured' }))
+  }
+
+  try {
+    const tokenData = await googleTokenRequest({
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: config.redirectUri,
+    })
+    const channel = await fetchGoogleChannelProfile(tokenData.access_token)
+    const expiresInSec = Math.max(60, Number(tokenData?.expires_in ?? 3600) || 3600)
+    const now = nowIso()
+    const existing = store.platform_accounts.find(
+      (item) => !item.deleted_at && item.platform === 'youtube' && item.channel_id === channel.channel_id
+    )
+
+    const target = existing ?? {
+      id: newId(),
+      platform: 'youtube',
+      created_at: now,
+      deleted_at: null,
+    }
+
+    Object.assign(target, {
+      account_name: channel.channel_title,
+      status: 'connected',
+      access_token: tokenData.access_token,
+      refresh_token: isNonEmptyString(tokenData.refresh_token) ? tokenData.refresh_token : target.refresh_token ?? null,
+      access_token_expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
+      scope: typeof tokenData.scope === 'string' ? tokenData.scope : GOOGLE_OAUTH_SCOPE.join(' '),
+      token_type: typeof tokenData.token_type === 'string' ? tokenData.token_type : 'Bearer',
+      oauth_provider: 'google',
+      channel_id: channel.channel_id,
+      channel_title: channel.channel_title,
+      token_last_refreshed_at: now,
+      last_error_code: null,
+      last_error_message: null,
+      updated_at: now,
+    })
+
+    if (!existing) store.platform_accounts.unshift(target)
+    addAuditLog('platform_account.google_connected', 'platform_account', target.id, 'user')
+    await saveStore(store)
+
+    return res.redirect(
+      withQueryParams(returnTo, {
+        google_oauth: 'success',
+        account_id: target.id,
+        account_name: target.account_name,
+      })
+    )
+  } catch (error) {
+    return res.redirect(
+      withQueryParams(returnTo, {
+        google_oauth: 'error',
+        message: error instanceof Error ? error.message : 'google_oauth_failed',
+      })
+    )
+  }
+})
+
+app.post('/api/auth/google/refresh/:account_id', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const accountId = req.params.account_id
+    const account = store.platform_accounts.find((item) => item.id === accountId && !item.deleted_at)
+    if (!account) throw new Error('platform_account_not_found')
+    if (account.platform !== 'youtube') throw new Error('unsupported_platform')
+    const refreshed = await refreshGooglePlatformAccountTokens(account, 'user')
+    return { data: sanitizePlatformAccount(refreshed), meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'platform_account_not_found') {
+      return fail(res, 404, 'NOT_FOUND', 'platform account not found', {})
+    }
+    if (error instanceof Error && error.message === 'unsupported_platform') {
+      return fail(res, 422, 'UNSUPPORTED_PLATFORM', 'only youtube accounts support google refresh', {})
+    }
+    return fail(res, 400, 'AUTH_ERROR', error instanceof Error ? error.message : 'token refresh failed', {})
+  })
+})
+
 app.get('/api/platform-accounts', (req, res) => {
   const limit = Math.min(Number(req.query.limit ?? 20) || 20, 100)
   const offset = Number(req.query.offset ?? 0) || 0
-  const page = paginate(store.platform_accounts.filter((x) => !x.deleted_at), limit, offset)
+  const sanitized = store.platform_accounts.filter((x) => !x.deleted_at).map(sanitizePlatformAccount)
+  const page = paginate(sanitized, limit, offset)
   ok(res, page)
 })
 
-app.post('/api/platform-accounts/mock-connect', async (req, res) => {
-  const body = req.body ?? {}
-  const platform = typeof body.platform === 'string' ? body.platform : 'youtube'
-  const account_name = typeof body.account_name === 'string' ? body.account_name : `${platform}-demo`
+app.post('/api/platform-accounts/mock-connect', (req, res) => {
+  fail(res, 410, 'GONE', 'mock platform account connect has been disabled', {})
+})
 
-  const id = newId()
-  const created_at = nowIso()
-  store.platform_accounts.unshift({
-    id,
-    platform,
-    account_name,
-    status: 'connected',
-    access_token_expires_at: null,
-    created_at,
-    updated_at: created_at,
-    deleted_at: null,
-  })
+app.post('/api/platform-accounts/:id/disconnect', async (req, res) => {
+  const id = req.params.id
+  const account = store.platform_accounts.find((item) => item.id === id && !item.deleted_at)
+  if (!account) return fail(res, 404, 'NOT_FOUND', 'platform account not found', {})
 
-  addAuditLog('platform_account.connected', 'platform_account', id, 'user')
+  account.status = 'disconnected'
+  account.access_token = null
+  account.refresh_token = null
+  account.access_token_expires_at = null
+  account.updated_at = nowIso()
+  account.last_error_code = null
+  account.last_error_message = null
+  addAuditLog('platform_account.disconnected', 'platform_account', id, 'user')
   await saveStore(store)
-  ok(res, { id, platform, account_name, status: 'connected' })
+  ok(res, sanitizePlatformAccount(account))
 })
 
 app.post('/api/ai/platform-accounts/:id/set-status', async (req, res) => {
@@ -3413,7 +3884,8 @@ async function runPlatformAccountSweep(body = {}, actorType = 'system') {
     if (Number.isNaN(ts)) continue
 
     if (ts <= now) {
-      if (account.status !== 'disconnected') {
+      const refreshable = isNonEmptyString(account.refresh_token)
+      if (!refreshable && account.status !== 'disconnected') {
         account.status = 'disconnected'
         account.updated_at = nowIso()
         addAuditLog('platform_account.auto_disconnected_expired', 'platform_account', account.id, actorType)
@@ -3422,8 +3894,9 @@ async function runPlatformAccountSweep(body = {}, actorType = 'system') {
         id: account.id,
         platform: account.platform ?? null,
         account_name: account.account_name ?? null,
-        status: 'disconnected',
+        status: refreshable ? account.status ?? 'connected' : 'disconnected',
         access_token_expires_at: rawExpiresAt,
+        refreshable,
       })
       continue
     }

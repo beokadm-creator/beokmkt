@@ -73,6 +73,17 @@ PUBLISH_EXECUTOR_TOKEN=""
 PUBLISH_EXECUTOR_HEADERS_JSON="{}"
 ```
 
+Google OAuth settings for YouTube:
+
+```env
+APP_BASE_URL="http://localhost:8787"
+SPA_BASE_URL="http://localhost:5173"
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GOOGLE_REDIRECT_URI=""
+GOOGLE_OAUTH_DEFAULT_RETURN_TO="http://localhost:5173/settings/platform-accounts"
+```
+
 ## Local Render Executor (TTS + Captions)
 
 This repo includes a local render executor that can synthesize a simple short video using:
@@ -155,7 +166,18 @@ Per-request override keys:
 
 ## Platform Accounts
 
-`platform_accounts` should maintain token state such as `access_token_expires_at`. If a publish job runs with an expired token, it is treated as a permanent connectivity issue (`PLATFORM_ACCOUNT_NOT_CONNECTED`) and dead-lettered.
+`platform_accounts` should maintain token state such as `access_token_expires_at`.
+
+For Google OAuth YouTube accounts:
+
+- `access_token` and `refresh_token` are stored on the server
+- `GET /api/auth/google` returns a Google OAuth redirect URL
+- `GET /api/auth/google/callback` exchanges the code and stores channel-linked tokens
+- `POST /api/auth/google/refresh/:account_id` refreshes a YouTube account token
+- `POST /api/platform-accounts/:id/disconnect` clears stored tokens and disconnects the account
+- publish execution refreshes tokens automatically before YouTube upload when needed
+
+Expired accounts with a refresh token are treated as refreshable, not immediately disconnected.
 
 AI can update account connectivity state:
 
@@ -168,6 +190,26 @@ AI can also scan for expired or soon-to-expire accounts:
 ```http
 POST /api/ai/run-platform-account-sweep
 ```
+
+### Local OAuth Flow
+
+1. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+2. In Google Cloud Console, configure redirect URI:
+
+```text
+http://localhost:8787/api/auth/google/callback
+```
+
+3. Start API and SPA:
+
+```bash
+npm run dev:api
+npm run dev:spa
+```
+
+4. Open the SPA platform account settings page and click `YouTube 연동`
+5. After Google consent, the API stores tokens in `platform_accounts`
+6. Publish jobs for connected YouTube accounts upload through the YouTube Data API when no publish webhook override is supplied
 
 ## Render Executor Contract
 
