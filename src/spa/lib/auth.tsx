@@ -38,7 +38,9 @@ type AuthState = {
   isAdmin: boolean
   configError: string | null
   accessError: string | null
-  signInWithGoogle: () => Promise<void>
+  allowedAdminEmails: string[]
+  isAllowedAdminEmail: (email: string) => boolean
+  signInWithGoogle: (emailHint?: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -98,10 +100,22 @@ export function AuthProvider(props: { children: ReactNode }) {
       isAdmin,
       configError: firebaseAuthConfigError ?? adminConfigError,
       accessError,
-      signInWithGoogle: async () => {
+      allowedAdminEmails: adminEmails,
+      isAllowedAdminEmail: (email: string) => {
+        const normalized = email.trim().toLowerCase()
+        return normalized ? adminEmailSet.has(normalized) : false
+      },
+      signInWithGoogle: async (emailHint?: string) => {
         if (!auth) throw new Error(firebaseAuthConfigError ?? 'Firebase Auth is not configured')
         if (adminConfigError) throw new Error(adminConfigError)
         const provider = new GoogleAuthProvider()
+        const normalizedHint = typeof emailHint === 'string' ? emailHint.trim().toLowerCase() : ''
+        if (normalizedHint) {
+          provider.setCustomParameters({
+            login_hint: normalizedHint,
+            prompt: 'select_account',
+          })
+        }
         await signInWithPopup(auth, provider)
       },
       signOut: async () => {

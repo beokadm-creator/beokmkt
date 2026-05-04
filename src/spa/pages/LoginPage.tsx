@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth'
 export default function LoginPage() {
   const auth = useAuth()
   const location = useLocation()
+  const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
 
@@ -13,11 +14,20 @@ export default function LoginPage() {
     return s.get('from') || '/dashboard'
   }, [location.search])
 
+  const normalizedEmail = email.trim().toLowerCase()
+  const hasEmailInput = normalizedEmail.length > 0
+  const emailAllowed = hasEmailInput ? auth.isAllowedAdminEmail(normalizedEmail) : false
+  const emailError = hasEmailInput && !emailAllowed ? '허용된 관리자 이메일만 로그인할 수 있습니다.' : null
+
   async function onGoogle() {
+    if (!emailAllowed) {
+      setError(emailError ?? '관리자 이메일을 입력하세요.')
+      return
+    }
     setIsBusy(true)
     setError(null)
     try {
-      await auth.signInWithGoogle()
+      await auth.signInWithGoogle(normalizedEmail)
     } catch (e) {
       setError(e instanceof Error ? e.message : '로그인 실패')
     } finally {
@@ -32,6 +42,26 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-6 py-16">
         <div className="text-lg font-semibold">beokmkt 콘솔 로그인</div>
         <div className="mt-2 text-sm text-zinc-400">허용된 관리자 Google 계정으로만 로그인할 수 있습니다.</div>
+
+        <label className="mt-8 block">
+          <div className="mb-2 text-sm font-medium text-zinc-200">관리자 이메일</div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setError(null)
+            }}
+            placeholder="admin@company.com"
+            autoComplete="email"
+            spellCheck={false}
+            className="h-11 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-50 outline-none ring-0 placeholder:text-zinc-500 focus:border-zinc-600"
+          />
+        </label>
+
+        {auth.allowedAdminEmails.length === 1 ? (
+          <div className="mt-3 text-xs text-zinc-500">허용된 관리자 이메일: {auth.allowedAdminEmails[0]}</div>
+        ) : null}
 
         {auth.configError ? (
           <div className="mt-6 rounded-xl border border-amber-900/60 bg-amber-950/30 p-4 text-sm text-amber-200">
@@ -50,10 +80,12 @@ export default function LoginPage() {
           </div>
         ) : null}
 
+        {emailError ? <div className="mt-4 text-sm text-rose-200">{emailError}</div> : null}
+
         <button
           type="button"
           onClick={onGoogle}
-          disabled={isBusy || Boolean(auth.configError)}
+          disabled={isBusy || Boolean(auth.configError) || !emailAllowed}
           className="mt-8 inline-flex h-11 items-center justify-center rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 disabled:opacity-60"
         >
           {isBusy ? '로그인 중…' : 'Google로 로그인'}
