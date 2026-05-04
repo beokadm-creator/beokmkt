@@ -23,6 +23,7 @@ export default function Sidebar() {
   const main: NavItem[] = [
     { to: '/dashboard', label: '대시보드' },
     { to: '/source-items', label: '원천 콘텐츠' },
+    { to: '/blog-posts', label: '블로그 글' },
     { to: '/short-ideas', label: '숏폼 아이디어' },
     { to: '/scripts', label: '대본 검수' },
     { to: '/render-jobs', label: '영상 검수' },

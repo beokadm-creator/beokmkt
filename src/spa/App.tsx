@@ -1,5 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import AppShell from './layout/AppShell'
+import BlogPostDetailPage from './pages/BlogPostDetailPage'
+import BlogPostsPage from './pages/BlogPostsPage'
 import DashboardPage from './pages/DashboardPage'
 import SourceItemsPage from './pages/SourceItemsPage'
 import SourceItemDetailPage from './pages/SourceItemDetailPage'
@@ -42,6 +44,9 @@ export default function App() {
 
           <Route path="/source-items" element={<SourceItemsPage />} />
           <Route path="/source-items/:id" element={<SourceItemDetailPage />} />
+
+          <Route path="/blog-posts" element={<BlogPostsPage />} />
+          <Route path="/blog-posts/:id" element={<BlogPostDetailPage />} />
 
           <Route path="/short-ideas" element={<ShortIdeasPage />} />
           <Route path="/short-ideas/:id" element={<ShortIdeaDetailPage />} />

@@ -503,7 +503,7 @@ async function generateAiText(config, systemPrompt, userPrompt) {
     openai: 'https://api.openai.com/v1/chat/completions',
     mistral: 'https://api.mistral.ai/v1/chat/completions',
     zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    zai: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
+    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
   }
 
   const endpoint = endpointTable[config.provider]
@@ -561,6 +561,46 @@ async function generateScriptWithAi(config, item, idea, options) {
     `Duration seconds: ${options.durationSec}`,
     'Return JSON with keys: script_text, subtitle_text, caption_text, hashtags, tone, language.',
   ].join('\n')
+
+  const text = await generateAiText(config, systemPrompt, userPrompt)
+  const parsed = maybeParseJson(text)
+  if (!parsed || typeof parsed !== 'object') return null
+  return parsed
+}
+
+async function generateBlogPostWithAi(config, options) {
+  const lengthGuide = {
+    short: '300~500자, 2~3개 섹션',
+    medium: '800~1500자, 4~6개 섹션',
+    long: '2000~4000자, 6~10개 섹션',
+  }
+  const targetLen = lengthGuide[options.target_length] ?? lengthGuide.medium
+
+  const systemPrompt = `You are a professional Korean content writer for a marketing company blog.
+Generate engaging, SEO-optimized blog posts in Korean.
+Return strict JSON only with keys: html, excerpt, seo_title, seo_description, tags.
+The html must use semantic HTML (h2, h3, p, ul, li, strong, em, blockquote). Do NOT wrap in code blocks.`
+
+  const userPrompt = [
+    `Title: ${options.title}`,
+    `Topic: ${options.topic}`,
+    `Tone: ${options.tone}`,
+    `Target length: ${targetLen}`,
+    `Keywords: ${options.keywords?.join(', ') ?? ''}`,
+    options.source_text ? `Reference material:\n${options.source_text}` : '',
+    '',
+    'Requirements:',
+    '- Write in natural, professional Korean',
+    '- Use semantic HTML (h2, h3, p, ul, li, strong, blockquote)',
+    '- Include a compelling introduction',
+    '- End with a clear conclusion or CTA',
+    '- SEO-friendly structure with proper heading hierarchy',
+    '- Do NOT use markdown, only HTML',
+    '',
+    'Return JSON: { "html": "...", "excerpt": "...", "seo_title": "...", "seo_description": "...", "tags": ["..."] }',
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   const text = await generateAiText(config, systemPrompt, userPrompt)
   const parsed = maybeParseJson(text)
@@ -3966,6 +4006,199 @@ app.get('/api/ai/ops-metrics', async (req, res) => {
       expiring_soon_count: accountSweep.expiring_soon_count,
       warning_window_minutes: accountSweep.warning_window_minutes,
     },
+  })
+})
+
+// Blog Posts
+app.get('/api/blog-posts', (req, res) => {
+  const limit = Math.min(Number(req.query.limit ?? 20) || 20, 100)
+  const offset = Number(req.query.offset ?? 0) || 0
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : ''
+  const status = typeof req.query.status === 'string' ? req.query.status : ''
+  const category = typeof req.query.category === 'string' ? req.query.category : ''
+
+  let items = store.blog_posts.filter((p) => !p.deleted_at)
+  if (q) {
+    items = items.filter((p) => {
+      const title = typeof p.title === 'string' ? p.title.toLowerCase() : ''
+      const content = typeof p.content === 'string' ? p.content.toLowerCase() : ''
+      return title.includes(q) || content.includes(q)
+    })
+  }
+  if (status) items = items.filter((p) => p.status === status)
+  if (category) items = items.filter((p) => p.category === category)
+
+  const page = paginate(items, limit, offset)
+  ok(res, page)
+})
+
+app.get('/api/blog-posts/:id', (req, res) => {
+  const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
+  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  ok(res, post)
+})
+
+app.post('/api/blog-posts', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+    const title = typeof body.title === 'string' ? body.title.trim() : ''
+    if (!title) throw new Error('missing_title')
+
+    const id = newId()
+    const now = nowIso()
+    const status = typeof body.status === 'string' ? body.status : 'draft'
+
+    let htmlContent = typeof body.content === 'string' ? body.content : ''
+    if (!htmlContent && body.ai_generate !== false) {
+      const aiConfig = resolveAiConfig(body)
+      const aiResult = await generateBlogPostWithAi(aiConfig, {
+        title,
+        topic: body.topic ?? title,
+        tone: body.tone ?? 'professional',
+        keywords: Array.isArray(body.keywords) ? body.keywords : [],
+        source_text: body.source_text ?? '',
+        language: body.language ?? 'ko',
+        target_length: body.target_length ?? 'medium',
+      }).catch(() => null)
+      if (typeof aiResult?.html === 'string') htmlContent = aiResult.html
+    }
+
+    const post = {
+      id,
+      title,
+      content: htmlContent,
+      excerpt: typeof body.excerpt === 'string' ? body.excerpt : '',
+      category: typeof body.category === 'string' ? body.category : 'general',
+      tags: Array.isArray(body.tags) ? body.tags : [],
+      slug:
+        typeof body.slug === 'string' && body.slug.trim()
+          ? body.slug
+          : title
+              .toLowerCase()
+              .replace(/[^a-z0-9가-힣]+/g, '-')
+              .replace(/^-|-$/g, '')
+              .slice(0, 100),
+      featured_image: typeof body.featured_image === 'string' ? body.featured_image : null,
+      status,
+      language: typeof body.language === 'string' ? body.language : 'ko',
+      tone: typeof body.tone === 'string' ? body.tone : 'professional',
+      seo_title: typeof body.seo_title === 'string' ? body.seo_title : title,
+      seo_description: typeof body.seo_description === 'string' ? body.seo_description : '',
+      published_at: status === 'published' ? now : null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    }
+
+    if (!post.excerpt && typeof htmlContent === 'string') {
+      post.excerpt = htmlContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+    }
+
+    store.blog_posts.unshift(post)
+    addAuditLog('blog_post.created', 'blog_post', id, body.ai_generate !== false ? 'ai' : 'user')
+    await saveStore(store)
+    return { data: post, meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'missing_title') {
+      return fail(res, 400, 'VALIDATION_ERROR', 'title is required', {})
+    }
+    return fail(res, 400, 'BLOG_POST_CREATE_FAILED', error instanceof Error ? error.message : 'blog post create failed', {})
+  })
+})
+
+app.patch('/api/blog-posts/:id', async (req, res) => {
+  const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
+  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const body = req.body ?? {}
+  const updatable = [
+    'title',
+    'content',
+    'excerpt',
+    'category',
+    'tags',
+    'slug',
+    'featured_image',
+    'status',
+    'language',
+    'tone',
+    'seo_title',
+    'seo_description',
+  ]
+
+  for (const key of updatable) {
+    if (key in body) post[key] = body[key]
+  }
+  if (body.status === 'published' && !post.published_at) post.published_at = nowIso()
+  post.updated_at = nowIso()
+
+  addAuditLog('blog_post.updated', 'blog_post', post.id, 'user')
+  await saveStore(store)
+  ok(res, post)
+})
+
+app.delete('/api/blog-posts/:id', async (req, res) => {
+  const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
+  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  post.deleted_at = nowIso()
+  post.status = 'archived'
+  addAuditLog('blog_post.deleted', 'blog_post', post.id, 'user')
+  await saveStore(store)
+  ok(res, { id: post.id, deleted: true })
+})
+
+app.post('/api/blog-posts/:id/publish', async (req, res) => {
+  const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
+  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  if (!post.content) return fail(res, 400, 'NO_CONTENT', 'Cannot publish without content', {})
+
+  post.status = 'published'
+  post.published_at = nowIso()
+  post.updated_at = nowIso()
+
+  addAuditLog('blog_post.published', 'blog_post', post.id, 'user')
+  await saveStore(store)
+  ok(res, post)
+})
+
+app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
+    if (!post) throw new Error('blog_post_not_found')
+
+    const body = req.body ?? {}
+    const aiConfig = resolveAiConfig(body)
+    const aiResult = await generateBlogPostWithAi(aiConfig, {
+      title: post.title,
+      topic: body.topic ?? post.title,
+      tone: body.tone ?? post.tone ?? 'professional',
+      keywords: body.keywords ?? post.tags ?? [],
+      source_text: body.source_text ?? '',
+      language: body.language ?? post.language ?? 'ko',
+      target_length: body.target_length ?? 'medium',
+    }).catch(() => null)
+
+    if (!aiResult?.html) throw new Error('ai_generation_failed')
+
+    post.content = aiResult.html
+    post.excerpt = aiResult.excerpt ?? post.excerpt
+    post.seo_title = aiResult.seo_title ?? post.seo_title
+    post.seo_description = aiResult.seo_description ?? post.seo_description
+    if (Array.isArray(aiResult.tags) && aiResult.tags.length) post.tags = aiResult.tags
+    post.updated_at = nowIso()
+
+    addAuditLog('blog_post.ai_generated', 'blog_post', post.id, 'ai')
+    await saveStore(store)
+    return { data: post, meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'blog_post_not_found') {
+      return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+    }
+    if (error instanceof Error && error.message === 'ai_generation_failed') {
+      return fail(res, 400, 'AI_GENERATION_FAILED', 'blog post AI generation failed', {})
+    }
+    return fail(res, 400, 'BLOG_POST_GENERATE_FAILED', error instanceof Error ? error.message : 'blog post generate failed', {})
   })
 })
 

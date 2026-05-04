@@ -26,6 +26,7 @@ function withDefaults(store) {
     audit_logs: store.audit_logs ?? [],
     oauth_states: store.oauth_states ?? [],
     idempotency: store.idempotency ?? {},
+    blog_posts: store.blog_posts ?? [],
   }
 }
 

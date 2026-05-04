@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 function titleForPath(pathname: string) {
   if (pathname.startsWith('/dashboard')) return '대시보드'
   if (pathname.startsWith('/source-items')) return '원천 콘텐츠'
+  if (pathname.startsWith('/blog-posts')) return '블로그 글'
   if (pathname.startsWith('/short-ideas')) return '숏폼 아이디어'
   if (pathname.startsWith('/scripts')) return '대본 검수'
   if (pathname.startsWith('/render-jobs')) return '영상 검수'
