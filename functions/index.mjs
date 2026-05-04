@@ -85,6 +85,42 @@ function serializeValue(value) {
   return value
 }
 
+function envValue(name) {
+  return typeof process.env[name] === 'string' ? process.env[name].trim() : ''
+}
+
+function spaBaseUrl(req) {
+  const explicit = envValue('SPA_BASE_URL')
+  if (explicit) return explicit.replace(/\/+$/, '')
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https'
+  const host = req.headers['x-forwarded-host'] || req.get('host')
+  return `${proto}://${host}`.replace(/\/+$/, '')
+}
+
+function publicBlogPath(post) {
+  const slug = typeof post?.slug === 'string' && post.slug.trim() ? post.slug.trim() : post?.id
+  return `/blog/${encodeURIComponent(slug)}`
+}
+
+function buildSitemapXml(baseUrl, posts) {
+  const urls = [
+    { loc: `${baseUrl}/blog`, lastmod: new Date().toISOString() },
+    ...posts.map((post) => ({
+      loc: `${baseUrl}${publicBlogPath(post)}`,
+      lastmod: post.updated_at || post.published_at || post.created_at || new Date().toISOString(),
+    })),
+  ]
+
+  const body = urls
+    .map(
+      (entry) =>
+        `<url><loc>${entry.loc}</loc><lastmod>${entry.lastmod}</lastmod><changefreq>weekly</changefreq></url>`
+    )
+    .join('')
+
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`
+}
+
 async function getOptionalAdminUser(req) {
   const header = req.header('Authorization') ?? ''
   const m = header.match(/^Bearer\s+(.+)$/)
@@ -97,6 +133,17 @@ async function getOptionalAdminUser(req) {
     return null
   }
 }
+
+app.get('/sitemap.xml', async (req, res) => {
+  const baseUrl = spaBaseUrl(req)
+  const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
+  const posts = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((post) => !post.deleted_at)
+
+  res.set('Content-Type', 'application/xml; charset=utf-8')
+  res.send(buildSitemapXml(baseUrl, posts))
+})
 
 function newId() {
   return randomUUID()
@@ -3816,6 +3863,20 @@ app.get('/api/blog-posts/:id', async (req, res) => {
   const post = { id: snap.id, ...snap.data() }
   if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   if (!adminUser && post.status !== 'published') return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  ok(res, post)
+})
+
+app.get('/api/blog-posts/slug/:slug', async (req, res) => {
+  const adminUser = await getOptionalAdminUser(req)
+  const slug = typeof req.params.slug === 'string' ? req.params.slug.trim() : ''
+  if (!slug) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const snap = await db.collection('blog_posts').where('slug', '==', slug).limit(10).get()
+  const post = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .find((item) => !item.deleted_at && (adminUser || item.status === 'published'))
+
+  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   ok(res, post)
 })
 

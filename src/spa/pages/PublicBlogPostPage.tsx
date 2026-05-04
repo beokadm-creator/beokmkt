@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { applySeo } from '../lib/seo'
 
 type BlogPost = {
   id: string
@@ -8,24 +9,28 @@ type BlogPost = {
   excerpt: string
   category: string
   tags: string[]
+  slug: string
+  seo_title: string
+  seo_description: string
+  featured_image: string | null
   published_at: string | null
   created_at: string
 }
 
 export default function PublicBlogPostPage() {
-  const { id } = useParams()
+  const { slug } = useParams()
   const [post, setPost] = useState<BlogPost | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!id) {
+    if (!slug) {
       setError('글을 찾을 수 없습니다.')
       setIsLoading(false)
       return
     }
 
-    fetch(`/api/blog-posts/${id}`)
+    fetch(`/api/blog-posts/slug/${encodeURIComponent(slug)}`)
       .then(async (r) => {
         const payload = await r.json().catch(() => null)
         if (!r.ok) throw new Error(payload?.error?.message || '글을 불러오지 못했습니다.')
@@ -34,7 +39,18 @@ export default function PublicBlogPostPage() {
       .then((data) => setPost(data))
       .catch((e) => setError(e instanceof Error ? e.message : '글을 불러오지 못했습니다.'))
       .finally(() => setIsLoading(false))
-  }, [id])
+  }, [slug])
+
+  useEffect(() => {
+    if (!post) return
+    const canonical = `${window.location.origin}/blog/${encodeURIComponent(post.slug || post.id)}`
+    applySeo({
+      title: post.seo_title || post.title,
+      description: post.seo_description || post.excerpt || `${post.title} 블로그 글`,
+      canonical,
+      image: post.featured_image || undefined,
+    })
+  }, [post])
 
   if (isLoading) {
     return (

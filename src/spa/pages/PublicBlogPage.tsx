@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { applySeo } from '../lib/seo'
 
 type BlogPost = {
   id: string
@@ -7,6 +8,7 @@ type BlogPost = {
   excerpt: string
   category: string
   tags: string[]
+  slug: string
   published_at: string | null
   created_at: string
 }
@@ -23,6 +25,15 @@ export default function PublicBlogPage() {
       .then(d => setData(d?.data ?? d))
       .catch(() => {})
       .finally(() => setIsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const canonical = `${window.location.origin}/blog`
+    applySeo({
+      title: '홍커뮤니케이션 블로그',
+      description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠를 확인하세요.',
+      canonical,
+    })
   }, [])
 
   if (isLoading) {
@@ -54,7 +65,7 @@ export default function PublicBlogPage() {
             {posts.map((post) => (
               <Link
                 key={post.id}
-                to={`/blog/${post.id}`}
+                to={`/blog/${encodeURIComponent(post.slug || post.id)}`}
                 className="group block rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 transition hover:border-zinc-600 hover:bg-zinc-900/70"
               >
                 <div className="flex items-center gap-3 text-xs text-zinc-500">

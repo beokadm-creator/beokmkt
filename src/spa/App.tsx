@@ -35,7 +35,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/blog" replace />} />
       <Route path="/blog" element={<PublicBlogPage />} />
-      <Route path="/blog/:id" element={<PublicBlogPostPage />} />
+      <Route path="/blog/:slug" element={<PublicBlogPostPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route

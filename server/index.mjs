@@ -57,12 +57,37 @@ async function getOptionalAdminUser(req) {
   }
 }
 
+function publicBlogPath(post) {
+  const slug = typeof post?.slug === 'string' && post.slug.trim() ? post.slug.trim() : post?.id
+  return `/blog/${encodeURIComponent(slug)}`
+}
+
+function buildSitemapXml(baseUrl, posts) {
+  const urls = [
+    { loc: `${baseUrl}/blog`, lastmod: nowIso() },
+    ...posts.map((post) => ({
+      loc: `${baseUrl}${publicBlogPath(post)}`,
+      lastmod: post.updated_at || post.published_at || post.created_at || nowIso(),
+    })),
+  ]
+
+  const body = urls
+    .map(
+      (entry) =>
+        `<url><loc>${entry.loc}</loc><lastmod>${entry.lastmod}</lastmod><changefreq>weekly</changefreq></url>`
+    )
+    .join('')
+
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`
+}
+
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next()
   if (req.path === '/api/health') return next()
   // Public blog read endpoints
   if (req.path === '/api/blog-posts' && req.method === 'GET') return next()
   if (/^\/api\/blog-posts\/[^/]+$/.test(req.path) && req.method === 'GET') return next()
+  if (/^\/api\/blog-posts\/slug\/[^/]+$/.test(req.path) && req.method === 'GET') return next()
   // Blog write endpoints: accept API key via X-API-Key header as alternative to Firebase auth
   if (/^\/api\/blog-posts/.test(req.path) && req.method !== 'GET') {
     const apiKey = req.header('X-API-Key')
@@ -290,6 +315,13 @@ function spaBaseUrl(req) {
   }
   return 'http://localhost:5173'
 }
+
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = spaBaseUrl(req)
+  const posts = store.blog_posts.filter((post) => !post.deleted_at && post.status === 'published')
+  res.set('Content-Type', 'application/xml; charset=utf-8')
+  res.send(buildSitemapXml(baseUrl, posts))
+})
 
 function googleOauthConfig(req) {
   const clientId = envValue('GOOGLE_CLIENT_ID')
@@ -4148,6 +4180,15 @@ app.get('/api/blog-posts', async (req, res) => {
 app.get('/api/blog-posts/:id', async (req, res) => {
   const adminUser = await getOptionalAdminUser(req)
   const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
+  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  if (!adminUser && post.status !== 'published') return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  ok(res, post)
+})
+
+app.get('/api/blog-posts/slug/:slug', async (req, res) => {
+  const adminUser = await getOptionalAdminUser(req)
+  const slug = typeof req.params.slug === 'string' ? req.params.slug.trim() : ''
+  const post = store.blog_posts.find((p) => p.slug === slug && !p.deleted_at)
   if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   if (!adminUser && post.status !== 'published') return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   ok(res, post)
