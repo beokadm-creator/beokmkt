@@ -235,7 +235,7 @@ async function generateAiText(config, systemPrompt, userPrompt) {
     openai: 'https://api.openai.com/v1/chat/completions',
     mistral: 'https://api.mistral.ai/v1/chat/completions',
     zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    zai: 'https://api.z.ai/v1/chat/completions',
+    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
   }
 
   const endpoint = endpointTable[config.provider]
@@ -296,6 +296,46 @@ async function generateScriptWithAi(config, item, idea, options) {
     `Duration seconds: ${options.durationSec}`,
     'Return JSON with keys: script_text, subtitle_text, caption_text, hashtags, tone, language.',
   ].join('\n')
+
+  const text = await generateAiText(config, systemPrompt, userPrompt)
+  const parsed = maybeParseJson(text)
+  if (!parsed || typeof parsed !== 'object') return null
+  return parsed
+}
+
+async function generateBlogPostWithAi(config, options) {
+  const lengthGuide = {
+    short: '300~500자, 2~3개 섹션',
+    medium: '800~1500자, 4~6개 섹션',
+    long: '2000~4000자, 6~10개 섹션',
+  }
+  const targetLen = lengthGuide[options.target_length] ?? lengthGuide.medium
+
+  const systemPrompt = `You are a professional Korean content writer for a marketing company blog.
+Generate engaging, SEO-optimized blog posts in Korean.
+Return strict JSON only with keys: html, excerpt, seo_title, seo_description, tags.
+The html must use semantic HTML (h2, h3, p, ul, li, strong, em, blockquote). Do NOT wrap in code blocks.`
+
+  const userPrompt = [
+    `Title: ${options.title}`,
+    `Topic: ${options.topic}`,
+    `Tone: ${options.tone}`,
+    `Target length: ${targetLen}`,
+    `Keywords: ${options.keywords?.join(', ') ?? ''}`,
+    options.source_text ? `Reference material:\n${options.source_text}` : '',
+    '',
+    'Requirements:',
+    '- Write in natural, professional Korean',
+    '- Use semantic HTML (h2, h3, p, ul, li, strong, blockquote)',
+    '- Include a compelling introduction',
+    '- End with a clear conclusion or CTA',
+    '- SEO-friendly structure with proper heading hierarchy',
+    '- Do NOT use markdown, only HTML',
+    '',
+    'Return JSON: { "html": "...", "excerpt": "...", "seo_title": "...", "seo_description": "...", "tags": ["..."] }',
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   const text = await generateAiText(config, systemPrompt, userPrompt)
   const parsed = maybeParseJson(text)
@@ -3300,6 +3340,239 @@ app.get('/api/audit-logs', async (req, res) => {
     total: filtered.length,
     limit,
     offset,
+  })
+})
+
+app.get('/api/blog-posts', async (req, res) => {
+  const limit = Math.min(parseLimit(req, 20), 100)
+  const offset = parseOffset(req)
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : ''
+  const status = typeof req.query.status === 'string' ? req.query.status.trim() : ''
+  const category = typeof req.query.category === 'string' ? req.query.category.trim() : ''
+
+  const fetchSize = Math.min(Math.max(offset + limit * 5, 100), 300)
+  const snap = await db.collection('blog_posts').orderBy('created_at', 'desc').limit(fetchSize).get()
+
+  const filtered = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((item) => {
+      if (item.deleted_at) return false
+      if (q) {
+        const title = typeof item.title === 'string' ? item.title.toLowerCase() : ''
+        const content = typeof item.content === 'string' ? item.content.toLowerCase() : ''
+        if (!title.includes(q) && !content.includes(q)) return false
+      }
+      if (status && item.status !== status) return false
+      if (category && item.category !== category) return false
+      return true
+    })
+
+  ok(res, {
+    items: filtered.slice(offset, offset + limit),
+    total: filtered.length,
+    limit,
+    offset,
+  })
+})
+
+app.get('/api/blog-posts/:id', async (req, res) => {
+  const snap = await db.collection('blog_posts').doc(req.params.id).get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const post = { id: snap.id, ...snap.data() }
+  if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  ok(res, post)
+})
+
+app.post('/api/blog-posts', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+    const title = typeof body.title === 'string' ? body.title.trim() : ''
+    if (!title) throw new Error('missing_title')
+
+    const id = newId()
+    const now = nowIso()
+    const status = typeof body.status === 'string' ? body.status : 'draft'
+
+    let htmlContent = typeof body.content === 'string' ? body.content : ''
+    if (!htmlContent && body.ai_generate !== false) {
+      const aiConfig = resolveAiConfig(body)
+      const aiResult = await generateBlogPostWithAi(aiConfig, {
+        title,
+        topic: body.topic ?? title,
+        tone: body.tone ?? 'professional',
+        keywords: Array.isArray(body.keywords) ? body.keywords : [],
+        source_text: body.source_text ?? '',
+        language: body.language ?? 'ko',
+        target_length: body.target_length ?? 'medium',
+      }).catch(() => null)
+      if (typeof aiResult?.html === 'string') htmlContent = aiResult.html
+    }
+
+    const post = {
+      title,
+      content: htmlContent,
+      excerpt: typeof body.excerpt === 'string' ? body.excerpt : '',
+      category: typeof body.category === 'string' ? body.category : 'general',
+      tags: Array.isArray(body.tags) ? body.tags : [],
+      slug:
+        typeof body.slug === 'string' && body.slug.trim()
+          ? body.slug
+          : title
+              .toLowerCase()
+              .replace(/[^a-z0-9가-힣]+/g, '-')
+              .replace(/^-|-$/g, '')
+              .slice(0, 100),
+      featured_image: typeof body.featured_image === 'string' ? body.featured_image : null,
+      status,
+      language: typeof body.language === 'string' ? body.language : 'ko',
+      tone: typeof body.tone === 'string' ? body.tone : 'professional',
+      seo_title: typeof body.seo_title === 'string' ? body.seo_title : title,
+      seo_description: typeof body.seo_description === 'string' ? body.seo_description : '',
+      published_at: status === 'published' ? now : null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    }
+
+    if (!post.excerpt && typeof htmlContent === 'string') {
+      post.excerpt = htmlContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+    }
+
+    await db.collection('blog_posts').doc(id).set(post)
+    await addAuditLog('blog_post.created', 'blog_post', id, body.ai_generate !== false ? 'ai' : 'user')
+    return { data: { id, ...post }, meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'missing_title') {
+      return fail(res, 400, 'VALIDATION_ERROR', 'title is required', {})
+    }
+    return fail(res, 400, 'BLOG_POST_CREATE_FAILED', error instanceof Error ? error.message : 'blog post create failed', {})
+  })
+})
+
+app.patch('/api/blog-posts/:id', async (req, res) => {
+  const ref = db.collection('blog_posts').doc(req.params.id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const post = snap.data() ?? {}
+  if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const body = req.body ?? {}
+  const updatable = [
+    'title',
+    'content',
+    'excerpt',
+    'category',
+    'tags',
+    'slug',
+    'featured_image',
+    'status',
+    'language',
+    'tone',
+    'seo_title',
+    'seo_description',
+  ]
+  const patch = {}
+
+  for (const key of updatable) {
+    if (key in body) patch[key] = body[key]
+  }
+  if (body.status === 'published' && !post.published_at) patch.published_at = nowIso()
+  patch.updated_at = nowIso()
+
+  await ref.set(patch, { merge: true })
+  await addAuditLog('blog_post.updated', 'blog_post', req.params.id, 'user')
+  const updatedSnap = await ref.get()
+  ok(res, { id: updatedSnap.id, ...updatedSnap.data() })
+})
+
+app.delete('/api/blog-posts/:id', async (req, res) => {
+  const ref = db.collection('blog_posts').doc(req.params.id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const post = snap.data() ?? {}
+  if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  await ref.set(
+    {
+      deleted_at: nowIso(),
+      status: 'archived',
+      updated_at: nowIso(),
+    },
+    { merge: true }
+  )
+  await addAuditLog('blog_post.deleted', 'blog_post', req.params.id, 'user')
+  ok(res, { id: req.params.id, deleted: true })
+})
+
+app.post('/api/blog-posts/:id/publish', async (req, res) => {
+  const ref = db.collection('blog_posts').doc(req.params.id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const post = snap.data() ?? {}
+  if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  if (!post.content) return fail(res, 400, 'NO_CONTENT', 'Cannot publish without content', {})
+
+  await ref.set(
+    {
+      status: 'published',
+      published_at: nowIso(),
+      updated_at: nowIso(),
+    },
+    { merge: true }
+  )
+  await addAuditLog('blog_post.published', 'blog_post', req.params.id, 'user')
+  const updatedSnap = await ref.get()
+  ok(res, { id: updatedSnap.id, ...updatedSnap.data() })
+})
+
+app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const ref = db.collection('blog_posts').doc(req.params.id)
+    const snap = await ref.get()
+    if (!snap.exists) throw new Error('blog_post_not_found')
+
+    const post = snap.data() ?? {}
+    if (post.deleted_at) throw new Error('blog_post_not_found')
+
+    const body = req.body ?? {}
+    const aiConfig = resolveAiConfig(body)
+    const aiResult = await generateBlogPostWithAi(aiConfig, {
+      title: post.title,
+      topic: body.topic ?? post.title,
+      tone: body.tone ?? post.tone ?? 'professional',
+      keywords: body.keywords ?? post.tags ?? [],
+      source_text: body.source_text ?? '',
+      language: body.language ?? post.language ?? 'ko',
+      target_length: body.target_length ?? 'medium',
+    }).catch(() => null)
+
+    if (!aiResult?.html) throw new Error('ai_generation_failed')
+
+    const patch = {
+      content: aiResult.html,
+      excerpt: aiResult.excerpt ?? post.excerpt ?? '',
+      seo_title: aiResult.seo_title ?? post.seo_title ?? post.title ?? '',
+      seo_description: aiResult.seo_description ?? post.seo_description ?? '',
+      updated_at: nowIso(),
+    }
+    if (Array.isArray(aiResult.tags) && aiResult.tags.length) patch.tags = aiResult.tags
+
+    await ref.set(patch, { merge: true })
+    await addAuditLog('blog_post.ai_generated', 'blog_post', req.params.id, 'ai')
+    const updatedSnap = await ref.get()
+    return { data: { id: updatedSnap.id, ...updatedSnap.data() }, meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'blog_post_not_found') {
+      return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+    }
+    if (error instanceof Error && error.message === 'ai_generation_failed') {
+      return fail(res, 400, 'AI_GENERATION_FAILED', 'blog post AI generation failed', {})
+    }
+    return fail(res, 400, 'BLOG_POST_GENERATE_FAILED', error instanceof Error ? error.message : 'blog post generate failed', {})
   })
 })
 
