@@ -4,7 +4,7 @@
   "type": "module",
   "main": "index.mjs",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "dependencies": {
     "express": "^5.2.1",
@@ -12,4 +12,3 @@
     "firebase-functions": "^6.4.0"
   }
 }
-
