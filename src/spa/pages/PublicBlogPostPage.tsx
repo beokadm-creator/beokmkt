@@ -48,7 +48,7 @@ export default function PublicBlogPostPage() {
     return (
       <div className="min-h-screen bg-zinc-950 px-6 py-20 text-zinc-100">
         <div className="mx-auto max-w-3xl">
-          <Link to="/" className="text-sm text-zinc-400 hover:text-zinc-200">
+          <Link to="/blog" className="text-sm text-zinc-400 hover:text-zinc-200">
             ← 블로그 목록으로
           </Link>
           <div className="mt-10 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8">
@@ -63,7 +63,7 @@ export default function PublicBlogPostPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="mx-auto max-w-3xl px-6 py-12">
-        <Link to="/" className="text-sm text-zinc-400 hover:text-zinc-200">
+        <Link to="/blog" className="text-sm text-zinc-400 hover:text-zinc-200">
           ← 블로그 목록으로
         </Link>
 

@@ -33,7 +33,8 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<PublicBlogPage />} />
+      <Route path="/" element={<Navigate to="/blog" replace />} />
+      <Route path="/blog" element={<PublicBlogPage />} />
       <Route path="/blog/:id" element={<PublicBlogPostPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
