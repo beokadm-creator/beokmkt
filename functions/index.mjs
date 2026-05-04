@@ -37,6 +37,16 @@ app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next()
   if (req.path === '/api/health') return next()
 
+  // Blog API: GET public, POST/PATCH/DELETE via X-API-Key or Firebase Auth
+  if (req.path.startsWith('/api/blog-posts') && req.method === 'GET') return next()
+
+  // Check X-API-Key header first
+  const apiKey = req.header('X-API-Key')
+  if (apiKey && apiKey === process.env.BLOG_API_KEY) {
+    req.user = { email: 'api-key', role: 'publisher' }
+    return next()
+  }
+
   const header = req.header('Authorization') ?? ''
   const m = header.match(/^Bearer\s+(.+)$/)
   const token = m?.[1]
@@ -73,6 +83,19 @@ function serializeValue(value) {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, serializeValue(item)]))
   }
   return value
+}
+
+async function getOptionalAdminUser(req) {
+  const header = req.header('Authorization') ?? ''
+  const m = header.match(/^Bearer\s+(.+)$/)
+  const token = m?.[1]
+  if (!token) return null
+  try {
+    const decoded = await getAuth().verifyIdToken(token)
+    return isAllowedAdminUser(decoded) ? decoded : null
+  } catch {
+    return null
+  }
 }
 
 function newId() {
@@ -3752,10 +3775,12 @@ app.get('/api/audit-logs', async (req, res) => {
 })
 
 app.get('/api/blog-posts', async (req, res) => {
+  const adminUser = await getOptionalAdminUser(req)
   const limit = Math.min(parseLimit(req, 20), 100)
   const offset = parseOffset(req)
   const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : ''
-  const status = typeof req.query.status === 'string' ? req.query.status.trim() : ''
+  const requestedStatus = typeof req.query.status === 'string' ? req.query.status.trim() : ''
+  const status = adminUser ? requestedStatus : 'published'
   const category = typeof req.query.category === 'string' ? req.query.category.trim() : ''
 
   const fetchSize = Math.min(Math.max(offset + limit * 5, 100), 300)
@@ -3784,11 +3809,13 @@ app.get('/api/blog-posts', async (req, res) => {
 })
 
 app.get('/api/blog-posts/:id', async (req, res) => {
+  const adminUser = await getOptionalAdminUser(req)
   const snap = await db.collection('blog_posts').doc(req.params.id).get()
   if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
 
   const post = { id: snap.id, ...snap.data() }
   if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  if (!adminUser && post.status !== 'published') return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   ok(res, post)
 })
 

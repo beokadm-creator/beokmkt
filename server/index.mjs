@@ -44,9 +44,34 @@ function fail(res, status, code, message, details) {
   res.status(status).json({ error: { code, message, details } })
 }
 
+async function getOptionalAdminUser(req) {
+  const header = req.header('Authorization') ?? ''
+  const m = header.match(/^Bearer\s+(.+)$/)
+  const token = m?.[1]
+  if (!token) return null
+  try {
+    const decoded = await getAuth().verifyIdToken(token)
+    return isAllowedAdminUser(decoded) ? decoded : null
+  } catch {
+    return null
+  }
+}
+
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next()
   if (req.path === '/api/health') return next()
+  // Public blog read endpoints
+  if (req.path === '/api/blog-posts' && req.method === 'GET') return next()
+  if (/^\/api\/blog-posts\/[^/]+$/.test(req.path) && req.method === 'GET') return next()
+  // Blog write endpoints: accept API key via X-API-Key header as alternative to Firebase auth
+  if (/^\/api\/blog-posts/.test(req.path) && req.method !== 'GET') {
+    const apiKey = req.header('X-API-Key')
+    if (apiKey && apiKey === envValue('BLOG_API_KEY')) {
+      req.user = { email: 'publisher@agent', role: 'publisher' }
+      return next()
+    }
+    // fall through to Firebase auth below
+  }
 
   const header = req.header('Authorization') ?? ''
   const m = header.match(/^Bearer\s+(.+)$/)
@@ -4096,11 +4121,13 @@ app.get('/api/ai/ops-metrics', async (req, res) => {
 })
 
 // Blog Posts
-app.get('/api/blog-posts', (req, res) => {
+app.get('/api/blog-posts', async (req, res) => {
+  const adminUser = await getOptionalAdminUser(req)
   const limit = Math.min(Number(req.query.limit ?? 20) || 20, 100)
   const offset = Number(req.query.offset ?? 0) || 0
   const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : ''
-  const status = typeof req.query.status === 'string' ? req.query.status : ''
+  const requestedStatus = typeof req.query.status === 'string' ? req.query.status : ''
+  const status = adminUser ? requestedStatus : 'published'
   const category = typeof req.query.category === 'string' ? req.query.category : ''
 
   let items = store.blog_posts.filter((p) => !p.deleted_at)
@@ -4118,9 +4145,11 @@ app.get('/api/blog-posts', (req, res) => {
   ok(res, page)
 })
 
-app.get('/api/blog-posts/:id', (req, res) => {
+app.get('/api/blog-posts/:id', async (req, res) => {
+  const adminUser = await getOptionalAdminUser(req)
   const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
   if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  if (!adminUser && post.status !== 'published') return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   ok(res, post)
 })
 

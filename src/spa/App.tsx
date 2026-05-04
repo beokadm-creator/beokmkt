@@ -14,6 +14,8 @@ import RenderJobDetailPage from './pages/RenderJobDetailPage'
 import PublishJobsPage from './pages/PublishJobsPage'
 import PublishJobDetailPage from './pages/PublishJobDetailPage'
 import LoginPage from './pages/LoginPage'
+import PublicBlogPage from './pages/PublicBlogPage'
+import PublicBlogPostPage from './pages/PublicBlogPostPage'
 import AiProvidersPage from './pages/settings/AiProvidersPage'
 import PlatformAccountsPage from './pages/settings/PlatformAccountsPage'
 import { useAuth } from './lib/auth'
@@ -31,6 +33,8 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<PublicBlogPage />} />
+      <Route path="/blog/:id" element={<PublicBlogPostPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route
@@ -40,7 +44,6 @@ export default function App() {
             </AppShell>
           }
         >
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
 
           <Route path="/source-items" element={<SourceItemsPage />} />
