@@ -1,5 +1,5 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { GoogleAuthProvider, User, onIdTokenChanged, signInWithPopup, signOut } from 'firebase/auth'
+import { User, onIdTokenChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { auth, firebaseAuthConfigError } from './firebase'
 
 const TOKEN_KEY = 'beokmkt_id_token'
@@ -40,7 +40,7 @@ type AuthState = {
   accessError: string | null
   allowedAdminEmails: string[]
   isAllowedAdminEmail: (email: string) => boolean
-  signInWithGoogle: (emailHint?: string) => Promise<void>
+  signInWithPassword: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -105,18 +105,14 @@ export function AuthProvider(props: { children: ReactNode }) {
         const normalized = email.trim().toLowerCase()
         return normalized ? adminEmailSet.has(normalized) : false
       },
-      signInWithGoogle: async (emailHint?: string) => {
+      signInWithPassword: async (email: string, password: string) => {
         if (!auth) throw new Error(firebaseAuthConfigError ?? 'Firebase Auth is not configured')
         if (adminConfigError) throw new Error(adminConfigError)
-        const provider = new GoogleAuthProvider()
-        const normalizedHint = typeof emailHint === 'string' ? emailHint.trim().toLowerCase() : ''
-        if (normalizedHint) {
-          provider.setCustomParameters({
-            login_hint: normalizedHint,
-            prompt: 'select_account',
-          })
-        }
-        await signInWithPopup(auth, provider)
+        const normalizedEmail = email.trim().toLowerCase()
+        if (!normalizedEmail) throw new Error('관리자 이메일을 입력하세요.')
+        if (!password) throw new Error('비밀번호를 입력하세요.')
+        if (!adminEmailSet.has(normalizedEmail)) throw new Error('허용된 관리자 이메일만 로그인할 수 있습니다.')
+        await signInWithEmailAndPassword(auth, normalizedEmail, password)
       },
       signOut: async () => {
         if (!auth) {
