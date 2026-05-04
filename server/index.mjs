@@ -1483,106 +1483,144 @@ async function executePublishJobById(publishJobId, body = {}, actorType = 'ai') 
   return { id: publishJobId, status: publishJob.status, result: publishJob.result, render_job_id: renderJob.id }
 }
 
-async function validateApiKey(provider, apiKey) {
+function defaultTestEndpointForProvider(provider) {
+  const table = {
+    openai: 'https://api.openai.com/v1/models',
+    anthropic: 'https://api.anthropic.com/v1/messages',
+    gemini: 'https://generativelanguage.googleapis.com/v1beta/models',
+    mistral: 'https://api.mistral.ai/v1/chat/completions',
+    cohere: 'https://api.cohere.ai/v1/chat',
+    zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+  }
+  return table[provider] ?? ''
+}
+
+async function validateApiKey(provider, apiKey, endpointOverride = '') {
   if (!provider || !apiKey) {
-    return { valid: false, details: 'Provider and API key are required' }
+    return {
+      valid: false,
+      details: 'Provider and API key are required',
+      diagnostics: { provider, endpoint: endpointOverride || defaultTestEndpointForProvider(provider), http_status: null },
+    }
   }
 
   let isValid = false
   let errorDetails = ''
+  let httpStatus = null
+  let usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
   try {
     let response
 
     switch (provider) {
       case 'openai': {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-        try {
-          response = await fetch('https://api.openai.com/v1/models', {
-            method: 'GET',
-            headers: { Authorization: `Bearer ${apiKey}` },
-            signal: controller.signal,
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            isValid = true
-            errorDetails = `API 연결 성공 - ${data.object || 'models'}`
-          } else {
-            const errorData = await response.json().catch(() => null)
-            errorDetails = errorData?.error?.message || `HTTP ${response.status}`
-          }
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') errorDetails = 'OpenAI API 요청 시간 초과 (5초)'
-          else errorDetails = e instanceof Error ? `OpenAI API 오류: ${e.message}` : 'OpenAI API 연결 실패'
-        } finally {
-          clearTimeout(timeoutId)
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+        response = await fetch(usedEndpoint, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${apiKey}` },
+        })
+        httpStatus = response.status
+        if (response.ok) {
+          const data = await response.json().catch(() => null)
+          isValid = true
+          errorDetails = `API 연결 성공 - ${data?.object || 'models'}`
+        } else {
+          const errorData = await response.json().catch(() => null)
+          errorDetails = errorData?.error?.message || `HTTP ${response.status}`
         }
         break
       }
 
       case 'gemini': {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+        for (const model of models) {
+          usedEndpoint =
+            endpointOverride && endpointOverride.includes(':generateContent')
+              ? endpointOverride
+              : `${endpointOverride || defaultTestEndpointForProvider(provider)}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
+          response = await fetch(usedEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }] }),
+          }).catch(() => null)
+          httpStatus = response?.status ?? null
 
-        try {
-          const models = [
-            'gemini-2.0-flash-exp',
-            'gemini-1.5-flash-latest',
-            'gemini-1.5-flash',
-            'gemini-1.5-pro-latest',
-            'gemini-1.5-pro-001',
-            'gemini-pro',
-            'gemini-flash',
-          ]
-
-          for (const model of models) {
-            try {
-              response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }] }),
-                  signal: controller.signal,
-                }
-              )
-
-              if (response.ok) {
-                isValid = true
-                errorDetails = `Gemini API 연결 성공 (${model})`
-                break
-              }
-
-              if (response.status === 404) continue
-            } catch {
-              continue
-            }
+          if (response?.ok) {
+            isValid = true
+            errorDetails = `Gemini API 연결 성공 (${model})`
+            break
           }
+        }
 
-          if (!isValid) errorDetails = 'Gemini API: 모든 모델 시도 실패 (모델 이름이 변경되었을 수 있음)'
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') errorDetails = 'Gemini API 요청 시간 초과 (5초)'
-          else errorDetails = e instanceof Error ? `Gemini API 오류: ${e.message}` : 'Gemini API 연결 실패'
-        } finally {
-          clearTimeout(timeoutId)
+        if (!isValid) {
+          const errorData = response ? await response.json().catch(() => null) : null
+          errorDetails = errorData?.error?.message || 'Gemini API 연결 실패'
         }
         break
       }
 
       case 'zhipu': {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        const models = ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo', 'chatglm3-6b']
+        let lastError = ''
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
-        try {
-          const models = ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo', 'chatglm3-6b']
-          let lastError = ''
+        for (const model of models) {
+          try {
+            response = await fetch(usedEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model,
+                messages: [{ role: 'user', content: 'hi' }],
+                max_tokens: 10,
+              }),
+            })
+            httpStatus = response.status
 
-          for (const model of models) {
+            if (response.ok) {
+              isValid = true
+              errorDetails = `Zhipu API 연결 성공 (${model} 모델)`
+              break
+            }
+
+            const errorData = await response.json().catch(() => null)
+            lastError = errorData?.error?.message || `HTTP ${response.status}`
+            if (errorData?.error?.code === '1211') continue
+          } catch (e) {
+            lastError = e instanceof Error ? e.message : 'Unknown error'
+            continue
+          }
+        }
+
+        if (!isValid) errorDetails = `Zhipu API 실패: ${lastError} (모든 모델 시도 실패)`
+        break
+      }
+
+      case 'zai': {
+        const endpoints = endpointOverride
+          ? [{ url: endpointOverride, models: ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo'] }]
+          : [
+              {
+                url: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+                models: ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo'],
+              },
+              {
+                url: 'https://api.z.ai/v1/chat/completions',
+                models: ['glm-4-flash', 'glm-4-air', 'glm-4'],
+              },
+            ]
+
+        let lastError = ''
+
+        for (const endpoint of endpoints) {
+          for (const model of endpoint.models) {
             try {
-              response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+              usedEndpoint = endpoint.url
+              response = await fetch(usedEndpoint, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -1593,12 +1631,12 @@ async function validateApiKey(provider, apiKey) {
                   messages: [{ role: 'user', content: 'hi' }],
                   max_tokens: 10,
                 }),
-                signal: controller.signal,
               })
+              httpStatus = response.status
 
               if (response.ok) {
                 isValid = true
-                errorDetails = `Zhipu API 연결 성공 (${model} 모델)`
+                errorDetails = `Z.ai API 연결 성공 (${model} 모델 - ${usedEndpoint})`
                 break
               }
 
@@ -1611,233 +1649,141 @@ async function validateApiKey(provider, apiKey) {
             }
           }
 
-          if (!isValid) errorDetails = `Zhipu API 실패: ${lastError} (모든 모델 시도 실패)`
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') errorDetails = 'Zhipu API 요청 시간 초과 (5초)'
-          else errorDetails = e instanceof Error ? `Zhipu API 오류: ${e.message}` : 'Zhipu API 연결 실패'
-        } finally {
-          clearTimeout(timeoutId)
+          if (isValid) break
         }
-        break
-      }
 
-      case 'zai': {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-        try {
-          const endpoints = [
-            {
-              url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-              models: ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo'],
-            },
-            {
-              url: 'https://api.z.ai/v1/chat/completions',
-              models: ['glm-4-flash', 'glm-4-air', 'glm-4'],
-            },
-          ]
-
-          let lastError = ''
-
-          for (const endpoint of endpoints) {
-            for (const model of endpoint.models) {
-              try {
-                response = await fetch(endpoint.url, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${apiKey}`,
-                  },
-                  body: JSON.stringify({
-                    model,
-                    messages: [{ role: 'user', content: 'hi' }],
-                    max_tokens: 10,
-                  }),
-                  signal: controller.signal,
-                })
-
-                if (response.ok) {
-                  isValid = true
-                  errorDetails = `Z.ai API 연결 성공 (${model} 모델 - ${endpoint.url})`
-                  break
-                }
-
-                const errorData = await response.json().catch(() => null)
-                lastError = errorData?.error?.message || `HTTP ${response.status}`
-                if (errorData?.error?.code === '1211') continue
-              } catch (e) {
-                lastError = e instanceof Error ? e.message : 'Unknown error'
-                continue
-              }
-            }
-
-            if (isValid) break
-          }
-
-          if (!isValid) errorDetails = `Z.ai API 실패: ${lastError} (모든 엔드포인트와 모델 시도 실패)`
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') errorDetails = 'Z.ai API 요청 시간 초과 (5초)'
-          else errorDetails = e instanceof Error ? `Z.ai API 오류: ${e.message}` : 'Z.ai API 연결 실패'
-        } finally {
-          clearTimeout(timeoutId)
-        }
+        if (!isValid) errorDetails = `Z.ai API 실패: ${lastError} (모든 엔드포인트와 모델 시도 실패)`
         break
       }
 
       case 'anthropic': {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const models = ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-haiku-20240307', 'claude-3-sonnet-20240229']
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
-        try {
-          const models = [
-            'claude-3-5-sonnet-20241022',
-            'claude-3-5-haiku-20241022',
-            'claude-3-haiku-20240307',
-            'claude-3-sonnet-20240229',
-          ]
+        for (const model of models) {
+          try {
+            response = await fetch(usedEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model,
+                max_tokens: 10,
+                messages: [{ role: 'user', content: 'hi' }],
+              }),
+            })
+            httpStatus = response.status
 
-          for (const model of models) {
-            try {
-              response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-api-key': apiKey,
-                  'anthropic-version': '2023-06-01',
-                },
-                body: JSON.stringify({
-                  model,
-                  max_tokens: 10,
-                  messages: [{ role: 'user', content: 'hi' }],
-                }),
-                signal: controller.signal,
-              })
-
-              if (response.ok) {
-                isValid = true
-                errorDetails = `Anthropic Claude API 연결 성공 (${model})`
-                break
-              }
-            } catch {
-              continue
+            if (response.ok) {
+              isValid = true
+              errorDetails = `Anthropic Claude API 연결 성공 (${model})`
+              break
             }
+          } catch {
+            continue
           }
+        }
 
-          if (!isValid) {
-            const errorData = await response.json().catch(() => null)
-            errorDetails = errorData?.error?.message || 'Anthropic API 연결 실패'
-          }
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') errorDetails = 'Anthropic API 요청 시간 초과 (10초)'
-          else errorDetails = e instanceof Error ? `Anthropic API 오류: ${e.message}` : 'Anthropic API 연결 실패'
-        } finally {
-          clearTimeout(timeoutId)
+        if (!isValid) {
+          const errorData = response ? await response.json().catch(() => null) : null
+          errorDetails = errorData?.error?.message || 'Anthropic API 연결 실패'
         }
         break
       }
 
       case 'cohere': {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const models = ['command-r-plus-08-2024', 'command-r-08-2024', 'command', 'command-light']
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
-        try {
-          const models = ['command-r-plus-08-2024', 'command-r-08-2024', 'command', 'command-light']
+        for (const model of models) {
+          try {
+            response = await fetch(usedEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({ model, message: 'hi', max_tokens: 10 }),
+            })
+            httpStatus = response.status
 
-          for (const model of models) {
-            try {
-              response = await fetch('https://api.cohere.ai/v1/chat', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({ model, message: 'hi', max_tokens: 10 }),
-                signal: controller.signal,
-              })
-
-              if (response.ok) {
-                isValid = true
-                errorDetails = `Cohere API 연결 성공 (${model})`
-                break
-              }
-            } catch {
-              continue
+            if (response.ok) {
+              isValid = true
+              errorDetails = `Cohere API 연결 성공 (${model})`
+              break
             }
+          } catch {
+            continue
           }
+        }
 
-          if (!isValid) {
-            const errorData = await response.json().catch(() => null)
-            errorDetails = errorData?.message || 'Cohere API 연결 실패'
-          }
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') errorDetails = 'Cohere API 요청 시간 초과 (10초)'
-          else errorDetails = e instanceof Error ? `Cohere API 오류: ${e.message}` : 'Cohere API 연결 실패'
-        } finally {
-          clearTimeout(timeoutId)
+        if (!isValid) {
+          const errorData = response ? await response.json().catch(() => null) : null
+          errorDetails = errorData?.message || 'Cohere API 연결 실패'
         }
         break
       }
 
       case 'mistral': {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const models = ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest', 'mixtral-8x7b-32768']
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
-        try {
-          const models = [
-            'mistral-large-latest',
-            'mistral-medium-latest',
-            'mistral-small-latest',
-            'codestral-latest',
-            'mixtral-8x7b-32768',
-          ]
+        for (const model of models) {
+          try {
+            response = await fetch(usedEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model,
+                messages: [{ role: 'user', content: 'hi' }],
+                max_tokens: 10,
+              }),
+            })
+            httpStatus = response.status
 
-          for (const model of models) {
-            try {
-              response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                  model,
-                  messages: [{ role: 'user', content: 'hi' }],
-                  max_tokens: 10,
-                }),
-                signal: controller.signal,
-              })
-
-              if (response.ok) {
-                isValid = true
-                errorDetails = `Mistral AI API 연결 성공 (${model})`
-                break
-              }
-            } catch {
-              continue
+            if (response.ok) {
+              isValid = true
+              errorDetails = `Mistral AI API 연결 성공 (${model})`
+              break
             }
+          } catch {
+            continue
           }
+        }
 
-          if (!isValid) {
-            const errorData = await response.json().catch(() => null)
-            errorDetails = errorData?.message || 'Mistral API 연결 실패'
-          }
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') errorDetails = 'Mistral API 요청 시간 초과 (10초)'
-          else errorDetails = e instanceof Error ? `Mistral API 오류: ${e.message}` : 'Mistral API 연결 실패'
-        } finally {
-          clearTimeout(timeoutId)
+        if (!isValid) {
+          const errorData = response ? await response.json().catch(() => null) : null
+          errorDetails = errorData?.message || 'Mistral API 연결 실패'
         }
         break
       }
 
       default:
-        return { valid: false, details: 'Unknown provider' }
+        return {
+          valid: false,
+          details: 'Unknown provider',
+          diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+        }
     }
   } catch (e) {
-    return { valid: false, details: e instanceof Error ? e.message : 'Network error' }
+    return {
+      valid: false,
+      details: e instanceof Error ? e.message : 'Network error',
+      diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+    }
   }
 
-  return { valid: isValid, details: isValid ? 'API 연결 성공' : errorDetails }
+  return {
+    valid: isValid,
+    details: isValid ? 'API 연결 성공' : errorDetails,
+    diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+  }
 }
 
 app.get('/api/health', (req, res) => {
@@ -1869,15 +1815,17 @@ app.get('/api/dashboard', (req, res) => {
 app.get('/api/test-ai-key', async (req, res) => {
   const provider = req.query.provider
   const apiKey = req.query.apiKey
-  const result = await validateApiKey(provider, apiKey)
-  res.status(result.valid ? 200 : 400).json(result)
+  const endpoint = req.query.endpoint
+  const result = await validateApiKey(provider, apiKey, endpoint)
+  res.json(result)
 })
 
 app.post('/api/test-ai-key', async (req, res) => {
   const provider = req.body?.provider ?? req.query.provider
   const apiKey = req.body?.apiKey ?? req.query.apiKey
-  const result = await validateApiKey(provider, apiKey)
-  res.status(result.valid ? 200 : 400).json(result)
+  const endpoint = req.body?.endpoint ?? req.query.endpoint
+  const result = await validateApiKey(provider, apiKey, endpoint)
+  res.json(result)
 })
 
 app.post('/api/source-items/import', async (req, res) => {

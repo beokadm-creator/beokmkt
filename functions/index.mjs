@@ -174,23 +174,44 @@ function maybeParseJson(text) {
   return null
 }
 
-async function validateApiKey(provider, apiKey) {
+function defaultTestEndpointForProvider(provider) {
+  const table = {
+    openai: 'https://api.openai.com/v1/models',
+    anthropic: 'https://api.anthropic.com/v1/messages',
+    gemini: 'https://generativelanguage.googleapis.com/v1beta/models',
+    mistral: 'https://api.mistral.ai/v1/chat/completions',
+    cohere: 'https://api.cohere.ai/v1/chat',
+    zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+  }
+  return table[provider] ?? ''
+}
+
+async function validateApiKey(provider, apiKey, endpointOverride = '') {
   if (!provider || !apiKey) {
-    return { valid: false, details: 'Provider and API key are required' }
+    return {
+      valid: false,
+      details: 'Provider and API key are required',
+      diagnostics: { provider, endpoint: endpointOverride || defaultTestEndpointForProvider(provider), http_status: null },
+    }
   }
 
   let isValid = false
   let errorDetails = ''
+  let httpStatus = null
+  let usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
   try {
     let response = null
 
     switch (provider) {
       case 'openai': {
-        response = await fetch('https://api.openai.com/v1/models', {
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+        response = await fetch(usedEndpoint, {
           method: 'GET',
           headers: { Authorization: `Bearer ${apiKey}` },
         })
+        httpStatus = response.status
         if (response.ok) {
           const data = await response.json().catch(() => null)
           isValid = true
@@ -205,8 +226,12 @@ async function validateApiKey(provider, apiKey) {
       case 'gemini': {
         const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
         for (const model of models) {
+          usedEndpoint =
+            endpointOverride && endpointOverride.includes(':generateContent')
+              ? endpointOverride
+              : `${endpointOverride || defaultTestEndpointForProvider(provider)}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
           response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+            usedEndpoint,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -215,10 +240,12 @@ async function validateApiKey(provider, apiKey) {
           ).catch(() => null)
 
           if (response?.ok) {
+            httpStatus = response.status
             isValid = true
             errorDetails = `Gemini API 연결 성공 (${model})`
             break
           }
+          httpStatus = response?.status ?? null
         }
 
         if (!isValid) {
@@ -229,7 +256,8 @@ async function validateApiKey(provider, apiKey) {
       }
 
       case 'zhipu': {
-        response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+        response = await fetch(usedEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -241,6 +269,7 @@ async function validateApiKey(provider, apiKey) {
             max_tokens: 10,
           }),
         })
+        httpStatus = response.status
 
         if (response.ok) {
           isValid = true
@@ -253,7 +282,8 @@ async function validateApiKey(provider, apiKey) {
       }
 
       case 'zai': {
-        response = await fetch('https://open.bigmodel.cn/api/coding/paas/v4/chat/completions', {
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+        response = await fetch(usedEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -265,6 +295,7 @@ async function validateApiKey(provider, apiKey) {
             max_tokens: 10,
           }),
         })
+        httpStatus = response.status
 
         if (response.ok) {
           isValid = true
@@ -277,7 +308,8 @@ async function validateApiKey(provider, apiKey) {
       }
 
       case 'anthropic': {
-        response = await fetch('https://api.anthropic.com/v1/messages', {
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+        response = await fetch(usedEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -290,6 +322,7 @@ async function validateApiKey(provider, apiKey) {
             messages: [{ role: 'user', content: 'hi' }],
           }),
         })
+        httpStatus = response.status
 
         if (response.ok) {
           isValid = true
@@ -302,7 +335,8 @@ async function validateApiKey(provider, apiKey) {
       }
 
       case 'cohere': {
-        response = await fetch('https://api.cohere.ai/v1/chat', {
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+        response = await fetch(usedEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -314,6 +348,7 @@ async function validateApiKey(provider, apiKey) {
             max_tokens: 10,
           }),
         })
+        httpStatus = response.status
 
         if (response.ok) {
           isValid = true
@@ -326,7 +361,8 @@ async function validateApiKey(provider, apiKey) {
       }
 
       case 'mistral': {
-        response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+        response = await fetch(usedEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -338,6 +374,7 @@ async function validateApiKey(provider, apiKey) {
             max_tokens: 10,
           }),
         })
+        httpStatus = response.status
 
         if (response.ok) {
           isValid = true
@@ -350,13 +387,25 @@ async function validateApiKey(provider, apiKey) {
       }
 
       default:
-        return { valid: false, details: 'Unknown provider' }
+        return {
+          valid: false,
+          details: 'Unknown provider',
+          diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+        }
     }
   } catch (e) {
-    return { valid: false, details: e instanceof Error ? e.message : 'Network error' }
+    return {
+      valid: false,
+      details: e instanceof Error ? e.message : 'Network error',
+      diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+    }
   }
 
-  return { valid: isValid, details: isValid ? 'API 연결 성공' : errorDetails }
+  return {
+    valid: isValid,
+    details: isValid ? 'API 연결 성공' : errorDetails,
+    diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+  }
 }
 
 async function generateAiText(config, systemPrompt, userPrompt) {
@@ -1512,15 +1561,18 @@ app.get('/api/health', (req, res) => {
 app.get('/api/test-ai-key', async (req, res) => {
   const provider = typeof req.query.provider === 'string' ? req.query.provider : ''
   const apiKey = typeof req.query.apiKey === 'string' ? req.query.apiKey : ''
-  const result = await validateApiKey(provider, apiKey)
-  res.status(result.valid ? 200 : 400).json(result)
+  const endpoint = typeof req.query.endpoint === 'string' ? req.query.endpoint : ''
+  const result = await validateApiKey(provider, apiKey, endpoint)
+  res.json(result)
 })
 
 app.post('/api/test-ai-key', async (req, res) => {
   const provider = typeof req.body?.provider === 'string' ? req.body.provider : typeof req.query.provider === 'string' ? req.query.provider : ''
   const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : typeof req.query.apiKey === 'string' ? req.query.apiKey : ''
-  const result = await validateApiKey(provider, apiKey)
-  res.status(result.valid ? 200 : 400).json(result)
+  const endpoint =
+    typeof req.body?.endpoint === 'string' ? req.body.endpoint : typeof req.query.endpoint === 'string' ? req.query.endpoint : ''
+  const result = await validateApiKey(provider, apiKey, endpoint)
+  res.json(result)
 })
 
 app.get('/api/dashboard', async (req, res) => {
