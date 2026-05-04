@@ -3,11 +3,41 @@ import { GoogleAuthProvider, User, onIdTokenChanged, signInWithPopup, signOut } 
 import { auth, firebaseAuthConfigError } from './firebase'
 
 const TOKEN_KEY = 'beokmkt_id_token'
+const adminEmails = String(import.meta.env.VITE_ADMIN_EMAILS ?? '')
+  .split(',')
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean)
+const adminUids = String(import.meta.env.VITE_ADMIN_UIDS ?? '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+
+const adminEmailSet = new Set(adminEmails)
+const adminUidSet = new Set(adminUids)
+const adminConfigError =
+  adminEmails.length > 0 || adminUids.length > 0
+    ? null
+    : '관리자 허용 목록이 비어 있습니다: VITE_ADMIN_EMAILS 또는 VITE_ADMIN_UIDS를 설정하세요.'
+
+function isAllowedAdmin(user: Pick<User, 'email' | 'uid'> | null | undefined) {
+  if (!user) return false
+  if (adminEmailSet.size > 0) {
+    const email = user.email?.trim().toLowerCase() ?? ''
+    if (!email || !adminEmailSet.has(email)) return false
+  }
+  if (adminUidSet.size > 0) {
+    const uid = user.uid?.trim() ?? ''
+    if (!uid || !adminUidSet.has(uid)) return false
+  }
+  return adminEmailSet.size > 0 || adminUidSet.size > 0
+}
 
 type AuthState = {
   user: User | null
   isReady: boolean
+  isAdmin: boolean
   configError: string | null
+  accessError: string | null
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -17,6 +47,7 @@ const AuthContext = createContext<AuthState | null>(null)
 export function AuthProvider(props: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const [accessError, setAccessError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!auth) {
@@ -26,26 +57,50 @@ export function AuthProvider(props: { children: ReactNode }) {
       return
     }
 
-    const unsub = onIdTokenChanged(auth, async (u) => {
-      setUser(u)
-      if (u) {
-        const token = await u.getIdToken()
-        localStorage.setItem(TOKEN_KEY, token)
-      } else {
+    const authInstance = auth
+
+    const unsub = onIdTokenChanged(authInstance, async (u) => {
+      if (!u) {
+        setUser(null)
         localStorage.removeItem(TOKEN_KEY)
+        setIsReady(true)
+        return
       }
+
+      const email = u.email?.trim().toLowerCase() ?? ''
+      if (!isAllowedAdmin(u)) {
+        setUser(null)
+        localStorage.removeItem(TOKEN_KEY)
+        setAccessError(email ? `허용되지 않은 관리자 계정입니다: ${email}` : '이 계정은 관리자 로그인 허용 목록에 없습니다.')
+        try {
+          await signOut(authInstance)
+        } catch {
+          // Ignore follow-up sign-out failures after access is denied.
+        }
+        setIsReady(true)
+        return
+      }
+
+      setAccessError(null)
+      setUser(u)
+      const token = await u.getIdToken()
+      localStorage.setItem(TOKEN_KEY, token)
       setIsReady(true)
     })
     return () => unsub()
   }, [])
 
   const value = useMemo<AuthState>(() => {
+    const isAdmin = isAllowedAdmin(user)
     return {
       user,
       isReady,
-      configError: firebaseAuthConfigError,
+      isAdmin,
+      configError: firebaseAuthConfigError ?? adminConfigError,
+      accessError,
       signInWithGoogle: async () => {
         if (!auth) throw new Error(firebaseAuthConfigError ?? 'Firebase Auth is not configured')
+        if (adminConfigError) throw new Error(adminConfigError)
         const provider = new GoogleAuthProvider()
         await signInWithPopup(auth, provider)
       },
@@ -57,7 +112,7 @@ export function AuthProvider(props: { children: ReactNode }) {
         await signOut(auth)
       },
     }
-  }, [isReady, user])
+  }, [accessError, isReady, user])
 
   return <AuthContext.Provider value={value}>{props.children}</AuthContext.Provider>
 }

@@ -25,13 +25,13 @@ export default function LoginPage() {
     }
   }
 
-  if (auth.isReady && auth.user) return <Navigate to={from} replace />
+  if (auth.isReady && auth.user && auth.isAdmin) return <Navigate to={from} replace />
 
   return (
     <div className="min-h-full bg-zinc-950 text-zinc-50">
       <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-6 py-16">
         <div className="text-lg font-semibold">beokmkt 콘솔 로그인</div>
-        <div className="mt-2 text-sm text-zinc-400">Firebase Auth로 로그인합니다.</div>
+        <div className="mt-2 text-sm text-zinc-400">허용된 관리자 Google 계정으로만 로그인할 수 있습니다.</div>
 
         {auth.configError ? (
           <div className="mt-6 rounded-xl border border-amber-900/60 bg-amber-950/30 p-4 text-sm text-amber-200">
@@ -40,6 +40,13 @@ export default function LoginPage() {
             <div className="mt-2 text-amber-300/80">
               프로젝트 루트 `.env`에 Firebase 웹앱 값을 넣고 `npm run dev:spa`를 다시 시작하세요.
             </div>
+          </div>
+        ) : null}
+
+        {auth.accessError ? (
+          <div className="mt-6 rounded-xl border border-rose-900/60 bg-rose-950/30 p-4 text-sm text-rose-200">
+            <div className="font-medium">관리자 접근이 거부되었습니다.</div>
+            <div className="mt-2 break-words text-rose-100">{auth.accessError}</div>
           </div>
         ) : null}
 

@@ -1,16 +1,40 @@
 import 'dotenv/config'
 import express from 'express'
+import { initializeApp } from 'firebase-admin/app'
+import { getAuth } from 'firebase-admin/auth'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 import { getIdempotency, loadStore, newId, nowIso, saveStore, setIdempotency } from './store.mjs'
 
+initializeApp()
+
 const app = express()
 app.use(express.json({ limit: '1mb' }))
 
 const port = process.env.PORT ? Number(process.env.PORT) : 8787
+const adminEmailAllowlist = String(process.env.ADMIN_EMAILS ?? process.env.ALLOWED_ADMIN_EMAILS ?? '')
+  .split(',')
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean)
+const adminUidAllowlist = String(process.env.ADMIN_UIDS ?? process.env.ALLOWED_ADMIN_UIDS ?? '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
 
 let store = await loadStore()
+
+function isAllowedAdminUser(user = {}) {
+  if (adminEmailAllowlist.length > 0) {
+    const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : ''
+    if (!email || !adminEmailAllowlist.includes(email)) return false
+  }
+  if (adminUidAllowlist.length > 0) {
+    const uid = typeof user.uid === 'string' ? user.uid.trim() : ''
+    if (!uid || !adminUidAllowlist.includes(uid)) return false
+  }
+  return adminEmailAllowlist.length > 0 || adminUidAllowlist.length > 0
+}
 
 function ok(res, data, meta) {
   res.json({ data, meta: meta ?? {} })
@@ -19,6 +43,27 @@ function ok(res, data, meta) {
 function fail(res, status, code, message, details) {
   res.status(status).json({ error: { code, message, details } })
 }
+
+app.use(async (req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next()
+  if (req.path === '/api/health') return next()
+
+  const header = req.header('Authorization') ?? ''
+  const m = header.match(/^Bearer\s+(.+)$/)
+  const token = m?.[1]
+  if (!token) return fail(res, 401, 'UNAUTHENTICATED', 'missing token', {})
+
+  try {
+    const decoded = await getAuth().verifyIdToken(token)
+    if (!isAllowedAdminUser(decoded)) {
+      return fail(res, 403, 'FORBIDDEN', 'admin access required', { email: decoded.email ?? null, uid: decoded.uid ?? null })
+    }
+    req.user = decoded
+    return next()
+  } catch {
+    return fail(res, 401, 'UNAUTHENTICATED', 'invalid token', {})
+  }
+})
 
 function idempotencyKey(req) {
   const v = req.header('Idempotency-Key')
@@ -48,15 +93,17 @@ function paginate(items, limit, offset) {
   return { items: sliced, total, limit, offset }
 }
 
-function addAuditLog(action, target_type, target_id, actor_type = 'system') {
-  store.audit_logs.unshift({
+function addAuditLog(action, target_type, target_id, actor_type = 'system', details = null) {
+  const entry = {
     id: newId(),
     actor_type,
     action,
     target_type,
     target_id,
     created_at: nowIso(),
-  })
+  }
+  if (details && typeof details === 'object') entry.details = details
+  store.audit_logs.unshift(entry)
 }
 
 function addWorkflowEvent(event_name, entity_type, entity_id, status = 'processed', payload = null, result = null) {
@@ -129,6 +176,14 @@ async function resolveAiConfig(body = {}) {
   const endpoint = bodyEndpoint || storedEndpoint || envEndpoint
 
   return { provider, apiKey, model, endpoint }
+}
+
+function aiTraceFromConfig(config = {}) {
+  return {
+    provider: typeof config.provider === 'string' ? config.provider : '',
+    model: typeof config.model === 'string' ? config.model : '',
+    endpoint: typeof config.endpoint === 'string' ? config.endpoint : '',
+  }
 }
 
 function extractTextFromResponse(provider, data) {
@@ -2225,6 +2280,7 @@ app.post('/api/ai/generate-ideas', async (req, res) => {
     const platformTargets = Array.isArray(body.platform_targets) && body.platform_targets.length ? body.platform_targets : ['youtube']
     const autoApproveLead = body.auto_approve_lead !== false
     const aiConfig = await resolveAiConfig(body)
+    const aiTrace = aiTraceFromConfig(aiConfig)
     const aiIdeas = await generateIdeasWithAi(aiConfig, item, {
       ideaCount: count,
       durationSec: targetDurationSec,
@@ -2265,9 +2321,9 @@ app.post('/api/ai/generate-ideas', async (req, res) => {
       }
     }
 
-    addAuditLog('source_item.ai_generated_ideas', 'source_item', sourceItemId, 'ai')
+    addAuditLog('source_item.ai_generated_ideas', 'source_item', sourceItemId, 'ai', { ai_trace: aiTrace })
     await saveStore(store)
-    return { data: { source_item_id: sourceItemId, idea_ids: ideaIds, lead_idea_id: leadIdeaId }, meta: {} }
+    return { data: { source_item_id: sourceItemId, idea_ids: ideaIds, lead_idea_id: leadIdeaId }, meta: { ai_trace: aiTrace } }
   }).catch((e) => {
     if (e instanceof Error && e.message === 'missing_source_item_id') return fail(res, 400, 'VALIDATION_ERROR', 'source_item_id is required', {})
     if (e instanceof Error && e.message === 'source_item_not_found') return fail(res, 404, 'NOT_FOUND', 'source item not found', {})
@@ -2285,6 +2341,7 @@ app.post('/api/ai/generate-script', async (req, res) => {
     const idea = store.short_ideas.find((entry) => entry.id === shortIdeaId && !entry.deleted_at)
     if (!idea) throw new Error('short_idea_not_found')
     const aiConfig = await resolveAiConfig(body)
+    const aiTrace = aiTraceFromConfig(aiConfig)
 
     if (idea.status !== 'approved') {
       if (idea.status === 'awaiting_review' && body.approve_idea !== false) {
@@ -2341,14 +2398,17 @@ app.post('/api/ai/generate-script', async (req, res) => {
       updated_at: nowIso(),
       deleted_at: null,
     })
-    addAuditLog('script.generated', 'script', scriptId, 'ai')
+    addAuditLog('script.generated', 'script', scriptId, 'ai', { ai_trace: aiTrace })
     if (autoApprove) {
       addApprovalRecord('script', scriptId, 'script_review', 'approved', 'AI auto approval')
       addAuditLog('script.auto_approved', 'script', scriptId, 'ai')
     }
 
     await saveStore(store)
-    return { data: { short_idea_id: shortIdeaId, script_id: scriptId, status: autoApprove ? 'approved' : 'awaiting_review' }, meta: {} }
+    return {
+      data: { short_idea_id: shortIdeaId, script_id: scriptId, status: autoApprove ? 'approved' : 'awaiting_review' },
+      meta: { ai_trace: aiTrace },
+    }
   }).catch((e) => {
     if (e instanceof Error && e.message === 'missing_short_idea_id') return fail(res, 400, 'VALIDATION_ERROR', 'short_idea_id is required', {})
     if (e instanceof Error && e.message === 'short_idea_not_found') return fail(res, 404, 'NOT_FOUND', 'short idea not found', {})
@@ -2425,6 +2485,7 @@ app.post('/api/ai/create-publish-job', async (req, res) => {
     const account = store.platform_accounts.find((entry) => entry.id === platformAccountId && !entry.deleted_at)
     if (!account) throw new Error('platform_account_not_found')
     const aiConfig = await resolveAiConfig(body)
+    const aiTrace = aiTraceFromConfig(aiConfig)
 
     if (renderJob.qc_status !== 'passed') {
       if (body.approve_render !== false) {
@@ -2482,14 +2543,14 @@ app.post('/api/ai/create-publish-job', async (req, res) => {
       updated_at: nowIso(),
       deleted_at: null,
     })
-    addAuditLog('publish_job.created', 'publish_job', publishJobId, 'ai')
+    addAuditLog('publish_job.created', 'publish_job', publishJobId, 'ai', { ai_trace: aiTrace })
     if (autoApprove) {
       addApprovalRecord('publish_job', publishJobId, 'publish_review', 'approved', 'AI auto approval')
       addAuditLog('publish_job.auto_approved', 'publish_job', publishJobId, 'ai')
     }
 
     await saveStore(store)
-    return { data: { render_job_id: renderJobId, publish_job_id: publishJobId, status: publishStatus }, meta: {} }
+    return { data: { render_job_id: renderJobId, publish_job_id: publishJobId, status: publishStatus }, meta: { ai_trace: aiTrace } }
   }).catch((e) => {
     if (e instanceof Error && e.message === 'missing_render_job_id') return fail(res, 400, 'VALIDATION_ERROR', 'render_job_id is required', {})
     if (e instanceof Error && e.message === 'missing_platform_account') return fail(res, 400, 'VALIDATION_ERROR', 'platform_account_id is required', {})
@@ -2521,6 +2582,7 @@ app.post('/api/ai/run-pipeline', async (req, res) => {
     const autoApproveRender = body.auto_approve_render !== false
     const autoApprovePublish = body.auto_approve_publish !== false
     const aiConfig = await resolveAiConfig(body)
+    const aiTrace = aiTraceFromConfig(aiConfig)
     const hashtags = Array.isArray(body.hashtags)
       ? body.hashtags.filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim())
       : []
@@ -2691,7 +2753,7 @@ app.post('/api/ai/run-pipeline', async (req, res) => {
       addAuditLog('publish_job.auto_approved', 'publish_job', publishJobId, 'ai')
     }
 
-    addAuditLog('source_item.ai_pipeline_run', 'source_item', sourceItemId, 'ai')
+    addAuditLog('source_item.ai_pipeline_run', 'source_item', sourceItemId, 'ai', { ai_trace: aiTrace })
     await saveStore(store)
     return {
       data: {
@@ -2709,7 +2771,7 @@ app.post('/api/ai/run-pipeline', async (req, res) => {
           publish_job: publishStatus,
         },
       },
-      meta: {},
+      meta: { ai_trace: aiTrace },
     }
   }).catch((e) => {
     if (e instanceof Error && e.message === 'missing_source_item_id') return fail(res, 400, 'VALIDATION_ERROR', 'source_item_id is required', {})
@@ -2783,6 +2845,7 @@ app.post('/api/ai/execute-pipeline', async (req, res) => {
     const autoApproveRender = body.auto_approve_render !== false
     const autoApprovePublish = body.auto_approve_publish !== false
     const aiConfig = await resolveAiConfig(body)
+    const aiTrace = aiTraceFromConfig(aiConfig)
     const hashtags = Array.isArray(body.hashtags)
       ? body.hashtags.filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim())
       : []
@@ -2954,7 +3017,7 @@ app.post('/api/ai/execute-pipeline', async (req, res) => {
       addAuditLog('publish_job.auto_approved', 'publish_job', publishJobId, 'ai')
     }
 
-    addAuditLog('source_item.ai_pipeline_run', 'source_item', sourceItemId, 'ai')
+    addAuditLog('source_item.ai_pipeline_run', 'source_item', sourceItemId, 'ai', { ai_trace: aiTrace })
     await saveStore(store)
 
     const execution = await executePublishJobById(publishJobId, body, 'ai')
@@ -2975,7 +3038,7 @@ app.post('/api/ai/execute-pipeline', async (req, res) => {
         },
         execution,
       },
-      meta: {},
+      meta: { ai_trace: aiTrace },
     }
   }).catch((e) => {
     if (e instanceof Error && e.message === 'missing_source_item_id') return fail(res, 400, 'VALIDATION_ERROR', 'source_item_id is required', {})
@@ -4072,8 +4135,10 @@ app.post('/api/blog-posts', async (req, res) => {
     const status = typeof body.status === 'string' ? body.status : 'draft'
 
     let htmlContent = typeof body.content === 'string' ? body.content : ''
+    let aiTrace = null
     if (!htmlContent && body.ai_generate !== false) {
       const aiConfig = await resolveAiConfig(body)
+      aiTrace = aiTraceFromConfig(aiConfig)
       const aiResult = await generateBlogPostWithAi(aiConfig, {
         title,
         topic: body.topic ?? title,
@@ -4118,9 +4183,15 @@ app.post('/api/blog-posts', async (req, res) => {
     }
 
     store.blog_posts.unshift(post)
-    addAuditLog('blog_post.created', 'blog_post', id, body.ai_generate !== false ? 'ai' : 'user')
+    addAuditLog(
+      'blog_post.created',
+      'blog_post',
+      id,
+      body.ai_generate !== false ? 'ai' : 'user',
+      aiTrace ? { ai_trace: aiTrace } : null
+    )
     await saveStore(store)
-    return { data: post, meta: {} }
+    return { data: post, meta: aiTrace ? { ai_trace: aiTrace } : {} }
   }).catch((error) => {
     if (error instanceof Error && error.message === 'missing_title') {
       return fail(res, 400, 'VALIDATION_ERROR', 'title is required', {})
@@ -4192,6 +4263,7 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
 
     const body = req.body ?? {}
     const aiConfig = await resolveAiConfig(body)
+    const aiTrace = aiTraceFromConfig(aiConfig)
     const aiResult = await generateBlogPostWithAi(aiConfig, {
       title: post.title,
       topic: body.topic ?? post.title,
@@ -4211,9 +4283,9 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
     if (Array.isArray(aiResult.tags) && aiResult.tags.length) post.tags = aiResult.tags
     post.updated_at = nowIso()
 
-    addAuditLog('blog_post.ai_generated', 'blog_post', post.id, 'ai')
+    addAuditLog('blog_post.ai_generated', 'blog_post', post.id, 'ai', { ai_trace: aiTrace })
     await saveStore(store)
-    return { data: post, meta: {} }
+    return { data: post, meta: { ai_trace: aiTrace } }
   }).catch((error) => {
     if (error instanceof Error && error.message === 'blog_post_not_found') {
       return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})

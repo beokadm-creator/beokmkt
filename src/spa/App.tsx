@@ -25,6 +25,7 @@ export default function App() {
   function RequireAuth() {
     if (!auth.isReady) return <div className="px-6 py-6 text-sm text-zinc-500">로딩 중…</div>
     if (!auth.user) return <Navigate to={`/login?from=${encodeURIComponent(location.pathname + location.search)}`} replace />
+    if (!auth.isAdmin) return <Navigate to="/login" replace />
     return <Outlet />
   }
 
