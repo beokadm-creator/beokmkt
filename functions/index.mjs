@@ -124,11 +124,72 @@ function defaultModelForProvider(provider) {
   return table[provider] ?? 'gpt-4o-mini'
 }
 
-function resolveAiConfig(body = {}) {
-  const provider = typeof body.ai_provider === 'string' ? body.ai_provider.trim() : process.env.AI_PROVIDER ?? ''
-  const apiKey = typeof body.ai_api_key === 'string' ? body.ai_api_key.trim() : process.env.AI_API_KEY ?? ''
-  const model = typeof body.ai_model === 'string' ? body.ai_model.trim() : process.env.AI_MODEL ?? defaultModelForProvider(provider)
-  return { provider, apiKey, model }
+let aiProviderDefaultsCache = {
+  fetched_at_ms: 0,
+  value: null,
+  inflight: null,
+}
+
+async function fetchAiProviderDefaults() {
+  const snap = await db.collection('settings').doc('ai_provider_defaults').get()
+  if (!snap.exists) return null
+  const data = snap.data() ?? {}
+  return {
+    provider: typeof data.provider === 'string' ? data.provider : '',
+    apiKey: typeof data.api_key === 'string' ? data.api_key : '',
+    model: typeof data.model === 'string' ? data.model : '',
+    endpoint: typeof data.endpoint === 'string' ? data.endpoint : '',
+    updated_at: data.updated_at ?? null,
+  }
+}
+
+async function getAiProviderDefaults(options = {}) {
+  const force = Boolean(options.force)
+  const ttlMs = 30_000
+  const now = Date.now()
+  if (!force && aiProviderDefaultsCache.value && now - aiProviderDefaultsCache.fetched_at_ms < ttlMs) return aiProviderDefaultsCache.value
+
+  if (!force && aiProviderDefaultsCache.inflight) return aiProviderDefaultsCache.inflight
+
+  const p = fetchAiProviderDefaults()
+    .then((value) => {
+      aiProviderDefaultsCache.value = value
+      aiProviderDefaultsCache.fetched_at_ms = Date.now()
+      aiProviderDefaultsCache.inflight = null
+      return value
+    })
+    .catch(() => {
+      aiProviderDefaultsCache.inflight = null
+      return null
+    })
+
+  aiProviderDefaultsCache.inflight = p
+  return p
+}
+
+async function resolveAiConfig(body = {}) {
+  const stored = await getAiProviderDefaults()
+
+  const bodyProvider = typeof body.ai_provider === 'string' ? body.ai_provider.trim() : ''
+  const envProvider = process.env.AI_PROVIDER ?? ''
+  const provider = bodyProvider || stored?.provider || envProvider
+
+  const bodyApiKey = typeof body.ai_api_key === 'string' ? body.ai_api_key.trim() : ''
+  const storedApiKey = stored?.provider && stored.provider === provider ? stored.apiKey : ''
+  const envApiKey = process.env.AI_API_KEY ?? ''
+  const apiKey = bodyApiKey || storedApiKey || envApiKey
+
+  const bodyModel = typeof body.ai_model === 'string' ? body.ai_model.trim() : ''
+  const storedModel = stored?.provider && stored.provider === provider ? stored.model : ''
+  const envModel = process.env.AI_MODEL ?? ''
+  const model = bodyModel || storedModel || envModel || defaultModelForProvider(provider)
+
+  const bodyEndpoint = typeof body.ai_endpoint === 'string' ? body.ai_endpoint.trim() : ''
+  const storedEndpoint = stored?.provider && stored.provider === provider ? stored.endpoint : ''
+  const envEndpoint = process.env.AI_ENDPOINT ?? ''
+  const endpoint = bodyEndpoint || storedEndpoint || envEndpoint
+
+  return { provider, apiKey, model, endpoint }
 }
 
 function extractTextFromResponse(provider, data) {
@@ -1579,6 +1640,55 @@ app.post('/api/test-ai-key', async (req, res) => {
   res.json(result)
 })
 
+app.get('/api/ai-provider-defaults', async (req, res) => {
+  const stored = await getAiProviderDefaults({ force: true })
+  ok(res, {
+    provider: stored?.provider ?? '',
+    model: stored?.model ?? '',
+    endpoint: stored?.endpoint ?? '',
+    has_api_key: Boolean(stored?.apiKey),
+    updated_at: stored?.updated_at ?? null,
+  })
+})
+
+app.put('/api/ai-provider-defaults', async (req, res) => {
+  const body = req.body ?? {}
+
+  const provider = typeof body.provider === 'string' ? body.provider.trim() : ''
+  const model = typeof body.model === 'string' ? body.model.trim() : ''
+  const endpoint = typeof body.endpoint === 'string' ? body.endpoint.trim() : ''
+  const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : ''
+
+  if (!provider) return fail(res, 400, 'VALIDATION_ERROR', 'provider is required', {})
+
+  const ref = db.collection('settings').doc('ai_provider_defaults')
+  const current = await ref.get()
+  const currentData = current.data() ?? {}
+
+  const next = {
+    provider,
+    model: model || currentData.model || defaultModelForProvider(provider),
+    endpoint: endpoint || currentData.endpoint || '',
+    api_key: apiKey || currentData.api_key || '',
+    updated_at: FieldValue.serverTimestamp(),
+    updated_by: req.user?.uid ?? null,
+  }
+
+  await ref.set(next, { merge: true })
+  aiProviderDefaultsCache.fetched_at_ms = 0
+  aiProviderDefaultsCache.value = null
+
+  await addAuditLog('ai_provider_defaults.updated', 'settings', 'ai_provider_defaults', 'user')
+
+  ok(res, {
+    provider: next.provider,
+    model: next.model,
+    endpoint: next.endpoint,
+    has_api_key: Boolean(next.api_key),
+    updated_at: null,
+  })
+})
+
 app.get('/api/dashboard', async (req, res) => {
   const [sourceSnap, ideaSnap, scriptSnap] = await Promise.all([
     db.collection('source_items').get(),
@@ -1733,7 +1843,7 @@ app.post('/api/source-items/:id/run-ai-pipeline', async (req, res) => {
     const visibility = typeof body.visibility === 'string' ? body.visibility : 'private'
     const autoApproveRender = body.auto_approve_render !== false
     const autoApprovePublish = body.auto_approve_publish !== false
-    const aiConfig = resolveAiConfig(body)
+    const aiConfig = await resolveAiConfig(body)
     const hashtags = Array.isArray(body.hashtags) ? body.hashtags.filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim()) : []
     const publishTitle = typeof body.publish_title === 'string' && body.publish_title.trim() ? body.publish_title.trim() : `${item.title} | AI Shorts`
     const publishDescription =
@@ -1911,7 +2021,7 @@ app.post('/api/ai/generate-ideas', async (req, res) => {
     const targetDurationSec = Math.max(10, Math.min(Number(body.target_duration_sec ?? 30) || 30, 180))
     const platformTargets = Array.isArray(body.platform_targets) && body.platform_targets.length ? body.platform_targets : ['youtube']
     const autoApproveLead = body.auto_approve_lead !== false
-    const aiConfig = resolveAiConfig(body)
+    const aiConfig = await resolveAiConfig(body)
     const aiIdeas = await generateIdeasWithAi(aiConfig, item, {
       ideaCount: count,
       durationSec: targetDurationSec,
@@ -1972,7 +2082,7 @@ app.post('/api/ai/generate-script', async (req, res) => {
     const ideaSnap = await ideaRef.get()
     if (!ideaSnap.exists) throw new Error('short_idea_not_found')
     const idea = ideaSnap.data()
-    const aiConfig = resolveAiConfig(body)
+    const aiConfig = await resolveAiConfig(body)
 
     if (idea?.status !== 'approved') {
       if (idea?.status === 'awaiting_review' && body.approve_idea !== false) {
@@ -2113,7 +2223,7 @@ app.post('/api/ai/create-publish-job', async (req, res) => {
 
     const accountSnap = await db.collection('platform_accounts').doc(platformAccountId).get()
     if (!accountSnap.exists) throw new Error('platform_account_not_found')
-    const aiConfig = resolveAiConfig(body)
+    const aiConfig = await resolveAiConfig(body)
 
     if (renderJob?.qc_status !== 'passed') {
       if (body.approve_render !== false) {
@@ -2216,7 +2326,7 @@ app.post('/api/ai/run-pipeline', async (req, res) => {
 
     const autoApproveRender = body.auto_approve_render !== false
     const autoApprovePublish = body.auto_approve_publish !== false
-    const aiConfig = resolveAiConfig(body)
+    const aiConfig = await resolveAiConfig(body)
     const hashtags = Array.isArray(body.hashtags) ? body.hashtags.filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim()) : []
     const visibility = typeof body.visibility === 'string' ? body.visibility : 'private'
 
@@ -2461,7 +2571,7 @@ app.post('/api/ai/execute-pipeline', async (req, res) => {
         const platform = typeof body.platform === 'string' ? body.platform : 'youtube'
         const autoApproveRender = body.auto_approve_render !== false
         const autoApprovePublish = body.auto_approve_publish !== false
-        const aiConfig = resolveAiConfig(body)
+        const aiConfig = await resolveAiConfig(body)
         const hashtags = Array.isArray(body.hashtags)
           ? body.hashtags.filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim())
           : []
@@ -3651,7 +3761,7 @@ app.post('/api/blog-posts', async (req, res) => {
 
     let htmlContent = typeof body.content === 'string' ? body.content : ''
     if (!htmlContent && body.ai_generate !== false) {
-      const aiConfig = resolveAiConfig(body)
+      const aiConfig = await resolveAiConfig(body)
       const aiResult = await generateBlogPostWithAi(aiConfig, {
         title,
         topic: body.topic ?? title,
@@ -3794,7 +3904,7 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
     if (post.deleted_at) throw new Error('blog_post_not_found')
 
     const body = req.body ?? {}
-    const aiConfig = resolveAiConfig(body)
+    const aiConfig = await resolveAiConfig(body)
     const aiResult = await generateBlogPostWithAi(aiConfig, {
       title: post.title,
       topic: body.topic ?? post.title,
