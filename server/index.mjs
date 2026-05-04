@@ -1496,12 +1496,17 @@ function defaultTestEndpointForProvider(provider) {
   return table[provider] ?? ''
 }
 
-async function validateApiKey(provider, apiKey, endpointOverride = '') {
+async function validateApiKey(provider, apiKey, endpointOverride = '', modelOverride = '') {
   if (!provider || !apiKey) {
     return {
       valid: false,
       details: 'Provider and API key are required',
-      diagnostics: { provider, endpoint: endpointOverride || defaultTestEndpointForProvider(provider), http_status: null },
+      diagnostics: {
+        provider,
+        endpoint: endpointOverride || defaultTestEndpointForProvider(provider),
+        model: modelOverride || defaultModelForProvider(provider),
+        http_status: null,
+      },
     }
   }
 
@@ -1509,6 +1514,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
   let errorDetails = ''
   let httpStatus = null
   let usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+  let usedModel = modelOverride || defaultModelForProvider(provider)
 
   try {
     let response
@@ -1533,8 +1539,9 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
       }
 
       case 'gemini': {
-        const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+        const models = modelOverride ? [modelOverride] : ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
         for (const model of models) {
+          usedModel = model
           usedEndpoint =
             endpointOverride && endpointOverride.includes(':generateContent')
               ? endpointOverride
@@ -1561,11 +1568,12 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
       }
 
       case 'zhipu': {
-        const models = ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo', 'chatglm3-6b']
+        const models = modelOverride ? [modelOverride] : ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo', 'chatglm3-6b']
         let lastError = ''
         usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
         for (const model of models) {
+          usedModel = model
           try {
             response = await fetch(usedEndpoint, {
               method: 'POST',
@@ -1602,15 +1610,15 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
 
       case 'zai': {
         const endpoints = endpointOverride
-          ? [{ url: endpointOverride, models: ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo'] }]
+          ? [{ url: endpointOverride, models: modelOverride ? [modelOverride] : ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo'] }]
           : [
               {
                 url: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
-                models: ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo'],
+                models: modelOverride ? [modelOverride] : ['glm-4-flash', 'glm-4-air', 'glm-4-0520', 'glm-4', 'glm-3-turbo'],
               },
               {
                 url: 'https://api.z.ai/v1/chat/completions',
-                models: ['glm-4-flash', 'glm-4-air', 'glm-4'],
+                models: modelOverride ? [modelOverride] : ['glm-4-flash', 'glm-4-air', 'glm-4'],
               },
             ]
 
@@ -1618,6 +1626,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
 
         for (const endpoint of endpoints) {
           for (const model of endpoint.models) {
+            usedModel = model
             try {
               usedEndpoint = endpoint.url
               response = await fetch(usedEndpoint, {
@@ -1657,10 +1666,11 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
       }
 
       case 'anthropic': {
-        const models = ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-haiku-20240307', 'claude-3-sonnet-20240229']
+        const models = modelOverride ? [modelOverride] : ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-haiku-20240307', 'claude-3-sonnet-20240229']
         usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
         for (const model of models) {
+          usedModel = model
           try {
             response = await fetch(usedEndpoint, {
               method: 'POST',
@@ -1695,10 +1705,11 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
       }
 
       case 'cohere': {
-        const models = ['command-r-plus-08-2024', 'command-r-08-2024', 'command', 'command-light']
+        const models = modelOverride ? [modelOverride] : ['command-r-plus-08-2024', 'command-r-08-2024', 'command', 'command-light']
         usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
         for (const model of models) {
+          usedModel = model
           try {
             response = await fetch(usedEndpoint, {
               method: 'POST',
@@ -1728,10 +1739,11 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
       }
 
       case 'mistral': {
-        const models = ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest', 'mixtral-8x7b-32768']
+        const models = modelOverride ? [modelOverride] : ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest', 'mixtral-8x7b-32768']
         usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
 
         for (const model of models) {
+          usedModel = model
           try {
             response = await fetch(usedEndpoint, {
               method: 'POST',
@@ -1768,21 +1780,21 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
         return {
           valid: false,
           details: 'Unknown provider',
-          diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+          diagnostics: { provider, endpoint: usedEndpoint, model: usedModel, http_status: httpStatus },
         }
     }
   } catch (e) {
     return {
       valid: false,
       details: e instanceof Error ? e.message : 'Network error',
-      diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+      diagnostics: { provider, endpoint: usedEndpoint, model: usedModel, http_status: httpStatus },
     }
   }
 
   return {
     valid: isValid,
     details: isValid ? 'API 연결 성공' : errorDetails,
-    diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+    diagnostics: { provider, endpoint: usedEndpoint, model: usedModel, http_status: httpStatus },
   }
 }
 
@@ -1816,7 +1828,8 @@ app.get('/api/test-ai-key', async (req, res) => {
   const provider = req.query.provider
   const apiKey = req.query.apiKey
   const endpoint = req.query.endpoint
-  const result = await validateApiKey(provider, apiKey, endpoint)
+  const model = req.query.model
+  const result = await validateApiKey(provider, apiKey, endpoint, model)
   res.json(result)
 })
 
@@ -1824,7 +1837,8 @@ app.post('/api/test-ai-key', async (req, res) => {
   const provider = req.body?.provider ?? req.query.provider
   const apiKey = req.body?.apiKey ?? req.query.apiKey
   const endpoint = req.body?.endpoint ?? req.query.endpoint
-  const result = await validateApiKey(provider, apiKey, endpoint)
+  const model = req.body?.model ?? req.query.model
+  const result = await validateApiKey(provider, apiKey, endpoint, model)
   res.json(result)
 })
 

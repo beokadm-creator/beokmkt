@@ -187,12 +187,12 @@ function defaultTestEndpointForProvider(provider) {
   return table[provider] ?? ''
 }
 
-async function validateApiKey(provider, apiKey, endpointOverride = '') {
+async function validateApiKey(provider, apiKey, endpointOverride = '', modelOverride = '') {
   if (!provider || !apiKey) {
     return {
       valid: false,
       details: 'Provider and API key are required',
-      diagnostics: { provider, endpoint: endpointOverride || defaultTestEndpointForProvider(provider), http_status: null },
+      diagnostics: { provider, endpoint: endpointOverride || defaultTestEndpointForProvider(provider), model: modelOverride || defaultModelForProvider(provider), http_status: null },
     }
   }
 
@@ -200,6 +200,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
   let errorDetails = ''
   let httpStatus = null
   let usedEndpoint = endpointOverride || defaultTestEndpointForProvider(provider)
+  let usedModel = modelOverride || defaultModelForProvider(provider)
 
   try {
     let response = null
@@ -224,8 +225,9 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
       }
 
       case 'gemini': {
-        const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+        const models = modelOverride ? [modelOverride] : ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
         for (const model of models) {
+          usedModel = model
           usedEndpoint =
             endpointOverride && endpointOverride.includes(':generateContent')
               ? endpointOverride
@@ -264,7 +266,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: 'glm-4-flash',
+            model: usedModel,
             messages: [{ role: 'user', content: 'hi' }],
             max_tokens: 10,
           }),
@@ -273,7 +275,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
 
         if (response.ok) {
           isValid = true
-          errorDetails = 'Zhipu API 연결 성공 (glm-4-flash)'
+          errorDetails = `Zhipu API 연결 성공 (${usedModel})`
         } else {
           const errorData = await response.json().catch(() => null)
           errorDetails = errorData?.error?.message || `HTTP ${response.status}`
@@ -290,7 +292,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: 'glm-4-flash',
+            model: usedModel,
             messages: [{ role: 'user', content: 'hi' }],
             max_tokens: 10,
           }),
@@ -299,7 +301,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
 
         if (response.ok) {
           isValid = true
-          errorDetails = 'Z.ai API 연결 성공 (glm-4-flash)'
+          errorDetails = `Z.ai API 연결 성공 (${usedModel})`
         } else {
           const errorData = await response.json().catch(() => null)
           errorDetails = errorData?.error?.message || errorData?.message || `HTTP ${response.status}`
@@ -317,7 +319,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-3-5-sonnet-20241022',
+            model: usedModel,
             max_tokens: 10,
             messages: [{ role: 'user', content: 'hi' }],
           }),
@@ -343,7 +345,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: 'command-r',
+            model: usedModel,
             message: 'hi',
             max_tokens: 10,
           }),
@@ -369,7 +371,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: 'mistral-small-latest',
+            model: usedModel,
             messages: [{ role: 'user', content: 'hi' }],
             max_tokens: 10,
           }),
@@ -390,21 +392,21 @@ async function validateApiKey(provider, apiKey, endpointOverride = '') {
         return {
           valid: false,
           details: 'Unknown provider',
-          diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+          diagnostics: { provider, endpoint: usedEndpoint, model: usedModel, http_status: httpStatus },
         }
     }
   } catch (e) {
     return {
       valid: false,
       details: e instanceof Error ? e.message : 'Network error',
-      diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+      diagnostics: { provider, endpoint: usedEndpoint, model: usedModel, http_status: httpStatus },
     }
   }
 
   return {
     valid: isValid,
     details: isValid ? 'API 연결 성공' : errorDetails,
-    diagnostics: { provider, endpoint: usedEndpoint, http_status: httpStatus },
+    diagnostics: { provider, endpoint: usedEndpoint, model: usedModel, http_status: httpStatus },
   }
 }
 
@@ -1562,7 +1564,8 @@ app.get('/api/test-ai-key', async (req, res) => {
   const provider = typeof req.query.provider === 'string' ? req.query.provider : ''
   const apiKey = typeof req.query.apiKey === 'string' ? req.query.apiKey : ''
   const endpoint = typeof req.query.endpoint === 'string' ? req.query.endpoint : ''
-  const result = await validateApiKey(provider, apiKey, endpoint)
+  const model = typeof req.query.model === 'string' ? req.query.model : ''
+  const result = await validateApiKey(provider, apiKey, endpoint, model)
   res.json(result)
 })
 
@@ -1571,7 +1574,8 @@ app.post('/api/test-ai-key', async (req, res) => {
   const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : typeof req.query.apiKey === 'string' ? req.query.apiKey : ''
   const endpoint =
     typeof req.body?.endpoint === 'string' ? req.body.endpoint : typeof req.query.endpoint === 'string' ? req.query.endpoint : ''
-  const result = await validateApiKey(provider, apiKey, endpoint)
+  const model = typeof req.body?.model === 'string' ? req.body.model : typeof req.query.model === 'string' ? req.query.model : ''
+  const result = await validateApiKey(provider, apiKey, endpoint, model)
   res.json(result)
 })
 

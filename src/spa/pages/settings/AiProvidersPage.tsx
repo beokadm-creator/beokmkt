@@ -10,8 +10,8 @@ type Provider =
   | 'zai'
 
 type ApiResult =
-  | { ok: true; details: string; endpoint?: string; httpStatus?: number | null }
-  | { ok: false; details: string; endpoint?: string; httpStatus?: number | null }
+  | { ok: true; details: string; endpoint?: string; model?: string; httpStatus?: number | null }
+  | { ok: false; details: string; endpoint?: string; model?: string; httpStatus?: number | null }
 
 const DEFAULT_ENDPOINTS: Record<Provider, string> = {
   openai: 'https://api.openai.com/v1/models',
@@ -21,6 +21,16 @@ const DEFAULT_ENDPOINTS: Record<Provider, string> = {
   cohere: 'https://api.cohere.ai/v1/chat',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
   zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+}
+
+const DEFAULT_MODELS: Record<Provider, string> = {
+  openai: 'gpt-4o-mini',
+  anthropic: 'claude-3-5-sonnet-20241022',
+  gemini: 'gemini-1.5-flash',
+  mistral: 'mistral-small-latest',
+  cohere: 'command-r',
+  zhipu: 'glm-4-flash',
+  zai: 'glm-4-flash',
 }
 
 function toDisplayMessage(value: unknown, fallback: string) {
@@ -42,11 +52,13 @@ export default function AiProvidersPage() {
   const [provider, setProvider] = useState<Provider>('openai')
   const [apiKey, setApiKey] = useState('')
   const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINTS.openai)
+  const [model, setModel] = useState(DEFAULT_MODELS.openai)
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<ApiResult | null>(null)
 
   useEffect(() => {
     setEndpoint(DEFAULT_ENDPOINTS[provider])
+    setModel(DEFAULT_MODELS[provider])
     setResult(null)
   }, [provider])
 
@@ -71,11 +83,12 @@ export default function AiProvidersPage() {
           provider,
           apiKey: apiKey.trim(),
           endpoint: endpoint.trim(),
+          model: model.trim(),
         }),
       })
 
       const data = (await res.json().catch(() => null)) as
-        | { valid?: boolean; details?: unknown; error?: unknown; diagnostics?: { endpoint?: unknown; http_status?: unknown } }
+        | { valid?: boolean; details?: unknown; error?: unknown; diagnostics?: { endpoint?: unknown; model?: unknown; http_status?: unknown } }
         | { error?: { code?: unknown; message?: unknown; details?: unknown } }
         | null
 
@@ -89,6 +102,10 @@ export default function AiProvidersPage() {
           data && 'diagnostics' in data && data.diagnostics && typeof data.diagnostics === 'object' && typeof data.diagnostics.endpoint === 'string'
             ? data.diagnostics.endpoint
             : endpoint.trim() || undefined,
+        model:
+          data && 'diagnostics' in data && data.diagnostics && typeof data.diagnostics === 'object' && typeof data.diagnostics.model === 'string'
+            ? data.diagnostics.model
+            : model.trim() || undefined,
         httpStatus:
           data && 'diagnostics' in data && data.diagnostics && typeof data.diagnostics === 'object' && typeof data.diagnostics.http_status === 'number'
             ? data.diagnostics.http_status
@@ -133,18 +150,30 @@ export default function AiProvidersPage() {
           </label>
         </div>
 
-        <label className="mt-3 flex flex-col gap-2">
-          <span className="text-xs text-zinc-400">Endpoint URL</span>
-          <input
-            className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm"
-            value={endpoint}
-            onChange={(e) => setEndpoint(e.target.value)}
-            placeholder="기본 엔드포인트를 사용하거나 직접 입력하세요"
-          />
-        </label>
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <label className="flex flex-col gap-2">
+            <span className="text-xs text-zinc-400">Model</span>
+            <input
+              className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="기본 모델을 사용하거나 직접 입력하세요"
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-xs text-zinc-400">Endpoint URL</span>
+            <input
+              className="h-10 rounded-lg border border-zinc-800 bg-zinc-950 px-3 text-sm"
+              value={endpoint}
+              onChange={(e) => setEndpoint(e.target.value)}
+              placeholder="기본 엔드포인트를 사용하거나 직접 입력하세요"
+            />
+          </label>
+        </div>
 
         <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs text-zinc-400">
-          기본값은 provider별 권장 엔드포인트로 자동 설정됩니다. 실패 시 엔드포인트를 직접 바꿔서 재테스트할 수 있습니다.
+          기본값은 provider별 권장 모델과 엔드포인트로 자동 설정됩니다. 실패 시 모델이나 엔드포인트를 직접 바꿔서 재테스트할 수 있습니다.
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3">
@@ -168,6 +197,7 @@ export default function AiProvidersPage() {
             >
               <div>{result.details}</div>
               {result.endpoint ? <div className="mt-1 break-all text-xs opacity-80">endpoint: {result.endpoint}</div> : null}
+              {result.model ? <div className="mt-1 break-all text-xs opacity-80">model: {result.model}</div> : null}
               {typeof result.httpStatus === 'number' ? <div className="mt-1 text-xs opacity-80">http_status: {result.httpStatus}</div> : null}
             </div>
           ) : (
