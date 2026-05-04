@@ -174,6 +174,191 @@ function maybeParseJson(text) {
   return null
 }
 
+async function validateApiKey(provider, apiKey) {
+  if (!provider || !apiKey) {
+    return { valid: false, details: 'Provider and API key are required' }
+  }
+
+  let isValid = false
+  let errorDetails = ''
+
+  try {
+    let response = null
+
+    switch (provider) {
+      case 'openai': {
+        response = await fetch('https://api.openai.com/v1/models', {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${apiKey}` },
+        })
+        if (response.ok) {
+          const data = await response.json().catch(() => null)
+          isValid = true
+          errorDetails = `API 연결 성공 - ${data?.object || 'models'}`
+        } else {
+          const errorData = await response.json().catch(() => null)
+          errorDetails = errorData?.error?.message || `HTTP ${response.status}`
+        }
+        break
+      }
+
+      case 'gemini': {
+        const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+        for (const model of models) {
+          response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts: [{ text: 'hi' }] }] }),
+            }
+          ).catch(() => null)
+
+          if (response?.ok) {
+            isValid = true
+            errorDetails = `Gemini API 연결 성공 (${model})`
+            break
+          }
+        }
+
+        if (!isValid) {
+          const errorData = response ? await response.json().catch(() => null) : null
+          errorDetails = errorData?.error?.message || 'Gemini API 연결 실패'
+        }
+        break
+      }
+
+      case 'zhipu': {
+        response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'glm-4-flash',
+            messages: [{ role: 'user', content: 'hi' }],
+            max_tokens: 10,
+          }),
+        })
+
+        if (response.ok) {
+          isValid = true
+          errorDetails = 'Zhipu API 연결 성공 (glm-4-flash)'
+        } else {
+          const errorData = await response.json().catch(() => null)
+          errorDetails = errorData?.error?.message || `HTTP ${response.status}`
+        }
+        break
+      }
+
+      case 'zai': {
+        response = await fetch('https://open.bigmodel.cn/api/coding/paas/v4/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'glm-4-flash',
+            messages: [{ role: 'user', content: 'hi' }],
+            max_tokens: 10,
+          }),
+        })
+
+        if (response.ok) {
+          isValid = true
+          errorDetails = 'Z.ai API 연결 성공 (glm-4-flash)'
+        } else {
+          const errorData = await response.json().catch(() => null)
+          errorDetails = errorData?.error?.message || errorData?.message || `HTTP ${response.status}`
+        }
+        break
+      }
+
+      case 'anthropic': {
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 10,
+            messages: [{ role: 'user', content: 'hi' }],
+          }),
+        })
+
+        if (response.ok) {
+          isValid = true
+          errorDetails = 'Anthropic API 연결 성공'
+        } else {
+          const errorData = await response.json().catch(() => null)
+          errorDetails = errorData?.error?.message || `HTTP ${response.status}`
+        }
+        break
+      }
+
+      case 'cohere': {
+        response = await fetch('https://api.cohere.ai/v1/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'command-r',
+            message: 'hi',
+            max_tokens: 10,
+          }),
+        })
+
+        if (response.ok) {
+          isValid = true
+          errorDetails = 'Cohere API 연결 성공'
+        } else {
+          const errorData = await response.json().catch(() => null)
+          errorDetails = errorData?.message || `HTTP ${response.status}`
+        }
+        break
+      }
+
+      case 'mistral': {
+        response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'mistral-small-latest',
+            messages: [{ role: 'user', content: 'hi' }],
+            max_tokens: 10,
+          }),
+        })
+
+        if (response.ok) {
+          isValid = true
+          errorDetails = 'Mistral API 연결 성공'
+        } else {
+          const errorData = await response.json().catch(() => null)
+          errorDetails = errorData?.message || `HTTP ${response.status}`
+        }
+        break
+      }
+
+      default:
+        return { valid: false, details: 'Unknown provider' }
+    }
+  } catch (e) {
+    return { valid: false, details: e instanceof Error ? e.message : 'Network error' }
+  }
+
+  return { valid: isValid, details: isValid ? 'API 연결 성공' : errorDetails }
+}
+
 async function generateAiText(config, systemPrompt, userPrompt) {
   if (!config.provider || !config.apiKey) return null
 
@@ -1322,6 +1507,20 @@ async function listCollection(name, limit, offset, whereClauses = []) {
 
 app.get('/api/health', (req, res) => {
   ok(res, { ok: true })
+})
+
+app.get('/api/test-ai-key', async (req, res) => {
+  const provider = typeof req.query.provider === 'string' ? req.query.provider : ''
+  const apiKey = typeof req.query.apiKey === 'string' ? req.query.apiKey : ''
+  const result = await validateApiKey(provider, apiKey)
+  res.status(result.valid ? 200 : 400).json(result)
+})
+
+app.post('/api/test-ai-key', async (req, res) => {
+  const provider = typeof req.body?.provider === 'string' ? req.body.provider : typeof req.query.provider === 'string' ? req.query.provider : ''
+  const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : typeof req.query.apiKey === 'string' ? req.query.apiKey : ''
+  const result = await validateApiKey(provider, apiKey)
+  res.status(result.valid ? 200 : 400).json(result)
 })
 
 app.get('/api/dashboard', async (req, res) => {

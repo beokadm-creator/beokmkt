@@ -13,6 +13,16 @@ type ApiResult =
   | { ok: true; details: string }
   | { ok: false; details: string }
 
+function toDisplayMessage(value: unknown, fallback: string) {
+  if (typeof value === 'string' && value.trim()) return value
+  if (value && typeof value === 'object') {
+    const error = value as { code?: unknown; message?: unknown; details?: unknown }
+    if (typeof error.message === 'string' && error.message.trim()) return error.message
+    if (typeof error.code === 'string' && error.code.trim()) return error.code
+  }
+  return fallback
+}
+
 export default function AiProvidersPage() {
   const providers: Provider[] = useMemo(
     () => ['openai', 'anthropic', 'gemini', 'mistral', 'cohere', 'zhipu', 'zai'],
@@ -34,18 +44,42 @@ export default function AiProvidersPage() {
     setResult(null)
 
     try {
-      const res = await fetch(
-        `/api/test-ai-key?provider=${encodeURIComponent(provider)}&apiKey=${encodeURIComponent(apiKey)}`,
-        { method: 'GET' }
-      )
-      const data = (await res.json()) as { valid?: boolean; details?: string; error?: string }
+      const token = localStorage.getItem('beokmkt_id_token')
+      const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' })
+      if (token) headers.set('Authorization', `Bearer ${token}`)
+
+      const res = await fetch('/api/test-ai-key', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          provider,
+          apiKey: apiKey.trim(),
+        }),
+      })
+
+      const data = (await res.json().catch(() => null)) as
+        | { valid?: boolean; details?: unknown; error?: unknown }
+        | { error?: { code?: unknown; message?: unknown; details?: unknown } }
+        | null
 
       if (!res.ok) {
-        setResult({ ok: false, details: data.details || data.error || `HTTP ${res.status}` })
+        setResult({
+          ok: false,
+          details:
+            toDisplayMessage(data && 'details' in data ? data.details : undefined, '') ||
+            toDisplayMessage(data && 'error' in data ? data.error : undefined, '') ||
+            `HTTP ${res.status}`,
+        })
         return
       }
 
-      setResult({ ok: Boolean(data.valid), details: data.details || (data.valid ? '성공' : '실패') })
+      setResult({
+        ok: Boolean(data && 'valid' in data ? data.valid : false),
+        details: toDisplayMessage(
+          data && 'details' in data ? data.details : undefined,
+          data && 'valid' in data && data.valid ? '성공' : '실패'
+        ),
+      })
     } catch (e) {
       setResult({ ok: false, details: e instanceof Error ? e.message : '요청 실패' })
     } finally {
@@ -114,4 +148,3 @@ export default function AiProvidersPage() {
     </div>
   )
 }
-
