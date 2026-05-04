@@ -239,6 +239,116 @@
     },
     {
       "method": "GET",
+      "path": "/api/blog-posts",
+      "category": "blog",
+      "purpose": "List non-deleted blog posts",
+      "query_fields": [
+        "limit",
+        "offset",
+        "q",
+        "status",
+        "category"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/blog-posts/:id",
+      "category": "blog",
+      "purpose": "Fetch one non-deleted blog post"
+    },
+    {
+      "method": "POST",
+      "path": "/api/blog-posts",
+      "category": "blog",
+      "purpose": "Create a blog post with optional AI-generated content",
+      "minimum_body": {
+        "title": "2026 마케팅 자동화 전략"
+      },
+      "optional_fields": [
+        "content",
+        "excerpt",
+        "category",
+        "tags",
+        "slug",
+        "featured_image",
+        "status",
+        "language",
+        "tone",
+        "seo_title",
+        "seo_description",
+        "ai_generate",
+        "topic",
+        "keywords",
+        "source_text",
+        "target_length",
+        "ai_provider",
+        "ai_api_key",
+        "ai_model"
+      ],
+      "notes": [
+        "If content is empty and ai_generate is not false, the server attempts AI generation.",
+        "Returns the full saved blog post object."
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/blog-posts/:id",
+      "category": "blog",
+      "purpose": "Update editable blog post fields",
+      "optional_fields": [
+        "title",
+        "content",
+        "excerpt",
+        "category",
+        "tags",
+        "slug",
+        "featured_image",
+        "status",
+        "language",
+        "tone",
+        "seo_title",
+        "seo_description"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/blog-posts/:id",
+      "category": "blog",
+      "purpose": "Soft-delete a blog post",
+      "notes": [
+        "Marks the post as archived and sets deleted_at."
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/blog-posts/:id/publish",
+      "category": "blog",
+      "purpose": "Publish a blog post when content exists",
+      "minimum_body": {}
+    },
+    {
+      "method": "POST",
+      "path": "/api/blog-posts/:id/generate-content",
+      "category": "blog",
+      "purpose": "Generate or replace blog HTML content and SEO fields with AI",
+      "minimum_body": {},
+      "optional_fields": [
+        "topic",
+        "tone",
+        "keywords",
+        "source_text",
+        "language",
+        "target_length",
+        "ai_provider",
+        "ai_api_key",
+        "ai_model"
+      ],
+      "returns": [
+        "updated blog post object"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/ai/failed-jobs",
       "category": "recovery",
       "purpose": "List retryable failed jobs that are not dead-lettered",

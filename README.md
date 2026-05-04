@@ -211,6 +211,56 @@ npm run dev:spa
 5. After Google consent, the API stores tokens in `platform_accounts`
 6. Publish jobs for connected YouTube accounts upload through the YouTube Data API when no publish webhook override is supplied
 
+## Blog Posts
+
+The console now includes a blog workspace at:
+
+- `/blog-posts`
+- `/blog-posts/:id`
+
+Authenticated API endpoints:
+
+- `GET /api/blog-posts`
+- `GET /api/blog-posts/:id`
+- `POST /api/blog-posts`
+- `PATCH /api/blog-posts/:id`
+- `DELETE /api/blog-posts/:id`
+- `POST /api/blog-posts/:id/publish`
+- `POST /api/blog-posts/:id/generate-content`
+
+Query filters for `GET /api/blog-posts`:
+
+- `limit`
+- `offset`
+- `q`
+- `status`
+- `category`
+
+Create payload supports both manual and AI-assisted drafts:
+
+```json
+{
+  "title": "2026 마케팅 자동화 전략",
+  "content": "",
+  "status": "draft",
+  "category": "marketing",
+  "tags": ["automation", "seo"],
+  "ai_generate": true,
+  "topic": "마케팅 자동화",
+  "tone": "professional",
+  "keywords": ["마케팅 자동화", "콘텐츠 운영"],
+  "source_text": "참고 자료 본문",
+  "target_length": "medium"
+}
+```
+
+Notes:
+
+- If `content` is empty and `ai_generate !== false`, the server attempts AI generation.
+- Publish requires non-empty `content`.
+- Delete is soft-delete based and marks the post as `archived`.
+- The SPA detail page supports HTML editing, preview, AI generation, publish, and delete actions.
+
 ## Render Executor Contract
 
 Request payload shape:

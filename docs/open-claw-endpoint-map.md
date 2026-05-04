@@ -6,6 +6,7 @@ It focuses on:
 
 - Which base URLs to call
 - Which endpoints matter for the AI shorts pipeline
+- Which blog content endpoints now exist in the same API
 - What minimum payloads are required
 - How to recover failed and dead-lettered jobs
 - Which executor endpoints exist behind the main API
@@ -337,6 +338,127 @@ Recommended staged path:
   - `publish_job_id`
   - `statuses`
   - `execution`
+
+## Blog Content Endpoints
+
+These endpoints are useful for an agent that also manages company blog content from the same authenticated console API.
+
+### 1) List blog posts
+
+- Method: `GET`
+- Path: `/api/blog-posts`
+- Purpose: list non-deleted blog posts with simple search and filters
+- Query fields:
+  - `limit`
+  - `offset`
+  - `q`
+  - `status`
+  - `category`
+
+### 2) Get one blog post
+
+- Method: `GET`
+- Path: `/api/blog-posts/:id`
+- Purpose: fetch one non-deleted blog post
+
+### 3) Create blog post
+
+- Method: `POST`
+- Path: `/api/blog-posts`
+- Purpose: create a draft or published blog post, optionally with AI-generated HTML body
+- Minimum body:
+
+```json
+{
+  "title": "2026 마케팅 자동화 전략"
+}
+```
+
+- Useful options:
+  - `content`
+  - `excerpt`
+  - `category`
+  - `tags`
+  - `slug`
+  - `featured_image`
+  - `status`
+  - `language`
+  - `tone`
+  - `seo_title`
+  - `seo_description`
+  - `ai_generate`
+  - `topic`
+  - `keywords`
+  - `source_text`
+  - `target_length`
+  - `ai_provider`
+  - `ai_api_key`
+  - `ai_model`
+
+- Notes:
+  - If `content` is empty and `ai_generate !== false`, the server attempts AI generation.
+  - Successful create returns the full saved post object.
+
+### 4) Update blog post
+
+- Method: `PATCH`
+- Path: `/api/blog-posts/:id`
+- Purpose: update editable post fields
+- Useful fields:
+  - `title`
+  - `content`
+  - `excerpt`
+  - `category`
+  - `tags`
+  - `slug`
+  - `featured_image`
+  - `status`
+  - `language`
+  - `tone`
+  - `seo_title`
+  - `seo_description`
+
+### 5) Delete blog post
+
+- Method: `DELETE`
+- Path: `/api/blog-posts/:id`
+- Purpose: soft-delete a blog post
+- Notes:
+  - The post is not hard-deleted.
+  - The API marks it as archived with `deleted_at`.
+
+### 6) Publish blog post
+
+- Method: `POST`
+- Path: `/api/blog-posts/:id/publish`
+- Purpose: move a draft to published state
+- Rule:
+  - `content` must already be present
+
+### 7) Generate blog content
+
+- Method: `POST`
+- Path: `/api/blog-posts/:id/generate-content`
+- Purpose: fill or replace the post body and SEO fields using AI
+- Minimum body:
+
+```json
+{}
+```
+
+- Useful options:
+  - `topic`
+  - `tone`
+  - `keywords`
+  - `source_text`
+  - `language`
+  - `target_length`
+  - `ai_provider`
+  - `ai_api_key`
+  - `ai_model`
+
+- Returns:
+  - updated blog post object
 
 ## Failure Management Endpoints
 
