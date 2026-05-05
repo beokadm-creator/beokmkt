@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { applySeo } from '../lib/seo'
 
 export default function LoginPage() {
   const auth = useAuth()
@@ -20,6 +21,16 @@ export default function LoginPage() {
   const emailAllowed = hasEmailInput ? auth.isAllowedAdminEmail(normalizedEmail) : false
   const emailError = hasEmailInput && !emailAllowed ? '허용된 관리자 이메일만 로그인할 수 있습니다.' : null
   const passwordMissing = hasEmailInput && !password ? '비밀번호를 입력하세요.' : null
+
+  useEffect(() => {
+    const canonical = `${window.location.origin}/login`
+    applySeo({
+      title: 'beokmkt 관리자 로그인',
+      description: 'beokmkt 관리자 전용 로그인 페이지',
+      canonical,
+      robots: 'noindex,nofollow,noarchive,nosnippet',
+    })
+  }, [])
 
   async function onSubmit(e?: React.FormEvent) {
     e?.preventDefault()

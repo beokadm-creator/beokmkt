@@ -10,7 +10,7 @@
     "dev:web-render-executor": "node executors/web-render-executor/index.mjs",
     "dev:full": "concurrently -k \"npm:dev:spa\" \"npm:dev:api\"",
     "build": "next build",
-    "build:spa": "vite build",
+    "build:spa": "vite build && node scripts/inject-ssr-template.mjs",
     "preview": "vite preview",
     "start": "next start",
     "start:api": "NODE_ENV=production node server/index.mjs",

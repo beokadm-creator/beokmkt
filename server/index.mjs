@@ -62,23 +62,71 @@ function publicBlogPath(post) {
   return `/blog/${encodeURIComponent(slug)}`
 }
 
+function slugifyBlogPost(value) {
+  const slug = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 100)
+
+  return slug || 'post'
+}
+
+function slugCandidateWithSuffix(baseSlug, index) {
+  if (index <= 1) return baseSlug
+  const suffix = `-${index}`
+  const trimmedBase = baseSlug
+    .slice(0, Math.max(1, 100 - suffix.length))
+    .replace(/-+$/g, '')
+
+  return `${trimmedBase || 'post'}${suffix}`
+}
+
+async function ensureUniqueBlogSlug(value, excludeId = null) {
+  const baseSlug = slugifyBlogPost(value)
+
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = slugCandidateWithSuffix(baseSlug, index)
+    const hasConflict = store.blog_posts.some((post) => post.id !== excludeId && !post.deleted_at && post.slug === candidate)
+    if (!hasConflict) return candidate
+  }
+
+  return `${baseSlug.slice(0, 87).replace(/-+$/g, '') || 'post'}-${newId().slice(0, 12)}`
+}
+
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 function buildSitemapXml(baseUrl, posts) {
   const urls = [
-    { loc: `${baseUrl}/blog`, lastmod: nowIso() },
+    { loc: `${baseUrl}/blog`, lastmod: nowIso(), priority: '1.0', changefreq: 'daily' },
     ...posts.map((post) => ({
       loc: `${baseUrl}${publicBlogPath(post)}`,
       lastmod: post.updated_at || post.published_at || post.created_at || nowIso(),
+      priority: '0.8',
+      changefreq: 'weekly',
+      image: typeof post.featured_image === 'string' ? post.featured_image.trim() : '',
     })),
   ]
 
   const body = urls
-    .map(
-      (entry) =>
-        `<url><loc>${entry.loc}</loc><lastmod>${entry.lastmod}</lastmod><changefreq>weekly</changefreq></url>`
-    )
+    .map((entry) => {
+      const imageTag = entry.image
+        ? `<image:image><image:loc>${escapeXml(entry.image)}</image:loc></image:image>`
+        : ''
+
+      return `<url><loc>${escapeXml(entry.loc)}</loc><lastmod>${escapeXml(entry.lastmod)}</lastmod><changefreq>${entry.changefreq}</changefreq><priority>${entry.priority}</priority>${imageTag}</url>`
+    })
     .join('')
 
-  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>`
 }
 
 app.use(async (req, res, next) => {
@@ -4221,6 +4269,10 @@ app.post('/api/blog-posts', async (req, res) => {
       if (typeof aiResult?.html === 'string') htmlContent = aiResult.html
     }
 
+    const slug = await ensureUniqueBlogSlug(
+      typeof body.slug === 'string' && body.slug.trim() ? body.slug : title
+    )
+
     const post = {
       id,
       title,
@@ -4228,14 +4280,7 @@ app.post('/api/blog-posts', async (req, res) => {
       excerpt: typeof body.excerpt === 'string' ? body.excerpt : '',
       category: typeof body.category === 'string' ? body.category : 'general',
       tags: Array.isArray(body.tags) ? body.tags : [],
-      slug:
-        typeof body.slug === 'string' && body.slug.trim()
-          ? body.slug
-          : title
-              .toLowerCase()
-              .replace(/[^a-z0-9가-힣]+/g, '-')
-              .replace(/^-|-$/g, '')
-              .slice(0, 100),
+      slug,
       featured_image: typeof body.featured_image === 'string' ? body.featured_image : null,
       status,
       language: typeof body.language === 'string' ? body.language : 'ko',
@@ -4292,6 +4337,9 @@ app.patch('/api/blog-posts/:id', async (req, res) => {
 
   for (const key of updatable) {
     if (key in body) post[key] = body[key]
+  }
+  if ('slug' in body) {
+    post.slug = await ensureUniqueBlogSlug(body.slug, req.params.id)
   }
   if (body.status === 'published' && !post.published_at) post.published_at = nowIso()
   post.updated_at = nowIso()

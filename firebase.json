@@ -15,6 +15,8 @@
     "rewrites": [
       { "source": "/sitemap.xml", "function": "api" },
       { "source": "/api/**", "function": "api" },
+      { "source": "/blog", "function": "api" },
+      { "source": "/blog/**", "function": "api" },
       { "source": "**", "destination": "/index.html" }
     ]
   }

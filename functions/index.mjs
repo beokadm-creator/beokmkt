@@ -5,6 +5,7 @@ import { initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { randomUUID } from 'crypto'
+import { ssrTemplate, assetPaths } from './ssr-template.mjs'
 
 initializeApp()
 const db = getFirestore()
@@ -102,23 +103,72 @@ function publicBlogPath(post) {
   return `/blog/${encodeURIComponent(slug)}`
 }
 
+function slugifyBlogPost(value) {
+  const slug = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 100)
+
+  return slug || 'post'
+}
+
+function slugCandidateWithSuffix(baseSlug, index) {
+  if (index <= 1) return baseSlug
+  const suffix = `-${index}`
+  const trimmedBase = baseSlug
+    .slice(0, Math.max(1, 100 - suffix.length))
+    .replace(/-+$/g, '')
+
+  return `${trimmedBase || 'post'}${suffix}`
+}
+
+async function ensureUniqueBlogSlug(value, excludeId = null) {
+  const baseSlug = slugifyBlogPost(value)
+
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = slugCandidateWithSuffix(baseSlug, index)
+    const snap = await db.collection('blog_posts').where('slug', '==', candidate).limit(10).get()
+    const hasConflict = snap.docs.some((doc) => doc.id !== excludeId && !doc.data()?.deleted_at)
+    if (!hasConflict) return candidate
+  }
+
+  return `${baseSlug.slice(0, 87).replace(/-+$/g, '') || 'post'}-${newId().slice(0, 12)}`
+}
+
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 function buildSitemapXml(baseUrl, posts) {
   const urls = [
-    { loc: `${baseUrl}/blog`, lastmod: new Date().toISOString() },
+    { loc: `${baseUrl}/blog`, lastmod: new Date().toISOString(), priority: '1.0', changefreq: 'daily' },
     ...posts.map((post) => ({
       loc: `${baseUrl}${publicBlogPath(post)}`,
       lastmod: post.updated_at || post.published_at || post.created_at || new Date().toISOString(),
+      priority: '0.8',
+      changefreq: 'weekly',
+      image: typeof post.featured_image === 'string' ? post.featured_image.trim() : '',
     })),
   ]
 
   const body = urls
-    .map(
-      (entry) =>
-        `<url><loc>${entry.loc}</loc><lastmod>${entry.lastmod}</lastmod><changefreq>weekly</changefreq></url>`
-    )
+    .map((entry) => {
+      const imageTag = entry.image
+        ? `<image:image><image:loc>${escapeXml(entry.image)}</image:loc></image:image>`
+        : ''
+
+      return `<url><loc>${escapeXml(entry.loc)}</loc><lastmod>${escapeXml(entry.lastmod)}</lastmod><changefreq>${entry.changefreq}</changefreq><priority>${entry.priority}</priority>${imageTag}</url>`
+    })
     .join('')
 
-  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>`
 }
 
 async function getOptionalAdminUser(req) {
@@ -3907,20 +3957,17 @@ app.post('/api/blog-posts', async (req, res) => {
       if (typeof aiResult?.html === 'string') htmlContent = aiResult.html
     }
 
+    const slug = await ensureUniqueBlogSlug(
+      typeof body.slug === 'string' && body.slug.trim() ? body.slug : title
+    )
+
     const post = {
       title,
       content: htmlContent,
       excerpt: typeof body.excerpt === 'string' ? body.excerpt : '',
       category: typeof body.category === 'string' ? body.category : 'general',
       tags: Array.isArray(body.tags) ? body.tags : [],
-      slug:
-        typeof body.slug === 'string' && body.slug.trim()
-          ? body.slug
-          : title
-              .toLowerCase()
-              .replace(/[^a-z0-9가-힣]+/g, '-')
-              .replace(/^-|-$/g, '')
-              .slice(0, 100),
+      slug,
       featured_image: typeof body.featured_image === 'string' ? body.featured_image : null,
       status,
       language: typeof body.language === 'string' ? body.language : 'ko',
@@ -3981,6 +4028,9 @@ app.patch('/api/blog-posts/:id', async (req, res) => {
 
   for (const key of updatable) {
     if (key in body) patch[key] = body[key]
+  }
+  if ('slug' in body) {
+    patch.slug = await ensureUniqueBlogSlug(body.slug, req.params.id)
   }
   if (body.status === 'published' && !post.published_at) patch.published_at = nowIso()
   patch.updated_at = nowIso()
@@ -4079,6 +4129,292 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
     }
     return fail(res, 400, 'BLOG_POST_GENERATE_FAILED', error instanceof Error ? error.message : 'blog post generate failed', {})
   })
+})
+
+// ─── SSR helpers ────────────────────────────────────────────────────────────────
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonLd, bodyHtml, publishedTime }) {
+  const template = ssrTemplate || '<!doctype html><html lang="ko"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title></title></head><body><div id="root"></div></body></html>'
+
+  const siteName = '홍커뮤니케이션 블로그'
+  const safeTitle = escapeHtml(title || siteName)
+  const safeDesc = escapeHtml(description || 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠를 확인하세요.')
+  const safeCanonical = escapeHtml(canonicalUrl || '')
+  const safeOgImage = escapeHtml(ogImage || '')
+  const safeOgType = escapeHtml(ogType || 'website')
+  const safePublishedTime = escapeHtml(publishedTime || '')
+
+  // Inject meta tags + JSON-LD into <head>, and content into <div id="root">
+  const headInjection = [
+    `<title>${safeTitle}</title>`,
+    `<meta name="description" content="${safeDesc}" />`,
+    `<link rel="canonical" href="${safeCanonical}" />`,
+    `<meta property="og:title" content="${safeTitle}" />`,
+    `<meta property="og:description" content="${safeDesc}" />`,
+    `<meta property="og:type" content="${safeOgType}" />`,
+    `<meta property="og:url" content="${safeCanonical}" />`,
+    `<meta property="og:site_name" content="${escapeHtml(siteName)}" />`,
+    safeOgImage ? `<meta property="og:image" content="${safeOgImage}" />` : '',
+    safeOgImage ? `<meta name="twitter:image" content="${safeOgImage}" />` : '',
+    safePublishedTime ? `<meta property="article:published_time" content="${safePublishedTime}" />` : '',
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${safeTitle}" />`,
+    `<meta name="twitter:description" content="${safeDesc}" />`,
+    jsonLd || '',
+  ].filter(Boolean).join('\n')
+
+  // Replace </head> with our injections + </head>
+  let html = template.replace('</head>', `${headInjection}\n</head>`)
+
+  // Inject content into <div id="root">
+  if (bodyHtml) {
+    html = html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`)
+  }
+
+  // Make sure the body has a dark background for flash prevention
+  if (!html.includes('background')) {
+    html = html.replace('<body>', '<body style="background:#09090b;color:#fff;">')
+  }
+
+  return html
+}
+
+function blogPostBodyHtml(post) {
+  const title = escapeHtml(post.title || 'Untitled')
+  const excerpt = escapeHtml(post.excerpt || '')
+  const content = post.content || ''
+  const date = post.published_at || post.created_at || ''
+  const category = escapeHtml(post.category || '')
+  const tags = Array.isArray(post.tags) ? post.tags : []
+
+  return [
+    `<article style="max-width:720px;margin:0 auto;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;">`,
+    `<header>`,
+    `<h1 style="font-size:1.75rem;font-weight:700;line-height:1.3;margin:0 0 12px;">${title}</h1>`,
+    category ? `<span style="display:inline-block;font-size:0.8rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:4px;margin-bottom:8px;">${category}</span>` : '',
+    date ? `<time style="display:block;font-size:0.85rem;color:#a1a1aa;margin-bottom:16px;">${escapeHtml(date)}</time>` : '',
+    excerpt ? `<p style="font-size:1rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">${excerpt}</p>` : '',
+    `</header>`,
+    `<div style="font-size:1rem;line-height:1.8;color:#d4d4d8;">`,
+    // Content is stored as HTML or plain text — if it has HTML tags, use as-is; otherwise auto-paragraph
+    content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join(''),
+    `</div>`,
+    tags.length > 0
+      ? `<footer style="margin-top:32px;padding-top:16px;border-top:1px solid #27272a;">${tags.map((t) => `<span style="display:inline-block;font-size:0.75rem;background:#18181b;color:#71717a;padding:2px 8px;border-radius:3px;margin:2px 4px 2px 0;">#${escapeHtml(t)}</span>`).join('')}</footer>`
+      : '',
+    `</article>`,
+  ].filter(Boolean).join('\n')
+}
+
+function blogListBodyHtml(posts, baseUrl) {
+  const items = posts
+    .slice(0, 50)
+    .map((post) => {
+      const slug = post.slug || post.id
+      const title = escapeHtml(post.title || 'Untitled')
+      const excerpt = escapeHtml(post.excerpt || '')
+      const date = post.published_at || post.created_at || ''
+      const href = `${baseUrl}/blog/${encodeURIComponent(slug)}`
+      return [
+        `<li style="margin-bottom:20px;">`,
+        `<a href="${escapeHtml(href)}" style="color:#fafafa;text-decoration:none;">`,
+        `<h2 style="font-size:1.15rem;font-weight:600;margin:0 0 4px;">${title}</h2>`,
+        `</a>`,
+        date ? `<time style="font-size:0.8rem;color:#71717a;">${escapeHtml(date)}</time>` : '',
+        excerpt ? `<p style="font-size:0.9rem;color:#a1a1aa;margin:6px 0 0;line-height:1.5;">${excerpt.slice(0, 200)}${excerpt.length > 200 ? '…' : ''}</p>` : '',
+        `</li>`,
+      ].filter(Boolean).join('\n')
+    })
+    .join('\n')
+
+  return [
+    `<div style="max-width:720px;margin:0 auto;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;">`,
+    `<h1 style="font-size:1.5rem;font-weight:700;margin:0 0 24px;">블로그</h1>`,
+    `<ul style="list-style:none;padding:0;margin:0;">`,
+    items,
+    `</ul>`,
+    `</div>`,
+  ].join('\n')
+}
+
+function blogPostingJsonLd(post, baseUrl) {
+  const url = `${baseUrl}/blog/${encodeURIComponent(post.slug || post.id)}`
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title || '',
+    description: post.excerpt || post.seo_description || '',
+    url,
+    datePublished: post.published_at || post.created_at || '',
+    dateModified: post.updated_at || post.published_at || post.created_at || '',
+    author: { '@type': 'Organization', name: '홍커뮤니케이션' },
+    publisher: { '@type': 'Organization', name: '홍커뮤니케이션', logo: { '@type': 'ImageObject', url: `${baseUrl}/logo.png` } },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+  }
+  if (post.featured_image) schema.image = post.featured_image
+  if (post.category) schema.articleSection = post.category
+  if (Array.isArray(post.tags) && post.tags.length > 0) schema.keywords = post.tags.join(', ')
+
+  return JSON.stringify(schema)
+}
+
+function breadcrumbJsonLd(items) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  })
+}
+
+function blogListJsonLd(posts, baseUrl) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: '홍커뮤니케이션 블로그',
+    url: `${baseUrl}/blog`,
+    description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠',
+    publisher: { '@type': 'Organization', name: '홍커뮤니케이션' },
+    blogPost: posts.slice(0, 20).map((post) => ({
+      '@type': 'BlogPosting',
+      headline: post.title || '',
+      url: `${baseUrl}/blog/${encodeURIComponent(post.slug || post.id)}`,
+      datePublished: post.published_at || post.created_at || '',
+    })),
+  }
+  return JSON.stringify(schema)
+}
+
+// ─── SSR routes ─────────────────────────────────────────────────────────────────
+
+app.get('/blog', async (req, res) => {
+  try {
+    const baseUrl = spaBaseUrl(req)
+    const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
+    const posts = snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((post) => !post.deleted_at)
+      .sort((a, b) => {
+        const da = a.published_at || a.created_at || ''
+        const db2 = b.published_at || b.created_at || ''
+        return db2.localeCompare(da)
+      })
+
+    const jsonLd = [
+      blogListJsonLd(posts, baseUrl),
+      breadcrumbJsonLd([
+        { name: '홈', url: baseUrl },
+        { name: '블로그', url: `${baseUrl}/blog` },
+      ]),
+    ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
+
+    const html = buildSsrHtml({
+      title: '블로그 | 홍커뮤니케이션',
+      description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠를 확인하세요.',
+      canonicalUrl: `${baseUrl}/blog`,
+      ogType: 'website',
+      ogImage: '',
+      jsonLd,
+      bodyHtml: blogListBodyHtml(posts, baseUrl),
+    })
+
+    res.set('Content-Type', 'text/html; charset=utf-8')
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400')
+    res.send(html)
+  } catch (err) {
+    console.error('[SSR /blog] Error:', err)
+    res.set('Content-Type', 'text/html; charset=utf-8')
+    res.status(500).send(ssrTemplate || '<html><body>Server Error</body></html>')
+  }
+})
+
+app.get('/blog/:slug', async (req, res) => {
+  try {
+    const slug = req.params.slug
+    if (!slug || slug.startsWith('assets') || slug.includes('.')) {
+      // Likely a static asset request; skip
+      return res.status(404).send('Not found')
+    }
+
+    const baseUrl = spaBaseUrl(req)
+    const snap = await db.collection('blog_posts').where('slug', '==', slug).limit(1).get()
+
+    if (snap.empty) {
+      res.set('Content-Type', 'text/html; charset=utf-8')
+      res.status(404).send(buildSsrHtml({
+        title: '포스트를 찾을 수 없습니다 | 홍커뮤니케이션 블로그',
+        description: '요청하신 블로그 포스트를 찾을 수 없습니다.',
+        canonicalUrl: `${baseUrl}/blog/${slug}`,
+        ogType: 'website',
+        ogImage: '',
+        jsonLd: '',
+        bodyHtml: '<div style="max-width:720px;margin:0 auto;padding:48px 16px;text-align:center;font-family:system-ui,sans-serif;color:#a1a1aa;"><h1 style="font-size:1.5rem;color:#fafafa;">404</h1><p>포스트를 찾을 수 없습니다.</p></div>',
+      }))
+      return
+    }
+
+    const doc = snap.docs[0]
+    const post = { id: doc.id, ...doc.data() }
+
+    if (post.status !== 'published' || post.deleted_at) {
+      res.set('Content-Type', 'text/html; charset=utf-8')
+      res.status(404).send(buildSsrHtml({
+        title: '포스트를 찾을 수 없습니다 | 홍커뮤니케이션 블로그',
+        description: '요청하신 블로그 포스트를 찾을 수 없습니다.',
+        canonicalUrl: `${baseUrl}/blog/${slug}`,
+        ogType: 'website',
+        ogImage: '',
+        jsonLd: '',
+        bodyHtml: '<div style="max-width:720px;margin:0 auto;padding:48px 16px;text-align:center;font-family:system-ui,sans-serif;color:#a1a1aa;"><h1 style="font-size:1.5rem;color:#fafafa;">404</h1><p>포스트를 찾을 수 없습니다.</p></div>',
+      }))
+      return
+    }
+
+    const canonicalUrl = `${baseUrl}/blog/${encodeURIComponent(post.slug)}`
+    const seoTitle = post.seo_title || post.title || ''
+    const seoDesc = post.seo_description || post.excerpt || ''
+
+    const jsonLd = [
+      blogPostingJsonLd(post, baseUrl),
+      breadcrumbJsonLd([
+        { name: '홈', url: baseUrl },
+        { name: '블로그', url: `${baseUrl}/blog` },
+        { name: post.title || '', url: canonicalUrl },
+      ]),
+    ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
+
+    const html = buildSsrHtml({
+      title: `${seoTitle} | 홍커뮤니케이션 블로그`,
+      description: seoDesc,
+      canonicalUrl,
+      ogType: 'article',
+      ogImage: post.featured_image || '',
+      jsonLd,
+      bodyHtml: blogPostBodyHtml(post),
+      publishedTime: post.published_at || post.created_at || '',
+    })
+
+    res.set('Content-Type', 'text/html; charset=utf-8')
+    res.set('Cache-Control', 'public, max-age=600, s-maxage=3600, stale-while-revalidate=86400')
+    res.send(html)
+  } catch (err) {
+    console.error('[SSR /blog/:slug] Error:', err)
+    res.set('Content-Type', 'text/html; charset=utf-8')
+    res.status(500).send(ssrTemplate || '<html><body>Server Error</body></html>')
+  }
 })
 
 export const api = onRequest(app)

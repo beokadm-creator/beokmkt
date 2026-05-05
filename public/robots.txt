@@ -1,4 +1,13 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /source-items
+Disallow: /short-ideas
+Disallow: /scripts
+Disallow: /render-jobs
+Disallow: /publish-jobs
+Disallow: /settings/
 
 Sitemap: https://beokmkt.web.app/sitemap.xml
