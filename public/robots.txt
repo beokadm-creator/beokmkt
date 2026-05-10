@@ -11,3 +11,5 @@ Disallow: /publish-jobs
 Disallow: /settings/
 
 Sitemap: https://beokmkt.web.app/sitemap.xml
+Sitemap: https://beokmkt.web.app/blog/sitemap.xml
+Sitemap: https://beokmkt.web.app/blog/sitemap-posts.xml

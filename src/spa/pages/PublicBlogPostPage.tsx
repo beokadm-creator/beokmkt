@@ -164,7 +164,7 @@ export default function PublicBlogPostPage() {
           ) : null}
 
           <div
-            className="mt-10 max-w-none text-zinc-100"
+            className="mt-10 max-w-none prose prose-invert prose-zinc prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:text-blue-400 prose-strong:text-zinc-100 prose-li:text-zinc-300 prose-img:rounded-xl"
             dangerouslySetInnerHTML={{ __html: post.content || '<p>본문이 없습니다.</p>' }}
           />
         </article>

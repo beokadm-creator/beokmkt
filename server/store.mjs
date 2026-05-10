@@ -28,6 +28,7 @@ function withDefaults(store) {
     idempotency: store.idempotency ?? {},
     ai_provider_defaults: store.ai_provider_defaults ?? null,
     blog_posts: store.blog_posts ?? [],
+    blog_schedule: store.blog_schedule ?? [],
   }
 }
 

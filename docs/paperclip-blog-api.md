@@ -8,6 +8,8 @@
 - API Base URL: `https://beokmkt.web.app/api`
 - 공개 블로그 목록: `https://beokmkt.web.app/blog`
 - 사이트맵: `https://beokmkt.web.app/sitemap.xml`
+- 블로그 URL-prefix 속성용 사이트맵: `https://beokmkt.web.app/blog/sitemap.xml`
+- 블로그 글 전용 사이트맵: `https://beokmkt.web.app/blog/sitemap-posts.xml`
 
 ## 인증 방식
 
@@ -252,6 +254,8 @@ Idempotency-Key: paperclip-post-20260504-001
 
 - Health Check: `GET https://beokmkt.web.app/api/health`
 - Sitemap: `GET https://beokmkt.web.app/sitemap.xml`
+- Blog URL-prefix sitemap: `GET https://beokmkt.web.app/blog/sitemap.xml`
+- Blog posts-only sitemap: `GET https://beokmkt.web.app/blog/sitemap-posts.xml`
 
 ## 운영 메모
 

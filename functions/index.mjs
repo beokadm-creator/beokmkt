@@ -1,3 +1,4 @@
+// @version 2026-05-10a — prose typography CSS update
 import express from 'express'
 import { onRequest } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
@@ -6,6 +7,7 @@ import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { randomUUID } from 'crypto'
 import { ssrTemplate, assetPaths } from './ssr-template.mjs'
+import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 
 initializeApp()
 const db = getFirestore()
@@ -146,29 +148,44 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;')
 }
 
-function buildSitemapXml(baseUrl, posts) {
+function buildSitemapXml(baseUrl, posts, options = {}) {
+  const today = new Date().toISOString().split('T')[0]
+  const includeBlogIndex = options.includeBlogIndex !== false
+  const includeImages = options.includeImages !== false
+
   const urls = [
-    { loc: `${baseUrl}/blog`, lastmod: new Date().toISOString(), priority: '1.0', changefreq: 'daily' },
+    ...(options.includeRoot === false ? [] : [{ loc: baseUrl, lastmod: today, priority: '1.0', changefreq: 'daily' }]),
+    ...(includeBlogIndex ? [{ loc: `${baseUrl}/blog/`, lastmod: today, priority: '0.9', changefreq: 'daily' }] : []),
     ...posts.map((post) => ({
       loc: `${baseUrl}${publicBlogPath(post)}`,
-      lastmod: post.updated_at || post.published_at || post.created_at || new Date().toISOString(),
+      lastmod: (post.updated_at || post.published_at || post.created_at || '').split('T')[0] || today,
       priority: '0.8',
       changefreq: 'weekly',
-      image: typeof post.featured_image === 'string' ? post.featured_image.trim() : '',
+      image: typeof post.featured_image === 'string' && post.featured_image.trim() ? post.featured_image.trim() : '',
     })),
   ]
 
-  const body = urls
-    .map((entry) => {
-      const imageTag = entry.image
-        ? `<image:image><image:loc>${escapeXml(entry.image)}</image:loc></image:image>`
-        : ''
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
+  ]
 
-      return `<url><loc>${escapeXml(entry.loc)}</loc><lastmod>${escapeXml(entry.lastmod)}</lastmod><changefreq>${entry.changefreq}</changefreq><priority>${entry.priority}</priority>${imageTag}</url>`
-    })
-    .join('')
+  for (const entry of urls) {
+    lines.push('  <url>')
+    lines.push(`    <loc>${escapeXml(entry.loc)}</loc>`)
+    lines.push(`    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`)
+    lines.push(`    <changefreq>${entry.changefreq}</changefreq>`)
+    lines.push(`    <priority>${entry.priority}</priority>`)
+    if (includeImages && entry.image) {
+      lines.push('    <image:image>')
+      lines.push(`      <image:loc>${escapeXml(entry.image)}</image:loc>`)
+      lines.push('    </image:image>')
+    }
+    lines.push('  </url>')
+  }
 
-  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>`
+  lines.push('</urlset>')
+  return lines.join('\n')
 }
 
 async function getOptionalAdminUser(req) {
@@ -184,7 +201,7 @@ async function getOptionalAdminUser(req) {
   }
 }
 
-app.get('/sitemap.xml', async (req, res) => {
+async function sitemapHandler(req, res) {
   const baseUrl = spaBaseUrl(req)
   const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
   const posts = snap.docs
@@ -192,8 +209,20 @@ app.get('/sitemap.xml', async (req, res) => {
     .filter((post) => !post.deleted_at)
 
   res.set('Content-Type', 'application/xml; charset=utf-8')
-  res.send(buildSitemapXml(baseUrl, posts))
-})
+  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
+  res.set('Vary', 'Accept-Encoding')
+  res.removeHeader('X-Very-Need-Authorization')
+  const isBlogOnlySitemap = req.path === '/blog/sitemap.xml' || req.path === '/blog/sitemap-posts.xml'
+  res.send(buildSitemapXml(baseUrl, posts, {
+    includeRoot: !isBlogOnlySitemap,
+    includeBlogIndex: !isBlogOnlySitemap,
+    includeImages: req.path !== '/blog/sitemap-posts.xml',
+  }))
+}
+
+app.get('/sitemap.xml', sitemapHandler)
+app.get('/blog/sitemap.xml', sitemapHandler)
+app.get('/blog/sitemap-posts.xml', sitemapHandler)
 
 function newId() {
   return randomUUID()
@@ -3905,28 +3934,26 @@ app.get('/api/blog-posts', async (req, res) => {
   })
 })
 
-app.get('/api/blog-posts/:id', async (req, res) => {
+app.get('/api/blog-posts/slug/:slug', async (req, res) => {
   const adminUser = await getOptionalAdminUser(req)
-  const snap = await db.collection('blog_posts').doc(req.params.id).get()
-  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
-
-  const post = { id: snap.id, ...snap.data() }
+  const slug = typeof req.params.slug === 'string' ? req.params.slug.trim() : ''
+  if (!slug) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  const snap = await db.collection('blog_posts').where('slug', '==', slug).limit(1).get()
+  if (snap.empty) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  const doc = snap.docs[0]
+  const post = { id: doc.id, ...doc.data() }
   if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   if (!adminUser && post.status !== 'published') return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   ok(res, post)
 })
 
-app.get('/api/blog-posts/slug/:slug', async (req, res) => {
+app.get('/api/blog-posts/:id', async (req, res) => {
   const adminUser = await getOptionalAdminUser(req)
-  const slug = typeof req.params.slug === 'string' ? req.params.slug.trim() : ''
-  if (!slug) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
-
-  const snap = await db.collection('blog_posts').where('slug', '==', slug).limit(10).get()
-  const post = snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .find((item) => !item.deleted_at && (adminUser || item.status === 'published'))
-
-  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  const snap = await db.collection('blog_posts').doc(req.params.id).get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  const post = { id: snap.id, ...snap.data() }
+  if (post.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+  if (!adminUser && post.status !== 'published') return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
   ok(res, post)
 })
 
@@ -4015,6 +4042,7 @@ app.patch('/api/blog-posts/:id', async (req, res) => {
     'content',
     'excerpt',
     'category',
+    'subcategory',
     'tags',
     'slug',
     'featured_image',
@@ -4131,6 +4159,146 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
   })
 })
 
+app.get('/api/blog-schedule', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit ?? 20) || 20, 100)
+  const offset = Number(req.query.offset ?? 0) || 0
+  const status = typeof req.query.status === 'string' ? req.query.status : ''
+
+  let query = db.collection('blog_schedule').where('deleted_at', '==', null)
+  if (status) query = query.where('status', '==', status)
+  query = query.orderBy('created_at', 'desc').offset(offset).limit(limit)
+
+  const snap = await query.get()
+  const items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  ok(res, { items, limit, offset })
+})
+
+app.post('/api/blog-schedule', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+    const title = typeof body.title === 'string' ? body.title.trim() : ''
+    if (!title) throw new Error('missing_title')
+
+    const id = newId()
+    const now = nowIso()
+    await db.collection('blog_schedule').doc(id).set({
+      title,
+      topic: body.topic ?? title,
+      category: body.category ?? 'marketing',
+      tone: body.tone ?? 'professional',
+      keywords: Array.isArray(body.keywords) ? body.keywords : [],
+      source_text: body.source_text ?? '',
+      target_length: body.target_length ?? 'medium',
+      language: body.language ?? 'ko',
+      auto_publish: body.auto_publish !== false,
+      featured_image: body.featured_image ?? null,
+      status: 'pending',
+      post_id: null,
+      slug: null,
+      published_at: null,
+      error_message: null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    })
+    await addAuditLog('blog_schedule.created', 'blog_schedule', id)
+    return { data: { id, status: 'pending' }, meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'missing_title') {
+      return fail(res, 400, 'VALIDATION_ERROR', 'title is required', {})
+    }
+    return fail(res, 400, 'BLOG_SCHEDULE_CREATE_FAILED', error instanceof Error ? error.message : 'blog schedule create failed', {})
+  })
+})
+
+app.patch('/api/blog-schedule/:id', async (req, res) => {
+  const ref = db.collection('blog_schedule').doc(req.params.id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog schedule item not found', {})
+  const item = snap.data() ?? {}
+  if (item.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog schedule item not found', {})
+
+  const body = req.body ?? {}
+  const patch = { updated_at: nowIso() }
+  const updatable = ['title', 'topic', 'category', 'tone', 'keywords', 'source_text', 'target_length', 'language', 'auto_publish', 'featured_image', 'status']
+  for (const key of updatable) {
+    if (key in body) patch[key] = body[key]
+  }
+  await ref.set(patch, { merge: true })
+  await addAuditLog('blog_schedule.updated', 'blog_schedule', req.params.id)
+  const updatedSnap = await ref.get()
+  ok(res, { id: updatedSnap.id, ...updatedSnap.data() })
+})
+
+app.delete('/api/blog-schedule/:id', async (req, res) => {
+  const ref = db.collection('blog_schedule').doc(req.params.id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog schedule item not found', {})
+  const item = snap.data() ?? {}
+  if (item.deleted_at) return fail(res, 404, 'NOT_FOUND', 'blog schedule item not found', {})
+
+  await ref.set({ deleted_at: nowIso(), updated_at: nowIso() }, { merge: true })
+  await addAuditLog('blog_schedule.deleted', 'blog_schedule', req.params.id)
+  ok(res, { id: req.params.id, deleted: true })
+})
+
+app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+
+    const result = await executeBlogPipeline(
+      {
+        generateAiText,
+        maybeParseJson,
+        resolveAiConfig,
+        newId,
+        nowIso,
+        ensureUniqueBlogSlug,
+        addAuditLog,
+        createPost: async (post) => {
+          await db.collection('blog_posts').doc(post.id).set(post)
+        },
+      },
+      {
+        title: body.title,
+        topic: body.topic,
+        category: body.category ?? 'marketing',
+        tone: body.tone ?? 'professional',
+        keywords: Array.isArray(body.keywords) ? body.keywords : [],
+        source_text: body.source_text ?? '',
+        target_length: body.target_length ?? 'medium',
+        language: body.language ?? 'ko',
+        auto_publish: body.auto_publish !== false,
+        featured_image: body.featured_image ?? null,
+        cta_text: body.cta_text ?? null,
+        cta_link: body.cta_link ?? null,
+        cta_button_text: body.cta_button_text ?? null,
+        ai_provider: body.ai_provider,
+        ai_api_key: body.ai_api_key,
+        ai_model: body.ai_model,
+        ai_endpoint: body.ai_endpoint,
+      }
+    )
+
+    return { data: result, meta: {} }
+  }).catch((error) => {
+    if (error instanceof PipelineError) {
+      const statusMap = {
+        MISSING_TITLE: 400,
+        AI_NOT_CONFIGURED: 400,
+        AI_NO_RESPONSE: 502,
+        AI_INVALID_FORMAT: 502,
+        AI_NO_HTML: 502,
+        CONTENT_VALIDATION_FAILED: 422,
+        SEO_VALIDATION_FAILED: 422,
+        FINAL_VALIDATION_FAILED: 422,
+      }
+      return fail(res, statusMap[error.code] ?? 400, error.code, error.message, error.details ?? {})
+    }
+    return fail(res, 500, 'PIPELINE_ERROR', error instanceof Error ? error.message : 'blog pipeline execution failed', {})
+  })
+})
+
 // ─── SSR helpers ────────────────────────────────────────────────────────────────
 
 function escapeHtml(value) {
@@ -4172,8 +4340,8 @@ function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonL
     jsonLd || '',
   ].filter(Boolean).join('\n')
 
-  // Replace </head> with our injections + </head>
-  let html = template.replace('</head>', `${headInjection}\n</head>`)
+  // Remove existing <title>…</title> from template, then inject our SEO head + </head>
+  let html = template.replace(/<title>[\s\S]*?<\/title>/i, '').replace('</head>', `${headInjection}\n</head>`)
 
   // Inject content into <div id="root">
   if (bodyHtml) {
@@ -4224,12 +4392,13 @@ function blogListBodyHtml(posts, baseUrl) {
       const excerpt = escapeHtml(post.excerpt || '')
       const date = post.published_at || post.created_at || ''
       const href = `${baseUrl}/blog/${encodeURIComponent(slug)}`
+      const sub = post.subcategory ? `<span style="display:inline-block;font-size:0.75rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:999px;margin-right:6px;">${escapeHtml(post.subcategory)}</span>` : ''
       return [
         `<li style="margin-bottom:20px;">`,
         `<a href="${escapeHtml(href)}" style="color:#fafafa;text-decoration:none;">`,
         `<h2 style="font-size:1.15rem;font-weight:600;margin:0 0 4px;">${title}</h2>`,
         `</a>`,
-        date ? `<time style="font-size:0.8rem;color:#71717a;">${escapeHtml(date)}</time>` : '',
+        `<div style="margin:4px 0 6px;">${sub}${date ? `<time style="font-size:0.8rem;color:#71717a;">${escapeHtml(date)}</time>` : ''}</div>`,
         excerpt ? `<p style="font-size:0.9rem;color:#a1a1aa;margin:6px 0 0;line-height:1.5;">${excerpt.slice(0, 200)}${excerpt.length > 200 ? '…' : ''}</p>` : '',
         `</li>`,
       ].filter(Boolean).join('\n')
@@ -4285,7 +4454,7 @@ function blogListJsonLd(posts, baseUrl) {
     '@context': 'https://schema.org',
     '@type': 'Blog',
     name: '홍커뮤니케이션 블로그',
-    url: `${baseUrl}/blog`,
+    url: `${baseUrl}/blog/`,
     description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠',
     publisher: { '@type': 'Organization', name: '홍커뮤니케이션' },
     blogPost: posts.slice(0, 20).map((post) => ({
@@ -4300,7 +4469,12 @@ function blogListJsonLd(posts, baseUrl) {
 
 // ─── SSR routes ─────────────────────────────────────────────────────────────────
 
-app.get('/blog', async (req, res) => {
+app.get('/blog', (req, res, next) => {
+  if (req.path === '/blog/') return next()
+  res.redirect(301, `${spaBaseUrl(req)}/blog/`)
+})
+
+app.get('/blog/', async (req, res) => {
   try {
     const baseUrl = spaBaseUrl(req)
     const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
@@ -4317,14 +4491,14 @@ app.get('/blog', async (req, res) => {
       blogListJsonLd(posts, baseUrl),
       breadcrumbJsonLd([
         { name: '홈', url: baseUrl },
-        { name: '블로그', url: `${baseUrl}/blog` },
+        { name: '블로그', url: `${baseUrl}/blog/` },
       ]),
     ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
       title: '블로그 | 홍커뮤니케이션',
       description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠를 확인하세요.',
-      canonicalUrl: `${baseUrl}/blog`,
+      canonicalUrl: `${baseUrl}/blog/`,
       ogType: 'website',
       ogImage: '',
       jsonLd,
@@ -4425,4 +4599,74 @@ export const aiRetrySweep = onSchedule({ schedule: 'every 10 minutes' }, async (
 
 export const aiPlatformAccountSweep = onSchedule({ schedule: 'every 30 minutes' }, async () => {
   await runPlatformAccountSweep({ limit: 50, warning_window_minutes: 60 }, 'system')
+})
+
+export const blogPipelineScheduler = onSchedule({ schedule: 'every monday 09:00', timeZone: 'Asia/Seoul' }, async () => {
+  try {
+    const snap = await db.collection('blog_schedule')
+      .where('status', '==', 'pending')
+      .orderBy('created_at', 'asc')
+      .limit(1)
+      .get()
+
+    if (snap.empty) {
+      console.log('[blogPipelineScheduler] No pending blog schedule items')
+      return
+    }
+
+    const doc = snap.docs[0]
+    const item = { id: doc.id, ...doc.data() }
+
+    await doc.ref.set({ status: 'processing', updated_at: FieldValue.serverTimestamp() }, { merge: true })
+
+    try {
+      const result = await executeBlogPipeline(
+        {
+          generateAiText,
+          maybeParseJson,
+          resolveAiConfig,
+          newId,
+          nowIso,
+          ensureUniqueBlogSlug,
+          addAuditLog,
+          createPost: async (post) => {
+            await db.collection('blog_posts').doc(post.id).set(post)
+          },
+        },
+        {
+          title: item.title,
+          topic: item.topic ?? item.title,
+          category: item.category ?? 'marketing',
+          tone: item.tone ?? 'professional',
+          keywords: Array.isArray(item.keywords) ? item.keywords : [],
+          source_text: item.source_text ?? '',
+          target_length: item.target_length ?? 'medium',
+          language: item.language ?? 'ko',
+          auto_publish: item.auto_publish !== false,
+          featured_image: item.featured_image ?? null,
+        }
+      )
+
+      await doc.ref.set({
+        status: 'completed',
+        post_id: result.post_id,
+        slug: result.slug,
+        published_at: result.published_at,
+        completed_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      }, { merge: true })
+
+      console.log(`[blogPipelineScheduler] Published: ${result.post_id} (${result.slug})`)
+    } catch (pipelineError) {
+      await doc.ref.set({
+        status: 'failed',
+        error_message: pipelineError instanceof Error ? pipelineError.message : 'pipeline execution failed',
+        failed_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      }, { merge: true })
+      console.error('[blogPipelineScheduler] Pipeline failed:', pipelineError)
+    }
+  } catch (err) {
+    console.error('[blogPipelineScheduler] Scheduler error:', err)
+  }
 })

@@ -705,8 +705,116 @@ curl -X POST http://localhost:3001/api/ai/execute-pipeline \
 curl -X POST http://localhost:3001/api/ai/restore-and-retry-dead-letter-jobs \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: open-claw-restore-dead-letter-001' \
-  --data '{
-    "job_type": "all",
-    "limit": 10
-  }'
+   --data '{
+     "job_type": "all",
+     "limit": 10
+   }'
+ ```
+
+## Blog Pipeline Endpoints
+
+### Execute blog pipeline (one-shot)
+
+- Method: `POST`
+- Path: `/api/ai/execute-blog-pipeline`
+- Purpose: generate a complete blog post using fixed prompt templates and auto-publish
+- Auth: Firebase token or `X-API-Key` header
+- Minimum body:
+
+```json
+{
+  "title": "2026 마케팅 자동화 전략"
+}
 ```
+
+- Useful options:
+  - `topic`
+  - `category`: `marketing` (default), `mice`, `company`
+  - `tone`: `professional` (default), `casual`, `informative`, `persuasive`
+  - `keywords`
+  - `source_text`
+  - `target_length`: `short`, `medium` (default), `long`
+  - `language`
+  - `auto_publish`: `true` (default) or `false`
+  - `featured_image`
+  - `cta_text`
+  - `cta_link`
+  - `cta_button_text`
+  - `ai_provider`, `ai_api_key`, `ai_model`
+
+- Returns:
+
+```json
+{
+  "data": {
+    "post_id": "...",
+    "slug": "...",
+    "status": "published",
+    "title": "...",
+    "seo_title": "...",
+    "tags": ["..."],
+    "published_at": "...",
+    "template_version": 1
+  }
+}
+```
+
+- Pipeline steps:
+  1. Select fixed prompt template by category + tone
+  2. AI generates draft content (single API call)
+  3. Validate content structure (rule-based, not AI)
+  4. Apply HTML template
+  5. Validate SEO metadata (rule-based)
+  6. Create blog post
+  7. Auto-publish if `auto_publish` is true
+
+- Quality gates:
+  - Content must have minimum 200 chars, at least 2 h2 headings, p tags
+  - SEO title 10-70 chars, description 30-170 chars
+  - At least one tag required
+  - Excerpt required (auto-generated from content if missing)
+
+### Blog schedule management
+
+These endpoints manage a queue of topics for the scheduled blog pipeline.
+
+#### List schedule items
+
+- Method: `GET`
+- Path: `/api/blog-schedule`
+- Query: `status`, `limit`, `offset`
+
+#### Create schedule item
+
+- Method: `POST`
+- Path: `/api/blog-schedule`
+- Body:
+
+```json
+{
+  "title": "하이브리드 이벤트 가이드",
+  "topic": "온라인과 오프라인을 연결하는 하이브리드 이벤트",
+  "category": "mice",
+  "tone": "professional",
+  "keywords": ["하이브리드", "이벤트"],
+  "target_length": "medium",
+  "auto_publish": true
+}
+```
+
+#### Update schedule item
+
+- Method: `PATCH`
+- Path: `/api/blog-schedule/:id`
+
+#### Delete schedule item
+
+- Method: `DELETE`
+- Path: `/api/blog-schedule/:id`
+
+### Blog pipeline scheduler
+
+- Firebase Functions scheduled function: `blogPipelineScheduler`
+- Schedule: Every Monday 09:00 KST
+- Behavior: picks the oldest `pending` item from `blog_schedule` collection, executes the pipeline, updates status
+- Status flow: `pending` → `processing` → `completed` or `failed`

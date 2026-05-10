@@ -6,6 +6,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 import { getIdempotency, loadStore, newId, nowIso, saveStore, setIdempotency } from './store.mjs'
+import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 
 initializeApp()
 
@@ -104,9 +105,12 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;')
 }
 
-function buildSitemapXml(baseUrl, posts) {
+function buildSitemapXml(baseUrl, posts, options = {}) {
+  const includeBlogIndex = options.includeBlogIndex !== false
+  const includeImages = options.includeImages !== false
   const urls = [
-    { loc: `${baseUrl}/blog`, lastmod: nowIso(), priority: '1.0', changefreq: 'daily' },
+    ...(options.includeRoot === false ? [] : [{ loc: baseUrl, lastmod: nowIso(), priority: '1.0', changefreq: 'daily' }]),
+    ...(includeBlogIndex ? [{ loc: `${baseUrl}/blog/`, lastmod: nowIso(), priority: '1.0', changefreq: 'daily' }] : []),
     ...posts.map((post) => ({
       loc: `${baseUrl}${publicBlogPath(post)}`,
       lastmod: post.updated_at || post.published_at || post.created_at || nowIso(),
@@ -118,7 +122,7 @@ function buildSitemapXml(baseUrl, posts) {
 
   const body = urls
     .map((entry) => {
-      const imageTag = entry.image
+      const imageTag = includeImages && entry.image
         ? `<image:image><image:loc>${escapeXml(entry.image)}</image:loc></image:image>`
         : ''
 
@@ -144,6 +148,14 @@ app.use(async (req, res, next) => {
       return next()
     }
     // fall through to Firebase auth below
+  }
+  // Blog pipeline + schedule endpoints: accept API key
+  if ((/^\/api\/ai\/execute-blog-pipeline/.test(req.path) || /^\/api\/blog-schedule/.test(req.path)) && req.method !== 'GET') {
+    const apiKey = req.header('X-API-Key')
+    if (apiKey && apiKey === envValue('BLOG_API_KEY')) {
+      req.user = { email: 'publisher@agent', role: 'publisher' }
+      return next()
+    }
   }
 
   const header = req.header('Authorization') ?? ''
@@ -364,12 +376,21 @@ function spaBaseUrl(req) {
   return 'http://localhost:5173'
 }
 
-app.get('/sitemap.xml', (req, res) => {
+function sitemapHandler(req, res) {
   const baseUrl = spaBaseUrl(req)
   const posts = store.blog_posts.filter((post) => !post.deleted_at && post.status === 'published')
   res.set('Content-Type', 'application/xml; charset=utf-8')
-  res.send(buildSitemapXml(baseUrl, posts))
-})
+  const isBlogOnlySitemap = req.path === '/blog/sitemap.xml' || req.path === '/blog/sitemap-posts.xml'
+  res.send(buildSitemapXml(baseUrl, posts, {
+    includeRoot: !isBlogOnlySitemap,
+    includeBlogIndex: !isBlogOnlySitemap,
+    includeImages: req.path !== '/blog/sitemap-posts.xml',
+  }))
+}
+
+app.get('/sitemap.xml', sitemapHandler)
+app.get('/blog/sitemap.xml', sitemapHandler)
+app.get('/blog/sitemap-posts.xml', sitemapHandler)
 
 function googleOauthConfig(req) {
   const clientId = envValue('GOOGLE_CLIENT_ID')
@@ -4413,6 +4434,142 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
     }
     return fail(res, 400, 'BLOG_POST_GENERATE_FAILED', error instanceof Error ? error.message : 'blog post generate failed', {})
   })
+})
+
+app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+
+    const result = await executeBlogPipeline(
+      {
+        generateAiText,
+        maybeParseJson,
+        resolveAiConfig,
+        newId,
+        nowIso,
+        ensureUniqueBlogSlug,
+        addAuditLog,
+        createPost: (post) => {
+          store.blog_posts.unshift(post)
+          return saveStore(store)
+        },
+      },
+      {
+        title: body.title,
+        topic: body.topic,
+        category: body.category ?? 'marketing',
+        tone: body.tone ?? 'professional',
+        keywords: Array.isArray(body.keywords) ? body.keywords : [],
+        source_text: body.source_text ?? '',
+        target_length: body.target_length ?? 'medium',
+        language: body.language ?? 'ko',
+        auto_publish: body.auto_publish !== false,
+        featured_image: body.featured_image ?? null,
+        cta_text: body.cta_text ?? null,
+        cta_link: body.cta_link ?? null,
+        cta_button_text: body.cta_button_text ?? null,
+        ai_provider: body.ai_provider,
+        ai_api_key: body.ai_api_key,
+        ai_model: body.ai_model,
+        ai_endpoint: body.ai_endpoint,
+      }
+    )
+
+    return { data: result, meta: {} }
+  }).catch((error) => {
+    if (error instanceof PipelineError) {
+      const statusMap = {
+        MISSING_TITLE: 400,
+        AI_NOT_CONFIGURED: 400,
+        AI_NO_RESPONSE: 502,
+        AI_INVALID_FORMAT: 502,
+        AI_NO_HTML: 502,
+        CONTENT_VALIDATION_FAILED: 422,
+        SEO_VALIDATION_FAILED: 422,
+        FINAL_VALIDATION_FAILED: 422,
+      }
+      return fail(res, statusMap[error.code] ?? 400, error.code, error.message, error.details ?? {})
+    }
+    return fail(res, 500, 'PIPELINE_ERROR', error instanceof Error ? error.message : 'blog pipeline execution failed', {})
+  })
+})
+
+app.get('/api/blog-schedule', (req, res) => {
+  if (!store.blog_schedule) store.blog_schedule = []
+  const limit = Math.min(Number(req.query.limit ?? 20) || 20, 100)
+  const offset = Number(req.query.offset ?? 0) || 0
+  const status = typeof req.query.status === 'string' ? req.query.status : ''
+  let items = store.blog_schedule.filter((s) => !s.deleted_at)
+  if (status) items = items.filter((s) => s.status === status)
+  ok(res, paginate(items, limit, offset))
+})
+
+app.post('/api/blog-schedule', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+    const title = typeof body.title === 'string' ? body.title.trim() : ''
+    if (!title) throw new Error('missing_title')
+
+    if (!store.blog_schedule) store.blog_schedule = []
+    const id = newId()
+    const now = nowIso()
+    store.blog_schedule.unshift({
+      id,
+      title,
+      topic: body.topic ?? title,
+      category: body.category ?? 'marketing',
+      tone: body.tone ?? 'professional',
+      keywords: Array.isArray(body.keywords) ? body.keywords : [],
+      source_text: body.source_text ?? '',
+      target_length: body.target_length ?? 'medium',
+      language: body.language ?? 'ko',
+      auto_publish: body.auto_publish !== false,
+      featured_image: body.featured_image ?? null,
+      status: 'pending',
+      post_id: null,
+      slug: null,
+      published_at: null,
+      error_message: null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    })
+    addAuditLog('blog_schedule.created', 'blog_schedule', id)
+    await saveStore(store)
+    return { data: { id, status: 'pending' }, meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'missing_title') {
+      return fail(res, 400, 'VALIDATION_ERROR', 'title is required', {})
+    }
+    return fail(res, 400, 'BLOG_SCHEDULE_CREATE_FAILED', error instanceof Error ? error.message : 'blog schedule create failed', {})
+  })
+})
+
+app.patch('/api/blog-schedule/:id', async (req, res) => {
+  if (!store.blog_schedule) store.blog_schedule = []
+  const item = store.blog_schedule.find((s) => s.id === req.params.id && !s.deleted_at)
+  if (!item) return fail(res, 404, 'NOT_FOUND', 'blog schedule item not found', {})
+
+  const body = req.body ?? {}
+  const updatable = ['title', 'topic', 'category', 'tone', 'keywords', 'source_text', 'target_length', 'language', 'auto_publish', 'featured_image', 'status']
+  for (const key of updatable) {
+    if (key in body) item[key] = body[key]
+  }
+  item.updated_at = nowIso()
+  addAuditLog('blog_schedule.updated', 'blog_schedule', item.id)
+  await saveStore(store)
+  ok(res, item)
+})
+
+app.delete('/api/blog-schedule/:id', async (req, res) => {
+  if (!store.blog_schedule) store.blog_schedule = []
+  const item = store.blog_schedule.find((s) => s.id === req.params.id && !s.deleted_at)
+  if (!item) return fail(res, 404, 'NOT_FOUND', 'blog schedule item not found', {})
+
+  item.deleted_at = nowIso()
+  addAuditLog('blog_schedule.deleted', 'blog_schedule', item.id)
+  await saveStore(store)
+  ok(res, { id: item.id, deleted: true })
 })
 
 app.get('/api/audit-logs', (req, res) => {

@@ -31,7 +31,7 @@ export default function PublicBlogPage() {
   }, [])
 
   useEffect(() => {
-    const canonical = `${window.location.origin}/blog`
+    const canonical = `${window.location.origin}/blog/`
     applySeo({
       title: '홍커뮤니케이션 블로그',
       description: 'MICE 행사기획, 국제회의, 컨퍼런스 운영, IT 솔루션, 동시통역 관련 실무형 인사이트를 확인하세요.',
