@@ -36,7 +36,7 @@ export default function Sidebar() {
   ]
 
   return (
-    <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-zinc-900 bg-zinc-950 px-4 py-5">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-zinc-900 bg-zinc-950 px-4 py-5">
       <div className="mb-5">
         <div className="text-sm font-semibold">beokmkt</div>
         <div className="text-xs text-zinc-500">운영 콘솔</div>
