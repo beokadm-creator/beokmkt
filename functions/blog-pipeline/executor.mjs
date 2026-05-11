@@ -1,6 +1,7 @@
 import { getBlogPromptTemplate, resolveLengthGuide } from './prompts.mjs'
 import { applyHtmlTemplate } from './html-templates.mjs'
-import { validateDraftContent, validateSeoMetadata, validateFinalPost } from './validators.mjs'
+import { stripHtml, validateDraftContent, validateSeoMetadata, validateFinalPost } from './validators.mjs'
+import { selectImages } from './image-pool.mjs'
 
 class PipelineError extends Error {
   constructor(code, message, details = null) {
@@ -8,6 +9,33 @@ class PipelineError extends Error {
     this.code = code
     this.details = details
   }
+}
+
+function escapeAttribute(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function buildFigureHtml(image) {
+  const url = escapeAttribute(image.url)
+  const alt = escapeAttribute(image.alt)
+  return `\n<figure class="my-8"><img src="${url}" alt="${alt}" class="w-full rounded-xl border border-zinc-800" loading="lazy" /><figcaption class="mt-2 text-center text-xs text-zinc-500">${alt}</figcaption></figure>`
+}
+
+function insertFiguresAfterHeadings(html, images = []) {
+  if (!images.length) return html
+  let headingIndex = 0
+  let imageIndex = 0
+  return html.replace(/<\/h2>/gi, (match) => {
+    headingIndex += 1
+    if (headingIndex < 2 || imageIndex >= images.length) return match
+    const figure = buildFigureHtml(images[imageIndex])
+    imageIndex += 1
+    return `${match}${figure}`
+  })
 }
 
 async function executeBlogPipeline(deps, options) {
@@ -76,7 +104,7 @@ async function executeBlogPipeline(deps, options) {
     template_version: template.version,
   })
 
-  const aiRawText = await generateAiText(aiConfig, template.system, userPrompt)
+  const aiRawText = await generateAiText(aiConfig, template.system, userPrompt, { max_tokens: 4096 })
   if (!aiRawText) {
     throw new PipelineError('AI_NO_RESPONSE', 'AI returned empty response')
   }
@@ -93,14 +121,18 @@ async function executeBlogPipeline(deps, options) {
     throw new PipelineError('AI_NO_HTML', 'AI response missing html field')
   }
 
-  const contentValidation = validateDraftContent(rawHtml)
+  const validationContext = { keywords, target_length }
+  const contentValidation = validateDraftContent(rawHtml, validationContext)
   if (!contentValidation.valid) {
     throw new PipelineError('CONTENT_VALIDATION_FAILED', contentValidation.reason, {
       step: 'draft_content',
     })
   }
 
-  const html = applyHtmlTemplate(rawHtml, { cta_text, cta_link, cta_button_text })
+  const images = selectImages(category, keywords, title)
+  const enrichedHtml = insertFiguresAfterHeadings(rawHtml, images)
+
+  const html = applyHtmlTemplate(enrichedHtml, { category, cta_text, cta_link, cta_button_text })
 
   const seoData = {
     excerpt: typeof parsed.excerpt === 'string' ? parsed.excerpt.trim() : '',
@@ -110,10 +142,10 @@ async function executeBlogPipeline(deps, options) {
   }
 
   if (!seoData.excerpt) {
-    seoData.excerpt = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+    seoData.excerpt = stripHtml(rawHtml).slice(0, 180)
   }
 
-  const seoValidation = validateSeoMetadata(seoData)
+  const seoValidation = validateSeoMetadata(seoData, validationContext)
   if (!seoValidation.valid) {
     throw new PipelineError('SEO_VALIDATION_FAILED', seoValidation.reason, {
       step: 'seo_metadata',
@@ -132,7 +164,7 @@ async function executeBlogPipeline(deps, options) {
     category,
     tags: seoData.tags,
     slug,
-    featured_image,
+    featured_image: featured_image ?? images[0]?.url ?? null,
     status: 'draft',
     language,
     tone,
@@ -145,7 +177,7 @@ async function executeBlogPipeline(deps, options) {
   }
 
   if (auto_publish) {
-    const finalValidation = validateFinalPost({ ...post, content: html })
+    const finalValidation = validateFinalPost({ ...post, content: html }, validationContext)
     if (!finalValidation.valid) {
       throw new PipelineError('FINAL_VALIDATION_FAILED', finalValidation.reason)
     }

@@ -1,4 +1,4 @@
-// @version 2026-05-10a — prose typography CSS update
+// @version 2026-05-10h — company branding in blog pipeline templates
 import express from 'express'
 import { onRequest } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
@@ -8,6 +8,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { randomUUID } from 'crypto'
 import { ssrTemplate, assetPaths } from './ssr-template.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
+import { getBlogPromptTemplate, resolveLengthGuide } from './blog-pipeline/prompts.mjs'
 
 initializeApp()
 const db = getFirestore()
@@ -395,9 +396,12 @@ function extractTextFromResponse(provider, data) {
     return ''
   }
 
-  const content = data?.choices?.[0]?.message?.content
-  if (typeof content === 'string') return content.trim()
+  const msg = data?.choices?.[0]?.message
+  const content = msg?.content
+  if (typeof content === 'string' && content.trim()) return content.trim()
   if (Array.isArray(content)) return content.map((item) => item?.text ?? '').filter(Boolean).join('\n').trim()
+  // reasoning models (e.g. GLM) may put output in reasoning_content when content is empty
+  if (typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim()) return msg.reasoning_content.trim()
   return ''
 }
 
@@ -655,7 +659,7 @@ async function validateApiKey(provider, apiKey, endpointOverride = '', modelOver
   }
 }
 
-async function generateAiText(config, systemPrompt, userPrompt) {
+async function generateAiText(config, systemPrompt, userPrompt, options = {}) {
   if (!config.provider || !config.apiKey) return null
 
   if (config.provider === 'anthropic') {
@@ -735,6 +739,7 @@ async function generateAiText(config, systemPrompt, userPrompt) {
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
+      ...(options.max_tokens ? { max_tokens: options.max_tokens } : {}),
     }),
   })
   const data = await res.json().catch(() => null)
@@ -785,40 +790,17 @@ async function generateScriptWithAi(config, item, idea, options) {
 }
 
 async function generateBlogPostWithAi(config, options) {
-  const lengthGuide = {
-    short: '300~500자, 2~3개 섹션',
-    medium: '800~1500자, 4~6개 섹션',
-    long: '2000~4000자, 6~10개 섹션',
-  }
-  const targetLen = lengthGuide[options.target_length] ?? lengthGuide.medium
+  const template = getBlogPromptTemplate(options.category ?? 'marketing', options.tone ?? 'professional')
+  const userPrompt = template.buildUserPrompt({
+    title: options.title,
+    topic: options.topic,
+    toneLabel: template.toneLabel,
+    lengthGuide: resolveLengthGuide(options.target_length),
+    keywords: options.keywords ?? [],
+    source_text: options.source_text ?? '',
+  })
 
-  const systemPrompt = `You are a professional Korean content writer for a marketing company blog.
-Generate engaging, SEO-optimized blog posts in Korean.
-Return strict JSON only with keys: html, excerpt, seo_title, seo_description, tags.
-The html must use semantic HTML (h2, h3, p, ul, li, strong, em, blockquote). Do NOT wrap in code blocks.`
-
-  const userPrompt = [
-    `Title: ${options.title}`,
-    `Topic: ${options.topic}`,
-    `Tone: ${options.tone}`,
-    `Target length: ${targetLen}`,
-    `Keywords: ${options.keywords?.join(', ') ?? ''}`,
-    options.source_text ? `Reference material:\n${options.source_text}` : '',
-    '',
-    'Requirements:',
-    '- Write in natural, professional Korean',
-    '- Use semantic HTML (h2, h3, p, ul, li, strong, blockquote)',
-    '- Include a compelling introduction',
-    '- End with a clear conclusion or CTA',
-    '- SEO-friendly structure with proper heading hierarchy',
-    '- Do NOT use markdown, only HTML',
-    '',
-    'Return JSON: { "html": "...", "excerpt": "...", "seo_title": "...", "seo_description": "...", "tags": ["..."] }',
-  ]
-    .filter(Boolean)
-    .join('\n')
-
-  const text = await generateAiText(config, systemPrompt, userPrompt)
+  const text = await generateAiText(config, template.system, userPrompt, { max_tokens: 4096 })
   const parsed = maybeParseJson(text)
   if (!parsed || typeof parsed !== 'object') return null
   return parsed
@@ -3975,6 +3957,7 @@ app.post('/api/blog-posts', async (req, res) => {
       const aiResult = await generateBlogPostWithAi(aiConfig, {
         title,
         topic: body.topic ?? title,
+        category: body.category ?? 'marketing',
         tone: body.tone ?? 'professional',
         keywords: Array.isArray(body.keywords) ? body.keywords : [],
         source_text: body.source_text ?? '',
@@ -4126,6 +4109,7 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
     const aiResult = await generateBlogPostWithAi(aiConfig, {
       title: post.title,
       topic: body.topic ?? post.title,
+      category: body.category ?? post.category ?? 'marketing',
       tone: body.tone ?? post.tone ?? 'professional',
       keywords: body.keywords ?? post.tags ?? [],
       source_text: body.source_text ?? '',
