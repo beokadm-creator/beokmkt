@@ -8,6 +8,7 @@
     "dev:api": "node server/index.mjs",
     "dev:render-executor": "node executors/render-executor/index.mjs",
     "dev:web-render-executor": "node executors/web-render-executor/index.mjs",
+    "dev:naver-blog-worker": "node executors/naver-blog-worker/index.mjs",
     "dev:full": "concurrently -k \"npm:dev:spa\" \"npm:dev:api\"",
     "build": "next build",
     "build:spa": "vite build && node scripts/inject-ssr-template.mjs",

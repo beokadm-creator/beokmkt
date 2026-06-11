@@ -8,6 +8,7 @@ import crypto from 'crypto'
 import { getIdempotency, loadStore, newId, nowIso, saveStore, setIdempotency } from './store.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 import { getBlogPromptTemplate, resolveLengthGuide } from './blog-pipeline/prompts.mjs'
+import { researchKeywords, KeywordResearchError } from './blog-pipeline/keyword-research.mjs'
 
 initializeApp()
 
@@ -44,6 +45,19 @@ function ok(res, data, meta) {
 
 function fail(res, status, code, message, details) {
   res.status(status).json({ error: { code, message, details } })
+}
+
+function applyExternalPublishResult(post, platform, payload) {
+  if (!post.external_publish || typeof post.external_publish !== 'object') post.external_publish = {}
+  post.external_publish[platform] = {
+    status: payload.status === 'success' ? 'success' : 'failed',
+    platform,
+    url: payload.url ?? null,
+    published_at: payload.published_at ?? nowIso(),
+    error: payload.error ?? null,
+    updated_at: nowIso(),
+  }
+  if (platform === 'naver') post.naver_publish = post.external_publish.naver
 }
 
 async function getOptionalAdminUser(req) {
@@ -133,6 +147,20 @@ function buildSitemapXml(baseUrl, posts, options = {}) {
 
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>`
 }
+
+
+app.get('/api/freqtrade/status', async (req, res) => {
+  try {
+    const r = await fetch('http://127.0.0.1:8080/api/v1/status', {
+      headers: { Authorization: `Basic ${Buffer.from('freqtrade:freqtrade').toString('base64')}` },
+    })
+    const data = await r.json().catch(() => null)
+    if (!r.ok) return fail(res, r.status, 'FREQTRADE_STATUS_ERROR', `freqtrade status http ${r.status}`, data)
+    return ok(res, data)
+  } catch (e) {
+    return fail(res, 502, 'FREQTRADE_UNREACHABLE', e instanceof Error ? e.message : 'freqtrade unreachable', {})
+  }
+})
 
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next()
@@ -395,6 +423,38 @@ function sitemapHandler(req, res) {
 app.get('/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap-posts.xml', sitemapHandler)
+
+function buildRssXml(baseUrl, posts) {
+  const items = posts.slice(0, 50).map((post) => {
+    const url = `${baseUrl}${publicBlogPath(post)}`
+    const description = post.excerpt || post.seo_description || ''
+    const pubDate = new Date(post.published_at || post.created_at || Date.now()).toUTCString()
+    return [
+      '<item>',
+      `<title>${escapeXml(post.title || '')}</title>`,
+      `<link>${escapeXml(url)}</link>`,
+      `<guid isPermaLink="true">${escapeXml(url)}</guid>`,
+      `<pubDate>${pubDate}</pubDate>`,
+      `<description>${escapeXml(description)}</description>`,
+      post.category ? `<category>${escapeXml(post.category)}</category>` : '',
+      '</item>',
+    ].filter(Boolean).join('')
+  }).join('\n')
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>홍커뮤니케이션 블로그</title><link>${escapeXml(baseUrl)}/blog/</link><atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" /><description>MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠</description><language>ko-KR</language>\n${items}\n</channel></rss>`
+}
+
+function rssHandler(req, res) {
+  const baseUrl = spaBaseUrl(req)
+  const posts = store.blog_posts
+    .filter((post) => !post.deleted_at && post.status === 'published')
+    .sort((a, b) => String(b.published_at || b.created_at || '').localeCompare(String(a.published_at || a.created_at || '')))
+  res.set('Content-Type', 'application/rss+xml; charset=utf-8')
+  res.send(buildRssXml(baseUrl, posts))
+}
+
+app.get('/rss.xml', rssHandler)
+app.get('/blog/rss.xml', rssHandler)
 
 function googleOauthConfig(req) {
   const clientId = envValue('GOOGLE_CLIENT_ID')
@@ -706,7 +766,7 @@ async function generateAiText(config, systemPrompt, userPrompt, options = {}) {
     openai: 'https://api.openai.com/v1/chat/completions',
     mistral: 'https://api.mistral.ai/v1/chat/completions',
     zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+    zai: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
   }
 
   const endpoint = endpointTable[config.provider]
@@ -1672,7 +1732,7 @@ function defaultTestEndpointForProvider(provider) {
     mistral: 'https://api.mistral.ai/v1/chat/completions',
     cohere: 'https://api.cohere.ai/v1/chat',
     zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+    zai: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
   }
   return table[provider] ?? ''
 }
@@ -4374,8 +4434,24 @@ app.post('/api/blog-posts/:id/publish', async (req, res) => {
   post.updated_at = nowIso()
 
   addAuditLog('blog_post.published', 'blog_post', post.id, 'user')
+
   await saveStore(store)
   ok(res, post)
+})
+
+app.post('/api/blog-posts/:id/external-publish-result', async (req, res) => {
+  const post = store.blog_posts.find((p) => p.id === req.params.id && !p.deleted_at)
+  if (!post) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const body = req.body ?? {}
+  const platform = body.platform === 'tistory' ? 'tistory' : body.platform === 'naver' ? 'naver' : null
+  if (!platform) return fail(res, 400, 'INVALID_PLATFORM', 'platform must be naver or tistory', {})
+
+  applyExternalPublishResult(post, platform, body)
+  addAuditLog(`blog_post.external_publish.${body.status === 'success' ? 'success' : 'failed'}`, 'blog_post', post.id, 'worker', { platform, url: body.url ?? null, error: body.error ?? null })
+  post.updated_at = nowIso()
+  await saveStore(store)
+  ok(res, post.external_publish[platform])
 })
 
 app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
@@ -4420,6 +4496,20 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
   })
 })
 
+app.post('/api/ai/keyword-research', async (req, res) => {
+  try {
+    const body = req.body ?? {}
+    const seeds = Array.isArray(body.keywords) ? body.keywords : (body.keyword ? [body.keyword] : [])
+    const result = await researchKeywords(seeds)
+    ok(res, result)
+  } catch (error) {
+    if (error instanceof KeywordResearchError) {
+      return fail(res, error.code === 'MISSING_KEYWORDS' ? 400 : 502, error.code, error.message, error.details ?? {})
+    }
+    return fail(res, 500, 'KEYWORD_RESEARCH_ERROR', error instanceof Error ? error.message : 'keyword research failed', {})
+  }
+})
+
 app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
   await withIdempotency(req, res, async () => {
     const body = req.body ?? {}
@@ -4437,6 +4527,15 @@ app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
           store.blog_posts.unshift(post)
           return saveStore(store)
         },
+        listPublishedPosts: async (limit = 12) => store.blog_posts
+          .filter((post) => !post.deleted_at && post.status === 'published' && post.slug)
+          .sort((a, b) => String(b.published_at || b.created_at || '').localeCompare(String(a.published_at || a.created_at || '')))
+          .slice(0, limit)
+          .map((post) => ({
+            title: post.title || '',
+            url: `${(process.env.SPA_BASE_URL || 'http://localhost:5173').replace(/\/+$/, '')}${publicBlogPath(post)}`,
+            tags: Array.isArray(post.tags) ? post.tags : [],
+          })),
       },
       {
         title: body.title,
@@ -4452,6 +4551,7 @@ app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
         cta_text: body.cta_text ?? null,
         cta_link: body.cta_link ?? null,
         cta_button_text: body.cta_button_text ?? null,
+        structure: body.structure ?? null,
         ai_provider: body.ai_provider,
         ai_api_key: body.ai_api_key,
         ai_model: body.ai_model,

@@ -118,6 +118,19 @@ export default function LoginPage() {
           {!error && !emailError && passwordMissing ? <div className="text-sm text-zinc-500">{passwordMissing}</div> : null}
 
           <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem('beokmkt_id_token')
+              setPassword('')
+              setError(null)
+              window.location.reload()
+            }}
+            className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 px-4 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
+          >
+            토큰 초기화
+          </button>
+
+          <button
             type="submit"
             disabled={isBusy || Boolean(auth.configError) || !emailAllowed || !password}
             className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-white px-4 text-sm font-medium text-zinc-950 disabled:opacity-60"

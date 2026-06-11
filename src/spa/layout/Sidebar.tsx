@@ -28,6 +28,7 @@ export default function Sidebar() {
     { to: '/scripts', label: '대본 검수' },
     { to: '/render-jobs', label: '영상 검수' },
     { to: '/publish-jobs', label: '업로드' },
+    { to: '/kaid-insight', label: 'KAID Insight 생성기' },
   ]
 
   const settings: NavItem[] = [

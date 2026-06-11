@@ -51,6 +51,9 @@ export function applySeo(options: {
   document.title = options.title
   upsertMeta('meta[name="description"]', { name: 'description', content: options.description })
   upsertMeta('meta[name="robots"]', { name: 'robots', content: robots })
+  upsertMeta('meta[name="author"]', { name: 'author', content: '홍커뮤니케이션' })
+  upsertMeta('meta[name="language"]', { name: 'language', content: 'ko-KR' })
+  upsertMeta('meta[name="theme-color"]', { name: 'theme-color', content: '#09090b' })
   upsertMeta('meta[property="og:title"]', { property: 'og:title', content: options.title })
   upsertMeta('meta[property="og:description"]', { property: 'og:description', content: options.description })
   upsertMeta('meta[property="og:type"]', { property: 'og:type', content: type })
@@ -93,6 +96,19 @@ export function applySeo(options: {
   }
 
   upsertLink('link[rel="canonical"]', { rel: 'canonical', href: options.canonical })
+  upsertLink('link[rel="sitemap"]', { rel: 'sitemap', type: 'application/xml', href: '/sitemap.xml' })
+  upsertLink('link[rel="alternate"][type="application/rss+xml"]', {
+    rel: 'alternate',
+    type: 'application/rss+xml',
+    title: '홍커뮤니케이션 블로그 RSS',
+    href: '/blog/rss.xml',
+  })
+  upsertLink('link[rel="alternate"][type="text/markdown"]', {
+    rel: 'alternate',
+    type: 'text/markdown',
+    title: 'LLMs guide',
+    href: '/llms.txt',
+  })
 
   const jsonLdEntries = options.jsonLd
     ? Array.isArray(options.jsonLd)

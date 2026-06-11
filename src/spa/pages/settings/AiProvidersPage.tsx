@@ -21,7 +21,7 @@ const DEFAULT_ENDPOINTS: Record<Provider, string> = {
   mistral: 'https://api.mistral.ai/v1/chat/completions',
   cohere: 'https://api.cohere.ai/v1/chat',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-  zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+  zai: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
 }
 
 const DEFAULT_MODELS: Record<Provider, string> = {
@@ -31,7 +31,7 @@ const DEFAULT_MODELS: Record<Provider, string> = {
   mistral: 'mistral-small-latest',
   cohere: 'command-r',
   zhipu: 'glm-4-flash',
-  zai: 'glm-4-flash',
+  zai: 'glm-5.1',
 }
 
 function toDisplayMessage(value: unknown, fallback: string) {
@@ -50,10 +50,10 @@ export default function AiProvidersPage() {
     []
   )
 
-  const [provider, setProvider] = useState<Provider>('openai')
+  const [provider, setProvider] = useState<Provider>('zai')
   const [apiKey, setApiKey] = useState('')
-  const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINTS.openai)
-  const [model, setModel] = useState(DEFAULT_MODELS.openai)
+  const [endpoint, setEndpoint] = useState(DEFAULT_ENDPOINTS.zai)
+  const [model, setModel] = useState(DEFAULT_MODELS.zai)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [result, setResult] = useState<ApiResult | null>(null)
@@ -71,7 +71,7 @@ export default function AiProvidersPage() {
       .then((data) => {
         if (data?.provider) setProvider(data.provider as Provider)
         if (data?.model) setModel(data.model)
-        if (data?.endpoint) setEndpoint(data.endpoint)
+        setEndpoint(DEFAULT_ENDPOINTS[(data?.provider as Provider) || 'zai'])
         setHasSavedApiKey(Boolean(data?.has_api_key))
         setSavedInfo(data?.updated_at ? `업데이트: ${new Date(data.updated_at).toLocaleString('ko-KR')}` : null)
       })

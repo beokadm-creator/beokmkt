@@ -58,8 +58,8 @@ function validateDraftContent(html, options = {}) {
   }
 
   const h2Count = (html.match(/<h2[^>]*>/gi) ?? []).length
-  if (h2Count < 4) {
-    return { valid: false, reason: `too few h2 headings (${h2Count}, minimum 4)` }
+  if (h2Count < 3) {
+    return { valid: false, reason: `too few h2 headings (${h2Count}, minimum 3)` }
   }
 
   const keywords = cleanKeywords(options.keywords)

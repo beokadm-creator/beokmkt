@@ -1,4 +1,4 @@
-// @version 2026-05-10h — company branding in blog pipeline templates
+// @version 2026-05-26a — scanner cleanup
 import express from 'express'
 import { onRequest } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto'
 import { ssrTemplate, assetPaths } from './ssr-template.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 import { getBlogPromptTemplate, resolveLengthGuide } from './blog-pipeline/prompts.mjs'
+import { researchKeywords, KeywordResearchError } from './blog-pipeline/keyword-research.mjs'
 
 initializeApp()
 const db = getFirestore()
@@ -225,6 +226,110 @@ app.get('/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap-posts.xml', sitemapHandler)
 
+// ─── RSS 피드 ───────────────────────────────────────────────────────────────
+// 네이버 서치어드바이저 RSS 제출, 구글/빙/AI 크롤러의 신규 글 발견용
+
+function buildRssXml(baseUrl, posts) {
+  const items = posts.slice(0, 50).map((post) => {
+    const url = `${baseUrl}${publicBlogPath(post)}`
+    const description = post.excerpt || post.seo_description || ''
+    const pubDate = new Date(post.published_at || post.created_at || Date.now()).toUTCString()
+    return [
+      '    <item>',
+      `      <title>${escapeXml(post.title || '')}</title>`,
+      `      <link>${escapeXml(url)}</link>`,
+      `      <guid isPermaLink="true">${escapeXml(url)}</guid>`,
+      `      <pubDate>${pubDate}</pubDate>`,
+      `      <description>${escapeXml(description)}</description>`,
+      post.category ? `      <category>${escapeXml(post.category)}</category>` : '',
+      '    </item>',
+    ].filter(Boolean).join('\n')
+  }).join('\n')
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
+    '  <channel>',
+    '    <title>홍커뮤니케이션 블로그</title>',
+    `    <link>${escapeXml(baseUrl)}/blog/</link>`,
+    `    <atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" />`,
+    '    <description>MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠</description>',
+    '    <language>ko-KR</language>',
+    items,
+    '  </channel>',
+    '</rss>',
+  ].join('\n')
+}
+
+async function rssHandler(req, res) {
+  const baseUrl = spaBaseUrl(req)
+  const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
+  const posts = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((post) => !post.deleted_at)
+    .sort((a, b) => {
+      const da = a.published_at || a.created_at || ''
+      const db2 = b.published_at || b.created_at || ''
+      return db2.localeCompare(da)
+    })
+
+  res.set('Content-Type', 'application/rss+xml; charset=utf-8')
+  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
+  res.send(buildRssXml(baseUrl, posts))
+}
+
+app.get('/rss.xml', rssHandler)
+app.get('/blog/rss.xml', rssHandler)
+
+// ─── IndexNow (발행 즉시 색인 요청: Bing/네이버 등 IndexNow 참여 엔진) ────────
+
+const SITE_BASE_URL = (process.env.SPA_BASE_URL || 'https://beokmkt.web.app').replace(/\/+$/, '')
+const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'beokmktindexnow2026key'
+
+async function pingIndexNow(urls, baseUrl = SITE_BASE_URL) {
+  const urlList = (Array.isArray(urls) ? urls : [urls]).filter(Boolean)
+  if (!urlList.length) return
+  try {
+    const host = new URL(baseUrl).host
+    const res = await fetch('https://api.indexnow.org/indexnow', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        host,
+        key: INDEXNOW_KEY,
+        keyLocation: `${baseUrl}/${INDEXNOW_KEY}.txt`,
+        urlList,
+      }),
+    })
+    console.log(`[indexnow] pinged ${urlList.length} url(s), status=${res.status}`)
+  } catch (error) {
+    console.warn('[indexnow] ping failed:', error instanceof Error ? error.message : error)
+  }
+}
+
+function blogPostAbsoluteUrl(post, baseUrl = SITE_BASE_URL) {
+  return `${baseUrl}${publicBlogPath(post)}`
+}
+
+// 내부 링크용 최근 발행 글 목록 (콘텐츠 생성 프롬프트에 주입)
+async function listPublishedPostsForLinks(limit = 12) {
+  const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((post) => !post.deleted_at && post.slug)
+    .sort((a, b) => {
+      const da = a.published_at || a.created_at || ''
+      const db2 = b.published_at || b.created_at || ''
+      return db2.localeCompare(da)
+    })
+    .slice(0, limit)
+    .map((post) => ({
+      title: post.title || '',
+      url: blogPostAbsoluteUrl(post),
+      tags: Array.isArray(post.tags) ? post.tags : [],
+    }))
+}
+
 function newId() {
   return randomUUID()
 }
@@ -296,7 +401,7 @@ function defaultModelForProvider(provider) {
     mistral: 'mistral-small-latest',
     cohere: 'command-r',
     zhipu: 'glm-4-flash',
-    zai: 'glm-4-flash',
+    zai: 'glm-5.1',
   }
   return table[provider] ?? 'gpt-4o-mini'
 }
@@ -431,7 +536,7 @@ function defaultTestEndpointForProvider(provider) {
     mistral: 'https://api.mistral.ai/v1/chat/completions',
     cohere: 'https://api.cohere.ai/v1/chat',
     zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+    zai: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
   }
   return table[provider] ?? ''
 }
@@ -720,7 +825,7 @@ async function generateAiText(config, systemPrompt, userPrompt, options = {}) {
     openai: 'https://api.openai.com/v1/chat/completions',
     mistral: 'https://api.mistral.ai/v1/chat/completions',
     zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    zai: 'https://open.bigmodel.cn/api/coding/paas/v4/chat/completions',
+    zai: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
   }
 
   const endpoint = endpointTable[config.provider]
@@ -3984,6 +4089,7 @@ app.post('/api/blog-posts', async (req, res) => {
       tone: typeof body.tone === 'string' ? body.tone : 'professional',
       seo_title: typeof body.seo_title === 'string' ? body.seo_title : title,
       seo_description: typeof body.seo_description === 'string' ? body.seo_description : '',
+      content_schema: body.content_schema && typeof body.content_schema === 'object' ? body.content_schema : null,
       published_at: status === 'published' ? now : null,
       created_at: now,
       updated_at: now,
@@ -4034,6 +4140,7 @@ app.patch('/api/blog-posts/:id', async (req, res) => {
     'tone',
     'seo_title',
     'seo_description',
+    'content_schema',
   ]
   const patch = {}
 
@@ -4091,7 +4198,45 @@ app.post('/api/blog-posts/:id/publish', async (req, res) => {
   )
   await addAuditLog('blog_post.published', 'blog_post', req.params.id, 'user')
   const updatedSnap = await ref.get()
-  ok(res, { id: updatedSnap.id, ...updatedSnap.data() })
+  const updatedPost = { id: updatedSnap.id, ...updatedSnap.data() }
+  pingIndexNow(blogPostAbsoluteUrl(updatedPost, spaBaseUrl(req)), spaBaseUrl(req))
+  ok(res, updatedPost)
+})
+
+app.post('/api/blog-posts/:id/external-publish-result', async (req, res) => {
+  const ref = db.collection('blog_posts').doc(req.params.id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
+
+  const body = req.body ?? {}
+  const platform = body.platform === 'tistory' ? 'tistory' : body.platform === 'naver' ? 'naver' : null
+  if (!platform) return fail(res, 400, 'INVALID_PLATFORM', 'platform must be naver or tistory', {})
+
+  const result = {
+    status: body.status === 'success' ? 'success' : 'failed',
+    platform,
+    url: body.url ?? null,
+    published_at: body.published_at ?? nowIso(),
+    error: body.error ?? null,
+    updated_at: nowIso(),
+  }
+
+  await ref.set(
+    {
+      external_publish: { [platform]: result },
+      updated_at: nowIso(),
+    },
+    { merge: true }
+  )
+
+  await addAuditLog(
+    `blog_post.external_publish.${result.status}`,
+    'blog_post',
+    req.params.id,
+    'worker',
+    { platform, url: result.url, error: result.error }
+  )
+  ok(res, result)
 })
 
 app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
@@ -4226,6 +4371,21 @@ app.delete('/api/blog-schedule/:id', async (req, res) => {
   ok(res, { id: req.params.id, deleted: true })
 })
 
+// ─── 키워드 리서치 (네이버 검색광고 API + 자동완성) ──────────────────────────
+app.post('/api/ai/keyword-research', async (req, res) => {
+  try {
+    const body = req.body ?? {}
+    const seeds = Array.isArray(body.keywords) ? body.keywords : (body.keyword ? [body.keyword] : [])
+    const result = await researchKeywords(seeds)
+    ok(res, result)
+  } catch (error) {
+    if (error instanceof KeywordResearchError) {
+      return fail(res, error.code === 'MISSING_KEYWORDS' ? 400 : 502, error.code, error.message, error.details ?? {})
+    }
+    return fail(res, 500, 'KEYWORD_RESEARCH_ERROR', error instanceof Error ? error.message : 'keyword research failed', {})
+  }
+})
+
 app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
   await withIdempotency(req, res, async () => {
     const body = req.body ?? {}
@@ -4242,6 +4402,7 @@ app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
         createPost: async (post) => {
           await db.collection('blog_posts').doc(post.id).set(post)
         },
+        listPublishedPosts: listPublishedPostsForLinks,
       },
       {
         title: body.title,
@@ -4257,12 +4418,17 @@ app.post('/api/ai/execute-blog-pipeline', async (req, res) => {
         cta_text: body.cta_text ?? null,
         cta_link: body.cta_link ?? null,
         cta_button_text: body.cta_button_text ?? null,
+        structure: body.structure ?? null,
         ai_provider: body.ai_provider,
         ai_api_key: body.ai_api_key,
         ai_model: body.ai_model,
         ai_endpoint: body.ai_endpoint,
       }
     )
+
+    if (result.status === 'published' && result.slug) {
+      pingIndexNow(`${SITE_BASE_URL}/blog/${encodeURIComponent(result.slug)}`)
+    }
 
     return { data: result, meta: {} }
   }).catch((error) => {
@@ -4294,7 +4460,7 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;')
 }
 
-function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonLd, bodyHtml, publishedTime }) {
+function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonLd, bodyHtml, publishedTime, modifiedTime }) {
   const template = ssrTemplate || '<!doctype html><html lang="ko"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title></title></head><body><div id="root"></div></body></html>'
 
   const siteName = '홍커뮤니케이션 블로그'
@@ -4304,12 +4470,22 @@ function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonL
   const safeOgImage = escapeHtml(ogImage || '')
   const safeOgType = escapeHtml(ogType || 'website')
   const safePublishedTime = escapeHtml(publishedTime || '')
+  const safeModifiedTime = escapeHtml(modifiedTime || '')
 
   // Inject meta tags + JSON-LD into <head>, and content into <div id="root">
   const headInjection = [
     `<title>${safeTitle}</title>`,
     `<meta name="description" content="${safeDesc}" />`,
+    `<meta name="author" content="홍커뮤니케이션" />`,
+    `<meta name="language" content="ko-KR" />`,
+    `<meta name="theme-color" content="#09090b" />`,
     `<link rel="canonical" href="${safeCanonical}" />`,
+    `<link rel="sitemap" type="application/xml" href="/sitemap.xml" />`,
+    `<link rel="alternate" type="application/rss+xml" title="홍커뮤니케이션 블로그 RSS" href="/blog/rss.xml" />`,
+    `<link rel="alternate" type="text/markdown" title="LLMs guide" href="/llms.txt" />`,
+    process.env.NAVER_SITE_VERIFICATION
+      ? `<meta name="naver-site-verification" content="${escapeHtml(process.env.NAVER_SITE_VERIFICATION)}" />`
+      : '',
     `<meta property="og:title" content="${safeTitle}" />`,
     `<meta property="og:description" content="${safeDesc}" />`,
     `<meta property="og:type" content="${safeOgType}" />`,
@@ -4318,58 +4494,273 @@ function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonL
     safeOgImage ? `<meta property="og:image" content="${safeOgImage}" />` : '',
     safeOgImage ? `<meta name="twitter:image" content="${safeOgImage}" />` : '',
     safePublishedTime ? `<meta property="article:published_time" content="${safePublishedTime}" />` : '',
+    safeModifiedTime ? `<meta property="article:modified_time" content="${safeModifiedTime}" />` : '',
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${safeTitle}" />`,
     `<meta name="twitter:description" content="${safeDesc}" />`,
     jsonLd || '',
   ].filter(Boolean).join('\n')
 
-  // Remove existing <title>…</title> from template, then inject our SEO head + </head>
-  let html = template.replace(/<title>[\s\S]*?<\/title>/i, '').replace('</head>', `${headInjection}\n</head>`)
+  const criticalCss = `<style>
+html{background:#09090b;color:#fff}
+body{margin:0;background:#09090b;color:#fff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+a{color:inherit}
+img{max-width:100%;height:auto}
+</style>`
+
+  // Public SSR pages are complete HTML. Strip SPA assets to avoid unused JS/CSS on crawlable pages.
+  let html = template
+    .replace(/<title>[\s\S]*?<\/title>/i, '')
+    .replace(/\s*<script\b[^>]*type="module"[^>]*><\/script>/gi, '')
+    .replace(/\s*<script\b[^>]*src="\/assets\/[^"]+"[^>]*><\/script>/gi, '')
+    .replace(/\s*<link\b[^>]*href="\/assets\/[^"]+\.css"[^>]*>/gi, '')
+    .replace('</head>', `${criticalCss}\n${headInjection}\n</head>`)
 
   // Inject content into <div id="root">
   if (bodyHtml) {
     html = html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`)
   }
 
-  // Make sure the body has a dark background for flash prevention
-  if (!html.includes('background')) {
-    html = html.replace('<body>', '<body style="background:#09090b;color:#fff;">')
-  }
-
   return html
 }
 
-function blogPostBodyHtml(post) {
+function stripHtml(value) {
+  return String(value ?? '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function organizationSameAs() {
+  const defaults = ['https://hongcomm.kr', 'https://beoksolution.com']
+  const extra = String(process.env.ORG_SAME_AS ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+  return [...new Set([...defaults, ...extra])]
+}
+
+function organizationJsonLd(baseUrl) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: '홍커뮤니케이션',
+    url: baseUrl,
+    sameAs: organizationSameAs(),
+    knowsAbout: [
+      'MICE',
+      '행사기획',
+      '국제회의',
+      '학술대회 등록 시스템',
+      '동시통역',
+      'AI 동시통역',
+      '행사 IT 솔루션',
+      '홈페이지 제작',
+      '맞춤형 소프트웨어 개발',
+    ],
+  })
+}
+
+function webSiteJsonLd(baseUrl) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: '홍커뮤니케이션 블로그',
+    url: baseUrl,
+    inLanguage: 'ko-KR',
+    publisher: {
+      '@type': 'Organization',
+      name: '홍커뮤니케이션',
+      url: baseUrl,
+    },
+  })
+}
+
+
+function renderBeoksolutionLandingSchema(schema = {}) {
+  const hero = schema.hero || {}
+  const preview = schema.preview || {}
+  const benefits = Array.isArray(schema.benefits) ? schema.benefits : []
+  const comparison = Array.isArray(schema.comparison) ? schema.comparison : []
+  const process = Array.isArray(schema.process) ? schema.process : []
+  const faqs = Array.isArray(schema.faq) ? schema.faq : []
+  const finalCta = schema.final_cta || {}
+
+  const benefitHtml = benefits.map((item, i) => `
+    <div style="padding:22px;border-radius:22px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.1);">
+      <b style="display:block;color:${i === 0 ? '#6ee7b7' : i === 1 ? '#93c5fd' : '#c4b5fd'};font-size:14px;margin-bottom:8px;">${String(i + 1).padStart(2, '0')} ${escapeHtml(item.title || '')}</b>
+      <p style="margin:0;color:#cbd5e1;line-height:1.75;">${escapeHtml(item.description || '')}</p>
+    </div>`).join('')
+
+  const comparisonHtml = comparison.map((row) => `
+    <div style="display:grid;grid-template-columns:.8fr 1fr 1fr;gap:12px;align-items:center;padding:15px;border-radius:18px;background:rgba(255,255,255,.045);">
+      <b style="color:#94a3b8;">${escapeHtml(row.item || '')}</b>
+      <span style="color:#94a3b8;">${escapeHtml(row.old || '')}</span>
+      <strong style="color:#6ee7b7;">${escapeHtml(row.new || '')}</strong>
+    </div>`).join('')
+
+  const processHtml = process.map((step, i) => `
+    <div style="padding:18px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#d1d5db;">
+      <b style="color:#fff;">${i + 1}. ${escapeHtml(step.title || '')}</b><br>${escapeHtml(step.description || '')}
+    </div>`).join('')
+
+  const faqHtml = faqs.length ? `
+    <section style="margin:46px 0;">
+      <h2 style="margin:0 0 18px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">자주 묻는 질문</h2>
+      <div style="display:grid;gap:12px;">${faqs.map((f) => `
+        <div style="padding:20px;border-radius:20px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);">
+          <b style="display:block;color:#fff;margin-bottom:8px;">${escapeHtml(f.q || '')}</b>
+          <p style="margin:0;color:#cbd5e1;line-height:1.75;">${escapeHtml(f.a || '')}</p>
+        </div>`).join('')}</div>
+    </section>` : ''
+
+  return `
+<section style="margin:36px 0;display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:stretch;">
+  <div style="padding:28px;border-radius:28px;background:linear-gradient(135deg,rgba(15,23,42,.92),rgba(30,64,175,.28));border:1px solid rgba(148,163,184,.18);">
+    <p style="margin:0 0 12px;color:#a7f3d0;font-size:12px;font-weight:1000;letter-spacing:.18em;">${escapeHtml(preview.eyebrow || 'SERVICE PREVIEW')}</p>
+    <h2 style="margin:0;color:#fff;font-size:32px;line-height:1.18;letter-spacing:-.045em;font-weight:1000;">${escapeHtml(preview.title || hero.title || '')}</h2>
+    <p style="margin:16px 0 0;color:#cbd5e1;line-height:1.85;font-size:16px;">${escapeHtml(preview.description || hero.subtitle || '')}</p>
+  </div>
+  <div style="padding:18px;border-radius:28px;background:#030712;border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 80px rgba(0,0,0,.38);">
+    <div style="display:flex;gap:7px;margin-bottom:14px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;"></span><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;"></span><span style="width:10px;height:10px;border-radius:50%;background:#10b981;"></span></div>
+    <div style="border-radius:22px;background:linear-gradient(135deg,#111827,#0f172a);padding:18px;border:1px solid rgba(255,255,255,.08);">
+      <div style="height:11px;width:45%;border-radius:99px;background:#e5e7eb;margin-bottom:18px;"></div>
+      <div style="height:46px;border-radius:16px;background:linear-gradient(90deg,#60a5fa,#34d399);margin-bottom:12px;"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;"><div style="height:54px;border-radius:14px;background:rgba(255,255,255,.08);"></div><div style="height:54px;border-radius:14px;background:rgba(255,255,255,.08);"></div><div style="height:54px;border-radius:14px;background:rgba(255,255,255,.08);"></div></div>
+      <div style="height:11px;width:90%;border-radius:99px;background:rgba(255,255,255,.20);margin-bottom:8px;"></div><div style="height:11px;width:68%;border-radius:99px;background:rgba(255,255,255,.16);"></div>
+    </div>
+  </div>
+</section>
+
+<section style="margin:46px 0;"><h2 style="margin:0 0 18px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">${escapeHtml(schema.benefits_title || '구독형 홈페이지가 맞는 이유')}</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">${benefitHtml}</div></section>
+<section style="margin:46px 0;padding:28px;border-radius:28px;background:rgba(2,6,23,.8);border:1px solid rgba(255,255,255,.1);"><h2 style="margin:0 0 20px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">${escapeHtml(schema.comparison_title || '일반 외주와 무엇이 다른가요?')}</h2><div style="display:grid;gap:10px;">${comparisonHtml}</div></section>
+<section style="margin:46px 0;"><h2 style="margin:0 0 18px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">${escapeHtml(schema.process_title || '진행 방식')}</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">${processHtml}</div></section>
+${faqHtml}
+<section style="margin:52px 0 0;padding:32px;border-radius:30px;background:linear-gradient(135deg,rgba(59,130,246,.28),rgba(16,185,129,.14));border:1px solid rgba(147,197,253,.26);">
+  <p style="margin:0 0 10px;color:#bfdbfe;font-size:12px;font-weight:1000;letter-spacing:.2em;">${escapeHtml(finalCta.eyebrow || 'START WITH BOK SOLUTION')}</p>
+  <h2 style="margin:0;color:#fff;font-size:34px;line-height:1.16;letter-spacing:-.045em;font-weight:1000;">${escapeHtml(finalCta.title || '구독형으로 시작하세요.')}</h2>
+  <p style="margin:16px 0 0;color:#dbeafe;line-height:1.8;">${escapeHtml(finalCta.description || '')}</p>
+  <a href="${escapeHtml(finalCta.href || 'https://beoksolution.com')}" target="_blank" rel="noopener" style="margin-top:22px;display:inline-flex;padding:14px 20px;border-radius:16px;background:#fff;color:#020617;text-decoration:none;font-weight:1000;">${escapeHtml(finalCta.label || '무료 상담 신청하기')}</a>
+</section>
+<style>@media (max-width: 760px) { section[style*="grid-template-columns:1.05fr"] { grid-template-columns:1fr !important; } div[style*="grid-template-columns:.8fr"] { grid-template-columns:1fr !important; } }</style>`
+}
+
+function formatKoreanDate(value) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10).replace(/-/g, '.')
+  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
+}
+
+function blogPostBodyHtml(post, extras = {}) {
   const title = escapeHtml(post.title || 'Untitled')
   const excerpt = escapeHtml(post.excerpt || '')
-  const content = post.content || ''
-  const date = post.published_at || post.created_at || ''
-  const category = escapeHtml(post.category || '')
+  const schema = post.content_schema && typeof post.content_schema === 'object' ? post.content_schema : null
+  const content = schema?.template === 'beoksolution_landing_v1'
+    ? renderBeoksolutionLandingSchema(schema)
+    : (post.content || '')
+  const date = formatKoreanDate(post.published_at || post.created_at || '')
+  const category = escapeHtml(post.category || '홈페이지 제작')
   const tags = Array.isArray(post.tags) ? post.tags : []
+  const renderedContent = content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join('')
 
-  return [
-    `<article style="max-width:720px;margin:0 auto;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;">`,
-    `<header>`,
-    `<h1 style="font-size:1.75rem;font-weight:700;line-height:1.3;margin:0 0 12px;">${title}</h1>`,
-    category ? `<span style="display:inline-block;font-size:0.8rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:4px;margin-bottom:8px;">${category}</span>` : '',
-    date ? `<time style="display:block;font-size:0.85rem;color:#a1a1aa;margin-bottom:16px;">${escapeHtml(date)}</time>` : '',
-    excerpt ? `<p style="font-size:1rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">${excerpt}</p>` : '',
-    `</header>`,
-    `<div style="font-size:1rem;line-height:1.8;color:#d4d4d8;">`,
-    // Content is stored as HTML or plain text — if it has HTML tags, use as-is; otherwise auto-paragraph
-    content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join(''),
-    `</div>`,
-    tags.length > 0
-      ? `<footer style="margin-top:32px;padding-top:16px;border-top:1px solid #27272a;">${tags.map((t) => `<span style="display:inline-block;font-size:0.75rem;background:#18181b;color:#71717a;padding:2px 8px;border-radius:3px;margin:2px 4px 2px 0;">#${escapeHtml(t)}</span>`).join('')}</footer>`
-      : '',
-    `</article>`,
-  ].filter(Boolean).join('\n')
+  return `
+<div style="min-height:100vh;background:#05070d;color:#fff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;word-break:keep-all;overflow-wrap:break-word;">
+  <div style="position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 18% 8%,rgba(59,130,246,.22),transparent 34%),radial-gradient(circle at 88% 4%,rgba(16,185,129,.14),transparent 30%),linear-gradient(180deg,rgba(255,255,255,.05),transparent 28%);"></div>
+  <main style="position:relative;max-width:1180px;margin:0 auto;padding:34px 20px 72px;">
+    <nav style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:30px;padding:12px 14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);border-radius:999px;backdrop-filter:blur(18px);">
+      <a href="/blog/" style="color:#d4d4d8;text-decoration:none;font-size:14px;font-weight:700;">← 블로그</a>
+      <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 15px;border-radius:999px;background:#fff;color:#05070d;text-decoration:none;font-size:14px;font-weight:950;">상담 문의</a>
+    </nav>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:34px;align-items:start;">
+      <article style="min-width:0;">
+        <section style="padding:42px;border:1px solid rgba(255,255,255,.11);background:linear-gradient(135deg,rgba(255,255,255,.075),rgba(255,255,255,.025));border-radius:34px;box-shadow:0 32px 90px rgba(0,0,0,.38);backdrop-filter:blur(18px);">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
+            <span style="display:inline-flex;padding:7px 12px;border-radius:999px;background:rgba(16,185,129,.12);color:#a7f3d0;border:1px solid rgba(110,231,183,.24);font-size:12px;font-weight:950;">${category}</span>
+            ${date ? `<time style="color:#a1a1aa;font-size:13px;font-weight:700;">${escapeHtml(date)}</time>` : ''}
+          </div>
+          <h1 style="margin:0;max-width:900px;color:#fff;font-size:clamp(42px,6vw,72px);line-height:1.02;letter-spacing:-.07em;font-weight:1000;">${title}</h1>
+          ${excerpt ? `<p style="margin:24px 0 0;max-width:760px;color:#cbd5e1;font-size:19px;line-height:1.85;letter-spacing:-.01em;">${excerpt}</p>` : ''}
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px;">
+            <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:16px;background:#fff;color:#020617;text-decoration:none;font-weight:1000;font-size:14px;box-shadow:0 18px 40px rgba(255,255,255,.14);">무료 상담 신청</a>
+            <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:16px;background:rgba(255,255,255,.07);color:#fff;text-decoration:none;font-weight:950;font-size:14px;border:1px solid rgba(255,255,255,.15);">서비스 보기</a>
+          </div>
+        </section>
+
+        <div style="margin-top:34px;">${renderedContent}</div>
+
+        ${faqSectionHtml(post.faq)}
+        ${tags.length > 0 ? `<footer style="margin-top:34px;padding:22px;border:1px solid rgba(255,255,255,.1);border-radius:24px;background:rgba(255,255,255,.035);">${tags.map((t) => `<span style="display:inline-flex;margin:4px;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);color:#a1a1aa;font-size:12px;font-weight:800;">#${escapeHtml(t)}</span>`).join('')}</footer>` : ''}
+        ${extras.relatedHtml || ''}
+      </article>
+
+      <aside style="position:sticky;top:28px;display:block;">
+        <div style="padding:26px;border:1px solid rgba(255,255,255,.1);border-radius:30px;background:rgba(255,255,255,.055);box-shadow:0 24px 70px rgba(0,0,0,.32);backdrop-filter:blur(18px);">
+          <p style="margin:0;color:#a7f3d0;font-size:12px;font-weight:1000;letter-spacing:.22em;">BOK SOLUTION</p>
+          <h2 style="margin:12px 0 0;color:#fff;font-size:28px;line-height:1.12;letter-spacing:-.05em;font-weight:1000;">구독형 홈페이지 제작</h2>
+          <p style="margin:13px 0 0;color:#cbd5e1;font-size:14px;line-height:1.75;">초기 제작비 부담 없이, 제작·운영·SEO·유지관리를 한 번에 시작하세요.</p>
+          <div style="display:grid;gap:9px;margin-top:20px;color:#e5e7eb;font-size:14px;font-weight:750;">
+            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">초기 제작비 0원</div>
+            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">월 5만원부터</div>
+            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">서버·SSL·SEO 포함</div>
+            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">예약·결제·알림톡 확장</div>
+          </div>
+          <a href="https://beoksolution.com" target="_blank" rel="noopener" style="margin-top:20px;display:flex;width:100%;box-sizing:border-box;justify-content:center;padding:14px 18px;border-radius:16px;background:#fff;color:#020617;text-decoration:none;font-size:14px;font-weight:1000;">상담 문의하기</a>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<style>
+  @media (max-width: 960px) {
+    main > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+    aside { position: static !important; }
+    article > section { padding: 28px !important; border-radius: 26px !important; }
+  }
+</style>`
 }
 
 function blogListBodyHtml(posts, baseUrl) {
+  const plans = [
+    {
+      name: '라이트 관리형',
+      price: '월 5만원',
+      label: '일반 홈페이지',
+      description: '초기 제작비 없이 회사소개, 서비스 소개, 문의 연결까지 빠르게 시작하는 기본형입니다.',
+      features: ['초기 제작비 0원', '1~5페이지 반응형 홈페이지', '서버/SSL/기본 유지관리 포함', '기본 SEO/Search Console 세팅', '텍스트·이미지 수정 월 1회'],
+    },
+    {
+      name: '성장 관리형',
+      price: '월 20만원',
+      label: '예약·결제·알림톡',
+      description: '문의와 신청을 실제 운영 데이터로 연결해야 하는 사업자를 위한 운영형 홈페이지입니다.',
+      features: ['라이트 포함', '예약·신청폼·결제 연동', '알림톡/SMS/이메일 연동', '관리자 페이지와 고객 데이터 관리', '수정 월 5회 및 월간 점검'],
+    },
+    {
+      name: '프리미엄 운영형',
+      price: '월 50만원~',
+      label: 'AI·자동화·커스텀',
+      description: '상담, 콘텐츠, 고객관리, 업무 자동화까지 맞춤형 시스템으로 확장하는 구독형 플랫폼입니다.',
+      features: ['라이트+성장 포함', '완전 맞춤 기능 설계', 'AI 상담/콘텐츠/견적 엔진 도입', 'CRM·대시보드·외부 API 연동', '우선 대응 및 월간 개선 리포트'],
+    },
+  ]
+
+  const planHtml = plans.map((plan) => [
+    `<article style="border:1px solid #27272a;background:#18181b;border-radius:8px;padding:24px;">`,
+    `<p style="font-size:0.8rem;color:#fde047;margin:0 0 10px;">${escapeHtml(plan.label)}</p>`,
+    `<h3 style="font-size:1.25rem;color:#fff;margin:0 0 8px;">${escapeHtml(plan.name)}</h3>`,
+    `<p style="font-size:2rem;font-weight:700;color:#fff;margin:0 0 14px;">${escapeHtml(plan.price)}</p>`,
+    `<p style="font-size:0.9rem;color:#a1a1aa;line-height:1.6;margin:0 0 18px;">${escapeHtml(plan.description)}</p>`,
+    `<ul style="padding-left:18px;margin:0;color:#d4d4d8;font-size:0.9rem;line-height:1.8;">${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join('')}</ul>`,
+    `</article>`,
+  ].join('\n')).join('\n')
+
   const items = posts
-    .slice(0, 50)
+    .slice(0, 12)
     .map((post) => {
       const slug = post.slug || post.id
       const title = escapeHtml(post.title || 'Untitled')
@@ -4390,34 +4781,142 @@ function blogListBodyHtml(posts, baseUrl) {
     .join('\n')
 
   return [
-    `<div style="max-width:720px;margin:0 auto;padding:24px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;">`,
-    `<h1 style="font-size:1.5rem;font-weight:700;margin:0 0 24px;">블로그</h1>`,
-    `<ul style="list-style:none;padding:0;margin:0;">`,
-    items,
-    `</ul>`,
+    `<div style="max-width:1120px;margin:0 auto;padding:56px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;">`,
+    `<p style="font-size:0.9rem;color:#fde047;margin:0 0 12px;">초기 제작비 0원 · 서버비와 유지관리 포함</p>`,
+    `<h1 style="font-size:2.6rem;font-weight:800;line-height:1.2;color:#fff;margin:0;max-width:820px;">홈페이지를 만들고 끝내지 말고, 매달 운영되는 영업 시스템으로 시작하세요.</h1>`,
+    `<p style="font-size:1rem;color:#a1a1aa;line-height:1.7;margin:20px 0 0;max-width:760px;">월 5만원 라이트 홈페이지부터 예약, 결제, 알림톡, AI 상담 엔진까지 사업 단계에 맞춰 확장합니다. 제작비 부담을 낮추고 운영과 개선을 구독으로 관리합니다.</p>`,
+    `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;">`,
+    `<a href="https://pf.kakao.com/_wxexmxgn/chat" style="display:inline-block;background:#fde047;color:#09090b;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">카카오톡으로 상담하기</a>`,
+    `<a href="#plans" style="display:inline-block;border:1px solid #52525b;color:#fff;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">요금제 확인하기</a>`,
+    `</div>`,
+    `<section id="plans" style="margin-top:56px;">`,
+    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">3가지 구독 요금제</h2>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">초기 제작비는 낮추고, 사업이 커질수록 기능과 자동화를 확장하는 구조입니다.</p>`,
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">${planHtml}</div>`,
+    `</section>`,
+    `<section style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
+    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">AI 엔진으로 차별화되는 프리미엄 운영</h2>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0;max-width:820px;">프리미엄 운영형은 단순 챗봇을 넘어 문의 자동 분류, 콘텐츠 초안 생성, 견적 보조, 운영 리포트 자동화까지 연결합니다.</p>`,
+    `</section>`,
+    `<section style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
+    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">레퍼런스와 운영 인사이트</h2>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">단순 홈페이지를 넘어 예약, 행사, 커머스, AI 자동화까지 운영해온 경험을 기반으로 제작합니다.</p>`,
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">`,
+    ...[
+      { cat: '홈페이지 제작', title: '제작보다 중요한 것은 매달 바뀌는 정보입니다.', desc: '공지, 가격, 사진, FAQ가 멈추지 않아야 홈페이지가 검색과 상담 전환에 계속 기여합니다.' },
+      { cat: '예약 시스템', title: '전화 문의를 예약 데이터로 바꾸는 구조', desc: '신청폼, 예약, 결제, 알림톡, 관리자 페이지를 연결하면 반복 응대가 줄어듭니다.' },
+      { cat: '학술대회', title: '등록, 결제, QR 출결까지 운영해본 경험', desc: '행사 운영에서 검증된 흐름을 병원, 학원, 설명회, 세미나 홈페이지에도 적용합니다.' },
+      { cat: 'AI 자동화', title: '문의와 콘텐츠를 운영 리포트까지 연결', desc: 'AI는 외부 챗봇이 아니라 운영자가 매달 반복 업무를 줄이는 내부 엔진이어야 합니다.' },
+    ].map((item) => `<div style="border:1px solid #27272a;border-radius:8px;padding:16px;background:rgba(24,24,27,0.4);"><span style="display:inline-block;background:#27272a;border-radius:4px;padding:2px 8px;font-size:0.75rem;color:#a1a1aa;">${item.cat}</span><h3 style="margin:10px 0 0;font-size:0.85rem;color:#f4f4f5;">${item.title}</h3><p style="margin:6px 0 0;font-size:0.75rem;color:#a1a1aa;line-height:1.5;">${item.desc}</p></div>`),
+    `</div>`,
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:32px;">`,
+    ...[
+      { cat: 'Academic', name: 'e-Regi 학술대회 통합 시스템', desc: '등록, 결제, QR 출결, 배지, 알림톡, 학회 포털, 파트너 포털 통합' },
+      { cat: 'Society', name: '학회·기관 홈페이지 솔루션', desc: '회원, 행사, 자료실, 결제, 논문 투고, 학회지, 관리자 대시보드' },
+      { cat: 'AI', name: 'AI 실시간 동시통역 플랫폼', desc: 'QR 접속 기반 38개국 언어 음성·자막 통역' },
+      { cat: 'Reservation', name: '스마트 설명회·예약 시스템', desc: '대기열, 매크로 방지, CAPTCHA, 실시간 관제, 알림톡' },
+      { cat: 'Conference', name: '컨퍼런스 전자초록집', desc: '발표, 연사, 세션, 초록 PWA' },
+      { cat: 'Commerce', name: 'Trevi 여행·호텔 예약 커머스', desc: '멀티 공급사, 채널 매니저, PMS, 예약, 결제, 환불, 정산, CRM' },
+      { cat: 'Energy', name: 'EMS · BMS 통합 운영·관제', desc: 'ESS, BESS, 태양광 PV, 충전기 맵 기반 대시보드' },
+      { cat: 'Automation', name: 'AgentRegi 법률·행정 자동화 SaaS', desc: '사건 진단, 전문가 매칭, 서류 수집, 전자신청, Document AI' },
+      { cat: 'Intelligence', name: 'EUM News AI 뉴스 인텔리전스', desc: '기업 단위 뉴스 수집, AI 필터링, 투자 리서치, M&A 모니터링' },
+      { cat: 'Content Ops', name: 'beokmkt 숏폼 콘텐츠 AI 파이프라인', desc: '아이디어, 스크립트, 렌더링, 발행, 작업 큐, 실패 복구' },
+      { cat: 'Mobile', name: '모바일 서비스 앱 플랫폼', desc: 'React Native, Expo, Firebase, 관리자 콘솔 통합 앱' },
+      { cat: 'Internal', name: '사내 위키·매뉴얼 시스템', desc: '트리 구조, 블록 편집기, PIN 인증, 검색, 버전 히스토리' },
+    ].map((item) => `<div style="border:1px solid #27272a;border-radius:8px;padding:16px;background:rgba(24,24,27,0.4);"><span style="display:inline-block;background:#27272a;border-radius:4px;padding:2px 8px;font-size:0.75rem;color:#a1a1aa;">${item.cat}</span><h3 style="margin:10px 0 0;font-size:0.85rem;color:#f4f4f5;">${item.name}</h3><p style="margin:6px 0 0;font-size:0.75rem;color:#a1a1aa;line-height:1.5;">${item.desc}</p></div>`),
+    `</div>`,
+    `</section>`,
     `</div>`,
   ].join('\n')
 }
 
 function blogPostingJsonLd(post, baseUrl) {
   const url = `${baseUrl}/blog/${encodeURIComponent(post.slug || post.id)}`
+  const articleText = stripHtml(post.content || '')
+  const keywords = [post.category, ...(Array.isArray(post.tags) ? post.tags : [])].filter(Boolean)
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: post.title || '',
     description: post.excerpt || post.seo_description || '',
     url,
+    inLanguage: 'ko-KR',
     datePublished: post.published_at || post.created_at || '',
     dateModified: post.updated_at || post.published_at || post.created_at || '',
     author: { '@type': 'Organization', name: '홍커뮤니케이션' },
-    publisher: { '@type': 'Organization', name: '홍커뮤니케이션', logo: { '@type': 'ImageObject', url: `${baseUrl}/logo.png` } },
+    publisher: { '@type': 'Organization', name: '홍커뮤니케이션', url: baseUrl },
+    isPartOf: { '@type': 'Blog', name: '홍커뮤니케이션 블로그', url: `${baseUrl}/blog/` },
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+    wordCount: articleText ? articleText.split(/\s+/).length : undefined,
   }
   if (post.featured_image) schema.image = post.featured_image
   if (post.category) schema.articleSection = post.category
-  if (Array.isArray(post.tags) && post.tags.length > 0) schema.keywords = post.tags.join(', ')
+  if (keywords.length > 0) {
+    schema.keywords = keywords.join(', ')
+    schema.about = keywords.map((name) => ({ '@type': 'Thing', name }))
+  }
 
   return JSON.stringify(schema)
+}
+
+function faqJsonLd(faq) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: { '@type': 'Answer', text: item.a },
+    })),
+  })
+}
+
+function selectRelatedPosts(post, allPosts, limit = 3) {
+  const tags = new Set((Array.isArray(post.tags) ? post.tags : []).map((t) => String(t).toLowerCase()))
+  return allPosts
+    .filter((p) => p.id !== post.id && !p.deleted_at && p.status === 'published')
+    .map((p) => {
+      const pTags = (Array.isArray(p.tags) ? p.tags : []).map((t) => String(t).toLowerCase())
+      const tagOverlap = pTags.filter((t) => tags.has(t)).length
+      const categoryMatch = p.category && p.category === post.category ? 1 : 0
+      return { post: p, score: tagOverlap * 2 + categoryMatch }
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      const da = a.post.published_at || a.post.created_at || ''
+      const db2 = b.post.published_at || b.post.created_at || ''
+      return db2.localeCompare(da)
+    })
+    .slice(0, limit)
+    .map((entry) => entry.post)
+}
+
+function relatedPostsHtml(relatedPosts, baseUrl) {
+  if (!relatedPosts.length) return ''
+  const items = relatedPosts.map((p) => {
+    const url = `${baseUrl}${publicBlogPath(p)}`
+    return `<li style="margin-bottom:10px;"><a href="${escapeHtml(url)}" style="color:#93c5fd;text-decoration:none;font-weight:700;font-size:15px;line-height:1.6;">${escapeHtml(p.title || '')}</a>${p.excerpt ? `<p style="margin:4px 0 0;color:#a1a1aa;font-size:13px;line-height:1.6;">${escapeHtml(String(p.excerpt).slice(0, 90))}</p>` : ''}</li>`
+  }).join('')
+  return `
+<section style="margin-top:34px;padding:24px;border:1px solid rgba(255,255,255,.1);border-radius:24px;background:rgba(255,255,255,.035);">
+  <h2 style="margin:0 0 14px;color:#fff;font-size:20px;font-weight:900;letter-spacing:-.02em;">함께 읽으면 좋은 글</h2>
+  <ul style="margin:0;padding-left:18px;list-style:disc;color:#71717a;">${items}</ul>
+</section>`
+}
+
+function faqSectionHtml(faq) {
+  if (!Array.isArray(faq) || !faq.length) return ''
+  const items = faq.map((item) => `
+    <div style="padding:18px 20px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);">
+      <b style="display:block;color:#fff;margin-bottom:8px;font-size:15px;">${escapeHtml(item.q)}</b>
+      <p style="margin:0;color:#cbd5e1;line-height:1.75;font-size:14px;">${escapeHtml(item.a)}</p>
+    </div>`).join('')
+  return `
+<section style="margin-top:34px;">
+  <h2 style="margin:0 0 14px;color:#fff;font-size:22px;font-weight:900;letter-spacing:-.02em;">자주 묻는 질문</h2>
+  <div style="display:grid;gap:10px;">${items}</div>
+</section>`
 }
 
 function breadcrumbJsonLd(items) {
@@ -4440,7 +4939,15 @@ function blogListJsonLd(posts, baseUrl) {
     name: '홍커뮤니케이션 블로그',
     url: `${baseUrl}/blog/`,
     description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠',
-    publisher: { '@type': 'Organization', name: '홍커뮤니케이션' },
+    inLanguage: 'ko-KR',
+    publisher: { '@type': 'Organization', name: '홍커뮤니케이션', url: baseUrl },
+    about: [
+      { '@type': 'Thing', name: 'MICE' },
+      { '@type': 'Thing', name: '행사기획' },
+      { '@type': 'Thing', name: '학술대회 등록 시스템' },
+      { '@type': 'Thing', name: '동시통역' },
+      { '@type': 'Thing', name: '행사 IT 솔루션' },
+    ],
     blogPost: posts.slice(0, 20).map((post) => ({
       '@type': 'BlogPosting',
       headline: post.title || '',
@@ -4449,6 +4956,26 @@ function blogListJsonLd(posts, baseUrl) {
     })),
   }
   return JSON.stringify(schema)
+}
+
+function serviceOfferJsonLd(baseUrl) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: '홈페이지 구독형 제작·운영 서비스',
+    description: '초기 제작비 없이 홈페이지 제작, 서버, 유지관리, SEO, 예약·결제·알림톡, AI 자동화까지 단계별로 제공하는 구독 서비스',
+    provider: { '@type': 'Organization', name: '홍커뮤니케이션', url: baseUrl },
+    areaServed: 'KR',
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: '홈페이지 구독 요금제',
+      itemListElement: [
+        { '@type': 'Offer', name: '라이트 관리형', price: '50000', priceCurrency: 'KRW', description: '일반 홈페이지 제작과 기본 유지관리' },
+        { '@type': 'Offer', name: '성장 관리형', price: '200000', priceCurrency: 'KRW', description: '예약, 결제, 알림톡, 관리자 기능 포함' },
+        { '@type': 'Offer', name: '프리미엄 운영형', price: '500000', priceCurrency: 'KRW', description: 'AI 엔진, 자동화, CRM, 커스텀 기능 포함' },
+      ],
+    },
+  })
 }
 
 // ─── SSR routes ─────────────────────────────────────────────────────────────────
@@ -4472,6 +4999,9 @@ app.get('/blog/', async (req, res) => {
       })
 
     const jsonLd = [
+      organizationJsonLd(baseUrl),
+      webSiteJsonLd(baseUrl),
+      serviceOfferJsonLd(baseUrl),
       blogListJsonLd(posts, baseUrl),
       breadcrumbJsonLd([
         { name: '홈', url: baseUrl },
@@ -4480,8 +5010,8 @@ app.get('/blog/', async (req, res) => {
     ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
-      title: '블로그 | 홍커뮤니케이션',
-      description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠를 확인하세요.',
+      title: '초기 제작비 0원 홈페이지 구독 서비스 | 홍커뮤니케이션',
+      description: '월 5만원 라이트 홈페이지부터 예약, 결제, 알림톡, AI 자동화까지 확장하는 구독형 홈페이지 제작·운영 서비스입니다.',
       canonicalUrl: `${baseUrl}/blog/`,
       ogType: 'website',
       ogImage: '',
@@ -4490,7 +5020,7 @@ app.get('/blog/', async (req, res) => {
     })
 
     res.set('Content-Type', 'text/html; charset=utf-8')
-    res.set('Cache-Control', 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400')
+    res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800')
     res.send(html)
   } catch (err) {
     console.error('[SSR /blog] Error:', err)
@@ -4545,14 +5075,30 @@ app.get('/blog/:slug', async (req, res) => {
     const seoTitle = post.seo_title || post.title || ''
     const seoDesc = post.seo_description || post.excerpt || ''
 
-    const jsonLd = [
+    // 관련 글 (내부 링크): 태그/카테고리 유사도 기반
+    let relatedPosts = []
+    try {
+      const allSnap = await db.collection('blog_posts').where('status', '==', 'published').get()
+      const allPosts = allSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      relatedPosts = selectRelatedPosts(post, allPosts, 3)
+    } catch {
+      relatedPosts = []
+    }
+
+    const jsonLdEntries = [
+      organizationJsonLd(baseUrl),
+      webSiteJsonLd(baseUrl),
       blogPostingJsonLd(post, baseUrl),
       breadcrumbJsonLd([
         { name: '홈', url: baseUrl },
         { name: '블로그', url: `${baseUrl}/blog` },
         { name: post.title || '', url: canonicalUrl },
       ]),
-    ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
+    ]
+    if (Array.isArray(post.faq) && post.faq.length > 0) {
+      jsonLdEntries.push(faqJsonLd(post.faq))
+    }
+    const jsonLd = jsonLdEntries.map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
       title: `${seoTitle} | 홍커뮤니케이션 블로그`,
@@ -4561,12 +5107,13 @@ app.get('/blog/:slug', async (req, res) => {
       ogType: 'article',
       ogImage: post.featured_image || '',
       jsonLd,
-      bodyHtml: blogPostBodyHtml(post),
+      bodyHtml: blogPostBodyHtml(post, { relatedHtml: relatedPostsHtml(relatedPosts, baseUrl) }),
       publishedTime: post.published_at || post.created_at || '',
+      modifiedTime: post.updated_at || post.published_at || post.created_at || '',
     })
 
     res.set('Content-Type', 'text/html; charset=utf-8')
-    res.set('Cache-Control', 'public, max-age=600, s-maxage=3600, stale-while-revalidate=86400')
+    res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800')
     res.send(html)
   } catch (err) {
     console.error('[SSR /blog/:slug] Error:', err)
@@ -4575,7 +5122,118 @@ app.get('/blog/:slug', async (req, res) => {
   }
 })
 
-export const api = onRequest(app)
+// ─── KAID Newsletters CRUDL ───────────────────────────────────────────────────
+
+app.get('/api/kaid-newsletters', async (req, res) => {
+  try {
+    const snap = await db.collection('kaid_newsletters').orderBy('updated_at', 'desc').get()
+    const items = snap.docs.map(d => {
+      const { els, ...meta } = d.data()
+      return serializeValue({ id: d.id, ...meta, el_count: Array.isArray(els) ? els.length : 0 })
+    })
+    ok(res, items)
+  } catch (e) {
+    fail(res, 500, 'ERROR', e instanceof Error ? e.message : 'unknown', {})
+  }
+})
+
+app.post('/api/kaid-newsletters', async (req, res) => {
+  try {
+    const { name, config, els } = req.body
+    if (!name || typeof name !== 'string') return fail(res, 400, 'INVALID', 'name required', {})
+    const id = randomUUID()
+    const cleanEls = Array.isArray(els)
+      ? els.map(el => el.type === 'image' ? { ...el, src: '' } : el)
+      : []
+    await db.collection('kaid_newsletters').doc(id).set({
+      id, name: name.trim(), config: config ?? {}, els: cleanEls,
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    })
+    ok(res, { id })
+  } catch (e) {
+    fail(res, 500, 'ERROR', e instanceof Error ? e.message : 'unknown', {})
+  }
+})
+
+app.get('/api/kaid-newsletters/:id', async (req, res) => {
+  try {
+    const snap = await db.collection('kaid_newsletters').doc(req.params.id).get()
+    if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'newsletter not found', {})
+    ok(res, serializeValue({ id: snap.id, ...snap.data() }))
+  } catch (e) {
+    fail(res, 500, 'ERROR', e instanceof Error ? e.message : 'unknown', {})
+  }
+})
+
+app.put('/api/kaid-newsletters/:id', async (req, res) => {
+  try {
+    const ref = db.collection('kaid_newsletters').doc(req.params.id)
+    const snap = await ref.get()
+    if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'newsletter not found', {})
+    const { name, config, els } = req.body
+    const cleanEls = Array.isArray(els)
+      ? els.map(el => el.type === 'image' ? { ...el, src: '' } : el)
+      : snap.data().els
+    const patch = { updated_at: FieldValue.serverTimestamp(), els: cleanEls, config: config ?? snap.data().config }
+    if (name && typeof name === 'string') patch.name = name.trim()
+    await ref.update(patch)
+    ok(res, { id: req.params.id })
+  } catch (e) {
+    fail(res, 500, 'ERROR', e instanceof Error ? e.message : 'unknown', {})
+  }
+})
+
+app.delete('/api/kaid-newsletters/:id', async (req, res) => {
+  try {
+    await db.collection('kaid_newsletters').doc(req.params.id).delete()
+    ok(res, { id: req.params.id })
+  } catch (e) {
+    fail(res, 500, 'ERROR', e instanceof Error ? e.message : 'unknown', {})
+  }
+})
+
+app.post('/api/kaid-newsletters/translate', async (req, res) => {
+  try {
+    const { els, targetLang } = req.body
+    if (!Array.isArray(els)) return fail(res, 400, 'INVALID', 'els required', {})
+    const config = await resolveAiConfig(req.body)
+    if (!config.provider || !config.apiKey) return fail(res, 400, 'NO_AI', 'AI provider not configured', {})
+
+    const items = []
+    for (let i = 0; i < els.length; i++) {
+      if (els[i].type === 'text') items.push({ i, field: 'content', text: els[i].content })
+      else if (els[i].type === 'button') items.push({ i, field: 'text', text: els[i].text })
+    }
+    if (items.length === 0) return ok(res, { els })
+
+    const lang = targetLang === 'ENG' ? 'English' : 'Korean'
+    const systemPrompt = `You are a professional translator. Translate each string to ${lang}. Preserve line breaks (\\n). Return ONLY a valid JSON array of translated strings, same count and order as input. No explanation.`
+    const userPrompt = JSON.stringify(items.map(t => t.text))
+
+    const raw = await generateAiText(config, systemPrompt, userPrompt, { max_tokens: 4096 })
+    let translated
+    try {
+      const m = raw.match(/\[[\s\S]*\]/)
+      translated = JSON.parse(m ? m[0] : raw.trim())
+    } catch {
+      return fail(res, 500, 'AI_PARSE', 'AI returned non-JSON', { raw })
+    }
+    if (!Array.isArray(translated) || translated.length !== items.length) {
+      return fail(res, 500, 'AI_COUNT', 'Translation count mismatch', { expected: items.length, got: translated.length })
+    }
+
+    const updated = els.map(el => ({ ...el }))
+    items.forEach((item, j) => { updated[item.i][item.field] = translated[j] })
+    ok(res, { els: updated })
+  } catch (e) {
+    fail(res, 500, 'AI_ERROR', e instanceof Error ? e.message : 'unknown', {})
+  }
+})
+
+export const api = onRequest({ timeoutSeconds: 300, memory: '512Mi' }, app)
+
+// ─── 기존 스케줄드 펑션 ──────────────────────────────────────────
 
 export const aiRetrySweep = onSchedule({ schedule: 'every 10 minutes' }, async () => {
   await runRetrySweep({ job_type: 'all', only_due: true, limit: 20 }, 'system')
@@ -4616,6 +5274,7 @@ export const blogPipelineScheduler = onSchedule({ schedule: 'every monday 09:00'
           createPost: async (post) => {
             await db.collection('blog_posts').doc(post.id).set(post)
           },
+          listPublishedPosts: listPublishedPostsForLinks,
         },
         {
           title: item.title,
@@ -4628,8 +5287,13 @@ export const blogPipelineScheduler = onSchedule({ schedule: 'every monday 09:00'
           language: item.language ?? 'ko',
           auto_publish: item.auto_publish !== false,
           featured_image: item.featured_image ?? null,
+          structure: item.structure ?? null,
         }
       )
+
+      if (result.status === 'published' && result.slug) {
+        await pingIndexNow(`${SITE_BASE_URL}/blog/${encodeURIComponent(result.slug)}`)
+      }
 
       await doc.ref.set({
         status: 'completed',

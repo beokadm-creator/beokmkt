@@ -1,4 +1,4 @@
-import { getBlogPromptTemplate, resolveLengthGuide } from './prompts.mjs'
+import { getBlogPromptTemplate, resolveLengthGuide, pickStructure } from './prompts.mjs'
 import { applyHtmlTemplate } from './html-templates.mjs'
 import { stripHtml, validateDraftContent, validateSeoMetadata, validateFinalPost } from './validators.mjs'
 import { selectImages } from './image-pool.mjs'
@@ -39,16 +39,17 @@ function insertFiguresAfterHeadings(html, images = []) {
 }
 
 async function executeBlogPipeline(deps, options) {
-  const {
-    generateAiText,
-    maybeParseJson,
-    resolveAiConfig,
-    newId,
-    nowIso,
-    ensureUniqueBlogSlug,
-    addAuditLog,
-    createPost,
-  } = deps
+    const {
+      generateAiText,
+      maybeParseJson,
+      resolveAiConfig,
+      newId,
+      nowIso,
+      ensureUniqueBlogSlug,
+      addAuditLog,
+      createPost,
+      listPublishedPosts,
+    } = deps
 
   const {
     title,
@@ -64,6 +65,7 @@ async function executeBlogPipeline(deps, options) {
     cta_text = null,
     cta_link = null,
     cta_button_text = null,
+    structure = null,
     ai_provider,
     ai_api_key,
     ai_model,
@@ -87,6 +89,16 @@ async function executeBlogPipeline(deps, options) {
 
   const template = getBlogPromptTemplate(category, tone)
   const lengthGuide = resolveLengthGuide(target_length)
+  const resolvedStructure = pickStructure(structure, `${title}${topic ?? ''}`)
+
+  let recentPosts = []
+  if (typeof listPublishedPosts === 'function') {
+    try {
+      recentPosts = await listPublishedPosts(12)
+    } catch {
+      recentPosts = []
+    }
+  }
 
   const userPrompt = template.buildUserPrompt({
     title: title.trim(),
@@ -95,6 +107,8 @@ async function executeBlogPipeline(deps, options) {
     lengthGuide,
     keywords,
     source_text,
+    structure: resolvedStructure,
+    recent_posts: recentPosts,
   })
 
   await addAuditLog('blog_pipeline.step_started', 'blog_pipeline', 'system', 'ai', {
@@ -141,6 +155,13 @@ async function executeBlogPipeline(deps, options) {
     tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t) => typeof t === 'string' && t.trim()) : [],
   }
 
+  const faq = Array.isArray(parsed.faq)
+    ? parsed.faq
+        .filter((item) => item && typeof item.q === 'string' && typeof item.a === 'string' && item.q.trim() && item.a.trim())
+        .slice(0, 6)
+        .map((item) => ({ q: item.q.trim(), a: item.a.trim() }))
+    : []
+
   if (!seoData.excerpt) {
     seoData.excerpt = stripHtml(rawHtml).slice(0, 180)
   }
@@ -163,6 +184,8 @@ async function executeBlogPipeline(deps, options) {
     excerpt: seoData.excerpt,
     category,
     tags: seoData.tags,
+    faq,
+    structure: resolvedStructure,
     slug,
     featured_image: featured_image ?? images[0]?.url ?? null,
     status: 'draft',

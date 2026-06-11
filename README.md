@@ -261,6 +261,56 @@ Notes:
 - Delete is soft-delete based and marks the post as `archived`.
 - The SPA detail page supports HTML editing, preview, AI generation, publish, and delete actions.
 
+### Cross-publishing to Naver Blog & Tistory (단순 HTTP 워커)
+
+네이버 블로그(공식 API 종료 → Playwright)와 티스토리(공식 OAuth API) 외부 발행. SPA가 워커에 직접 HTTP 요청합니다.
+
+```
+SPA (localhost:5173) 에서 "네이버 발행" 클릭
+    ↓ POST http://localhost:8788/publish-naver
+워커 (localhost:8788) — Playwright/API로 발행
+    ↓ POST http://localhost:8787/api/blog-posts/:id/external-publish-result
+메인 서버 (localhost:8787) — 결과 저장
+```
+
+#### 실행 (맥 하나에서 전부)
+
+```bash
+# 터미널 1 — 메인 API 서버
+npm run dev:api
+
+# 터미널 2 — 발행 워커
+cd executors/naver-blog-worker
+npm install && npm run setup   # 최초 1회
+npm run login                  # 네이버 최초 1회
+npm run tistory-auth           # 티스토리 최초 1회
+npm start
+
+# 터미널 3 — SPA
+npm run dev:spa
+```
+
+상세 세팅은 [`executors/naver-blog-worker/README.md`](./executors/naver-blog-worker/README.md) 참고.
+
+#### 플랫폼별 특성
+
+| | 네이버 블로그 | 티스토리 |
+|---|---|---|
+| 구현 방식 | Playwright (브라우저 자동화) | 공식 OAuth 2.0 API |
+| 안정성 | UI 변경시 깨짐 | API 명세 기반, 안정적 |
+| 인증 | 세션 쿠키 (`npm run login`) | access_token (`npm run tistory-auth`) |
+
+#### 발행 결과 (post 오브젝트 필드)
+
+```json
+{
+  "external_publish": {
+    "naver": { "status": "success", "url": "...", "platform": "naver" },
+    "tistory": { "status": "failed", "error": "...", "platform": "tistory" }
+  }
+}
+```
+
 ## Render Executor Contract
 
 Request payload shape:

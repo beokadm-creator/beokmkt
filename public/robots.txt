@@ -10,6 +10,28 @@ Disallow: /render-jobs
 Disallow: /publish-jobs
 Disallow: /settings/
 
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+# AI discovery guide: https://beokmkt.web.app/llms.txt
 Sitemap: https://beokmkt.web.app/sitemap.xml
 Sitemap: https://beokmkt.web.app/blog/sitemap.xml
 Sitemap: https://beokmkt.web.app/blog/sitemap-posts.xml

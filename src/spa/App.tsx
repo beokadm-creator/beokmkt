@@ -13,6 +13,7 @@ import RenderJobsPage from './pages/RenderJobsPage'
 import RenderJobDetailPage from './pages/RenderJobDetailPage'
 import PublishJobsPage from './pages/PublishJobsPage'
 import PublishJobDetailPage from './pages/PublishJobDetailPage'
+import KaidInsightPage from './pages/KaidInsightPage'
 import LoginPage from './pages/LoginPage'
 import PublicBlogPage from './pages/PublicBlogPage'
 import PublicBlogPostPage from './pages/PublicBlogPostPage'
@@ -64,6 +65,8 @@ export default function App() {
 
           <Route path="/publish-jobs" element={<PublishJobsPage />} />
           <Route path="/publish-jobs/:id" element={<PublishJobDetailPage />} />
+
+          <Route path="/kaid-insight" element={<KaidInsightPage />} />
 
           <Route path="/settings/ai-providers" element={<AiProvidersPage />} />
           <Route path="/settings/platform-accounts" element={<PlatformAccountsPage />} />

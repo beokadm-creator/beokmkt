@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { applySeo } from '../lib/seo'
+import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
 
 type BlogPost = {
   id: string
@@ -16,6 +17,7 @@ type BlogPost = {
   published_at: string | null
   created_at: string
   updated_at?: string
+  content_schema?: BeoksolutionLandingSchema | null
 }
 
 export default function PublicBlogPostPage() {
@@ -87,7 +89,7 @@ export default function PublicBlogPostPage() {
               '@type': 'ListItem',
               position: 1,
               name: '블로그',
-              item: `${window.location.origin}/blog`,
+              item: `${window.location.origin}/blog/`,
             },
             {
               '@type': 'ListItem',
@@ -125,26 +127,38 @@ export default function PublicBlogPostPage() {
     )
   }
 
+  const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <main className="mx-auto max-w-3xl px-6 py-12">
-        <Link to="/blog" className="text-sm text-zinc-400 hover:text-zinc-200">
-          ← 블로그 목록으로
-        </Link>
+    <div className="min-h-screen overflow-hidden bg-[#05070d] text-white">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(59,130,246,0.18),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_24%)]" />
+      <main className="relative mx-auto max-w-6xl px-5 py-8 md:px-8 md:py-12">
+        <div className="mb-8 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur">
+          <Link to="/blog" className="text-sm font-medium text-zinc-300 hover:text-white">
+            ← 블로그
+          </Link>
+          <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-full bg-white px-4 py-2 text-sm font-black text-zinc-950 hover:bg-zinc-100">상담 문의</a>
+        </div>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <article className="min-w-0">
+            <section className="rounded-[32px] border border-white/10 bg-white/[0.045] p-6 shadow-2xl shadow-black/30 backdrop-blur md:p-10">
 
-        <article className="mt-8">
-          <div className="flex items-center gap-3 text-xs text-zinc-500">
-            <span className="rounded bg-zinc-800 px-2 py-0.5">{post.category || '일반'}</span>
-            <time dateTime={post.published_at ?? post.created_at}>
-              {new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR')}
-            </time>
-          </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-bold text-emerald-200">{post.category || '일반'}</span>
+                <time dateTime={post.published_at ?? post.created_at} className="font-medium">{publishedLabel}</time>
+              </div>
 
-          <h1 className="mt-4 text-3xl font-bold tracking-tight">{post.title}</h1>
+              <h1 className="mt-5 max-w-4xl text-4xl font-black leading-tight tracking-[-0.055em] text-white md:text-6xl">{post.title}</h1>
 
-          {post.excerpt ? <p className="mt-4 text-base leading-7 text-zinc-400">{post.excerpt}</p> : null}
+              {post.excerpt ? <p className="mt-5 max-w-3xl text-lg leading-8 text-zinc-300">{post.excerpt}</p> : null}
 
-          {post.featured_image ? (
+              <div className="mt-7 flex flex-wrap gap-3">
+                <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-white/10 hover:bg-zinc-100">무료 상담 신청</a>
+                <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white hover:bg-white/[0.1]">서비스 보기</a>
+              </div>
+            </section>
+
+            {post.featured_image ? (
             <img
               src={post.featured_image}
               alt={post.title}
@@ -153,7 +167,7 @@ export default function PublicBlogPostPage() {
             />
           ) : null}
 
-          {post.tags?.length ? (
+            {post.tags?.length ? (
             <div className="mt-5 flex flex-wrap gap-2">
               {post.tags.map((tag) => (
                 <span key={tag} className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
@@ -163,11 +177,30 @@ export default function PublicBlogPostPage() {
             </div>
           ) : null}
 
-          <div
-            className="mt-10 max-w-none prose prose-invert prose-zinc prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:text-blue-400 prose-strong:text-zinc-100 prose-li:text-zinc-300 prose-img:rounded-xl"
-            dangerouslySetInnerHTML={{ __html: post.content || '<p>본문이 없습니다.</p>' }}
-          />
-        </article>
+            {isBeoksolutionLandingSchema(post.content_schema) ? (
+              <BeoksolutionLandingTemplate schema={post.content_schema} />
+            ) : (
+              <div
+                className="mt-10 max-w-none prose prose-invert prose-zinc prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:no-underline prose-a:text-blue-300 prose-strong:text-white prose-li:text-zinc-300 prose-img:rounded-xl"
+                dangerouslySetInnerHTML={{ __html: post.content || '<p>본문이 없습니다.</p>' }}
+              />
+            )}
+          </article>
+
+          <aside className="hidden lg:block">
+            <div className="sticky top-8 rounded-[28px] border border-white/10 bg-white/[0.05] p-6 shadow-2xl shadow-black/30 backdrop-blur">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-200">BOK SOLUTION</p>
+              <h2 className="mt-3 text-2xl font-black leading-tight tracking-[-0.04em]">구독형 홈페이지 제작</h2>
+              <p className="mt-3 text-sm leading-7 text-zinc-300">초기 제작비 부담 없이, 제작·운영·SEO·유지관리를 한 번에 시작하세요.</p>
+              <div className="mt-5 grid gap-2 text-sm text-zinc-300">
+                <div className="rounded-2xl bg-black/25 p-3">초기 제작비 0원</div>
+                <div className="rounded-2xl bg-black/25 p-3">월 5만원부터</div>
+                <div className="rounded-2xl bg-black/25 p-3">서버·SSL·SEO 포함</div>
+              </div>
+              <a href="https://beoksolution.com" target="_blank" rel="noopener" className="mt-5 flex w-full justify-center rounded-2xl bg-white px-5 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-100">상담 문의하기</a>
+            </div>
+          </aside>
+        </div>
       </main>
     </div>
   )
