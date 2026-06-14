@@ -11,6 +11,7 @@ const DB_PATH = path.resolve(__dirname, '../db/blog.db')
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'beokmkt'
 const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
 const CHANNELS = ['naver', 'tistory', 'selfhosted']
+const INVENTORY_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed']
 
 function pipelineQuality(body = '', groundingRatio = null) {
   const value = String(body ?? '')
@@ -46,6 +47,7 @@ function collectSnapshot() {
     }
 
     const reviewedTarget = Number(process.env.DAILY_PUBLISH_TARGET || 5) * Number(process.env.STOCK_BUFFER_DAYS || 3)
+    const inventory = INVENTORY_STATUSES.reduce((sum, status) => sum + (by_status[status] || 0), 0)
     const stuckThresholdMin = Number(process.env.STUCK_THRESHOLD_MIN || 35)
     const dueRow = db.prepare("SELECT COUNT(*) AS n FROM posts WHERE status='queued' AND next_run_at <= datetime('now')").get()
     const nextQueuedRow = db.prepare("SELECT MIN(next_run_at) AS next_queued_at FROM posts WHERE status='queued'").get()
@@ -113,6 +115,8 @@ function collectSnapshot() {
       },
       ops: {
         reviewed_target: reviewedTarget,
+        inventory_target: reviewedTarget,
+        inventory,
         reviewed: by_status.reviewed,
         queued: by_status.queued,
         queued_due: dueRow?.n ?? 0,

@@ -39,6 +39,8 @@ type RecentPost = {
 
 type OpsStats = {
   reviewed_target: number
+  inventory_target?: number
+  inventory?: number
   reviewed: number
   queued: number
   queued_due: number
@@ -245,10 +247,13 @@ function ChannelTable({ by_channel }: { by_channel: ByChannel }) {
 function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
   if (!ops) return null
   const staleTotal = Object.values(ops.stale ?? {}).reduce((sum, n) => sum + n, 0)
+  const inventoryTarget = ops.inventory_target ?? ops.reviewed_target
+  const inventory = ops.inventory ?? ops.reviewed
+  const inventoryLow = inventory < inventoryTarget
   const stockLow = ops.reviewed < ops.reviewed_target
   const dueBlocked = ops.queued_due > 0 && ops.publishing === 0
   const snapshotStale = ops.snapshot_stale === true
-  const active = stockLow || dueBlocked || staleTotal > 0 || snapshotStale
+  const active = inventoryLow || dueBlocked || staleTotal > 0 || snapshotStale
   const snapshotAgeMin = typeof ops.snapshot_age_sec === 'number' ? Math.round(ops.snapshot_age_sec / 60) : null
   const cells = [
     {
@@ -258,10 +263,16 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
       alert: snapshotStale,
     },
     {
-      label: '검토 재고',
+      label: '전발행 재고',
+      value: `${inventory}/${inventoryTarget}`,
+      sub: inventoryLow ? '목표 미달' : '목표 충족',
+      alert: inventoryLow,
+    },
+    {
+      label: '검토완료',
       value: `${ops.reviewed}/${ops.reviewed_target}`,
-      sub: stockLow ? '목표 미달' : '목표 충족',
-      alert: stockLow,
+      sub: stockLow ? '전환 대기' : '목표 충족',
+      alert: false,
     },
     {
       label: '예약 대기',
@@ -294,7 +305,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
           {active ? '확인 필요' : '정상'}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {cells.map((cell) => (
           <div
             key={cell.label}

@@ -15,6 +15,14 @@ import config
 from db import db
 from tools.keyword_bank import KEYWORDS
 
+INVENTORY_STATUSES = (
+    "draft",
+    "generating",
+    "factchecking",
+    "reviewing",
+    "reviewed",
+)
+
 
 def _normalize(text: str) -> str:
     """비교용 정규화 — 공백·특수문자 제거, 소문자."""
@@ -26,6 +34,16 @@ def _existing_topics() -> set[str]:
     with db.connect() as conn:
         rows = conn.execute("SELECT topic FROM posts WHERE topic IS NOT NULL").fetchall()
     return {_normalize(r["topic"]) for r in rows}
+
+
+def _inventory_count() -> int:
+    placeholders = ",".join("?" for _ in INVENTORY_STATUSES)
+    with db.connect() as conn:
+        row = conn.execute(
+            f"SELECT COUNT(*) AS n FROM posts WHERE status IN ({placeholders})",
+            INVENTORY_STATUSES,
+        ).fetchone()
+    return int(row["n"])
 
 
 def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
@@ -58,3 +76,18 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
     if created == 0:
         print("  새 키워드 없음 — 모든 키워드가 이미 DB에 있거나 keyword_bank에 추가 필요.")
     return created
+
+
+def run_stock(channel: str = "selfhosted", target: int | None = None) -> int:
+    """
+    발행 전 재고(draft~reviewed)가 목표 미만이면 부족분만 시드한다.
+    queued는 이미 발행 예약으로 빠져나간 물량이므로 새 재고 계산에서 제외한다.
+    """
+    target = target or (config.DAILY_PUBLISH_TARGET * config.STOCK_BUFFER_DAYS)
+    current = _inventory_count()
+    missing = max(0, target - current)
+    if missing == 0:
+        print(f"  재고 충분: inventory={current} / target={target}")
+        return 0
+    print(f"  재고 보충 필요: inventory={current} / target={target}, seed={missing}")
+    return run(channel=channel, max_seeds=missing)

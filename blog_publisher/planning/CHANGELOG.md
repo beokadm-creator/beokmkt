@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-06-15 — 재고 보충과 factcheck/review 큐 조회 버그 수정
+
+실제 운영 상태를 확인한 결과 발행 실패가 아니라 `reviewed` 재고가 모두 예약 큐로 빠진 뒤 새 draft가 없거나, 본문이 있는 draft가 빈 draft 뒤에 밀려 factcheck/review가 계속 0건 처리되는 문제가 있었다. 목표 재고 기반 시드 보충과 본문 보유 draft 직접 조회를 추가해 생성된 글이 실제 `reviewed`까지 올라가게 고쳤다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/auto_seed.py` | `stock_seed`용 `run_stock()` 추가. draft/generating/reviewing/reviewed 전발행 재고가 목표 미만이면 부족분만 시드 |
+| `blog_publisher/run.py` | `python3 run.py stock_seed [channel] [target]` 명령 추가 |
+| `blog_publisher/db/db.py` | `fetch_factcheck_ready()`, `fetch_review_ready()` 추가. 빈 draft가 앞에 있어도 본문 있는 글을 직접 조회 |
+| `blog_publisher/pipeline/factcheck.py`, `pipeline/review.py` | 일반 draft 조회 대신 전용 ready 조회 사용 |
+| `blog_publisher/tools/status_report.py` | reviewed 단독 경고 대신 전발행 재고와 검토완료 전환 대기를 분리 표시 |
+| `blog_publisher/ops/com.beok.blog-stock-seed.plist` | 30분마다 목표 재고 보충 LaunchAgent 추가 |
+| `blog_publisher/ops/com.beok.blog-sync-snapshot.plist` | 5분마다 관리자 대시보드 스냅샷 동기화 LaunchAgent 추가 |
+| `server/index.mjs`, `functions/index.mjs`, `DashboardPage.tsx` | `ops.inventory`/`inventory_target` 노출 및 UI 표시 |
+
+검증:
+- `python3 blog_publisher/run.py stock_seed selfhosted`로 draft 15건 보충
+- 실제 생성 id 50 완료: 7,659자, H2 6개, H3 17개, 표 3개, 한자 0개
+- 수정 전 `factcheck/review`는 0건 처리, 수정 후 `factcheck 통과 1`, `review 통과 1`
+- 현재 상태: `draft=14`, `reviewed=1`, `queued=3`, `inventory=15/15`, `needs_human=0`, `failed=0`
+
+---
+
 ## 2026-06-15 — 로컬 SQLite 운영 상태를 클라우드 관리자 화면에 동기화
 
 배포된 관리자 화면은 Firestore를 읽고, 실제 블로그 자동화 큐는 맥의 로컬 SQLite를 읽는 구조라 `published:0` 같은 상태가 실패인지 예약 대기인지 구분되지 않았다. 로컬 SQLite 상태를 Firestore 스냅샷으로 올리고, 클라우드 `/api/pipeline/stats`가 이 스냅샷을 우선 반영하도록 연결했다.

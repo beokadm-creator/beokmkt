@@ -2137,6 +2137,8 @@ app.get('/api/pipeline/stats', async (req, res) => {
   const staleCutoff = new Date(now.getTime() - stuckThresholdMin * 60_000)
   const ops = {
     reviewed_target: reviewedTarget,
+    inventory_target: reviewedTarget,
+    inventory: 0,
     reviewed: 0,
     queued: 0,
     queued_due: 0,
@@ -2158,6 +2160,9 @@ app.get('/api/pipeline/stats', async (req, res) => {
     const updatedRaw = serializeValue(post.updated_at ?? post.created_at ?? null)
     const updatedDate = updatedRaw ? new Date(updatedRaw) : null
     if (status === 'reviewed') ops.reviewed += 1
+    if (['draft', 'generating', 'factchecking', 'reviewing', 'reviewed'].includes(status)) {
+      ops.inventory += 1
+    }
     if (status === 'queued') {
       ops.queued += 1
       if (nextRunAt && !Number.isNaN(nextRunAt.getTime())) {

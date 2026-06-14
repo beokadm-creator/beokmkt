@@ -43,9 +43,7 @@ def run_once(batch: int = 5) -> tuple[int, int]:
     """
     llm = LLMClient()
     passed = failed = 0
-    for post in db.fetch_by_status("draft", limit=batch):
-        if not post["body"] or post["grounding_ratio"] is not None:
-            continue
+    for post in db.fetch_factcheck_ready(limit=batch):
         if not db.claim(post["id"], "draft", "factchecking"):
             continue
 

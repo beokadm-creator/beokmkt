@@ -3,11 +3,11 @@
 # 확인:  crontab -l
 #
 # 경로/바이너리는 환경에 맞게 확인:
-#   which python3   # 예: /opt/homebrew/bin/python3 또는 /usr/bin/python3
+#   which python3   # 이 맥은 /usr/bin/python3에 필요한 패키지가 설치되어 있음
 #   which node
 # 아래는 Apple Silicon(homebrew) 기준. 로그는 newsyslog로 회전(ops/newsyslog-blog.conf).
 
-PYTHON=/opt/homebrew/bin/python3
+PYTHON=/usr/bin/python3
 PUBDIR=/Users/aaron/Developer/personal/beokmkt/blog_publisher
 WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 
@@ -24,7 +24,7 @@ WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 
 # ── 복구 / 재고 / 백업 ─────────────────────────────────────────────
 */35 * * * * cd $PUBDIR && $PYTHON run.py recover     >> /tmp/blog-generate.log 2>&1
-0  */6 * * * cd $PUBDIR && $PYTHON run.py auto_seed selfhosted 3 >> /tmp/blog-generate.log 2>&1
+*/30 * * * * cd $PUBDIR && $PYTHON run.py stock_seed selfhosted >> /tmp/blog-generate.log 2>&1
 # naver/tistory는 콘텐츠 품질 기준과 티스토리 인증을 정비한 뒤 수동 재개
 # 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed naver 2      >> /tmp/blog-generate.log 2>&1
 # 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed tistory 2    >> /tmp/blog-generate.log 2>&1

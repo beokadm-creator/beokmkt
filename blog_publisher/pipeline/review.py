@@ -63,12 +63,7 @@ def run_once(batch: int = 5) -> tuple[int, int]:
     """
     llm = LLMClient()
     passed = failed = 0
-    for post in db.fetch_by_status("draft", limit=batch):
-        if not post["body"]:        # 아직 생성 안 됨 -> 생성 워커 담당
-            continue
-        gr = post["grounding_ratio"]
-        if gr is None or gr < config.MIN_GROUNDING_RATIO:
-            continue                # 사실검증 워커가 먼저 처리해야 함
+    for post in db.fetch_review_ready(limit=batch, min_grounding=config.MIN_GROUNDING_RATIO):
         if not db.claim(post["id"], "draft", "reviewing"):
             continue
 

@@ -97,6 +97,30 @@ def fetch_generate_ready(limit: int = 10) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def fetch_factcheck_ready(limit: int = 10) -> list[sqlite3.Row]:
+    """사실검증 대상: 본문은 있고 grounding_ratio가 아직 없는 draft."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM posts WHERE status = 'draft' "
+            "AND body IS NOT NULL AND body != '' "
+            "AND grounding_ratio IS NULL "
+            "ORDER BY updated_at LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+
+def fetch_review_ready(limit: int = 10, min_grounding: float = 0.0) -> list[sqlite3.Row]:
+    """검수 대상: 본문과 grounding_ratio가 있는 draft."""
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM posts WHERE status = 'draft' "
+            "AND body IS NOT NULL AND body != '' "
+            "AND grounding_ratio IS NOT NULL AND grounding_ratio >= ? "
+            "ORDER BY updated_at LIMIT ?",
+            (min_grounding, limit),
+        ).fetchall()
+
+
 def fetch_by_id(post_id: int):
     with connect() as conn:
         return conn.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()

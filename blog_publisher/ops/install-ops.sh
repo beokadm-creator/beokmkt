@@ -19,6 +19,8 @@ echo "  설치됨. 상태: $(launchctl list | grep com.beok.blog-worker || echo 
 
 echo "▶ 1-1) 품질 점검 LaunchAgent 설치"
 for quality_plist in \
+  com.beok.blog-stock-seed.plist \
+  com.beok.blog-sync-snapshot.plist \
   com.beok.blog-verify-public.plist \
   com.beok.blog-quality-selftest.plist \
   com.beok.blog-image-audit.plist

@@ -2232,6 +2232,8 @@ app.get('/api/pipeline/stats', (req, res) => {
       "SELECT COUNT(*) AS n FROM posts WHERE status='published' AND updated_at >= datetime('now','-6 days','start of day')"
     ).get()
     const reviewedTarget = Number(process.env.DAILY_PUBLISH_TARGET || 5) * Number(process.env.STOCK_BUFFER_DAYS || 3)
+    const inventory = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed']
+      .reduce((sum, status) => sum + (by_status[status] || 0), 0)
     const stuckThresholdMin = Number(process.env.STUCK_THRESHOLD_MIN || 35)
     const dueRow = db.prepare(
       "SELECT COUNT(*) AS n FROM posts WHERE status='queued' AND next_run_at <= datetime('now')"
@@ -2297,6 +2299,8 @@ app.get('/api/pipeline/stats', (req, res) => {
       },
       ops: {
         reviewed_target: reviewedTarget,
+        inventory_target: reviewedTarget,
+        inventory,
         reviewed: by_status.reviewed,
         queued: by_status.queued,
         queued_due: dueRow?.n ?? 0,

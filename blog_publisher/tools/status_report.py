@@ -17,6 +17,7 @@ STATUSES = [
     "draft", "generating", "reviewing", "reviewed",
     "queued", "publishing", "published", "needs_human", "failed", "archived",
 ]
+INVENTORY_STATUSES = ("draft", "generating", "reviewing", "reviewed")
 
 
 def report() -> dict[str, int]:
@@ -36,10 +37,17 @@ def report() -> dict[str, int]:
         print(f"  {s:12} {counts[s]:>5}")
 
     buffer_target = config.DAILY_PUBLISH_TARGET * config.STOCK_BUFFER_DAYS
+    inventory = sum(counts[s] for s in INVENTORY_STATUSES)
     print("\n=== 점검 ===")
+    if inventory < buffer_target:
+        print(f"  [경고] 전발행 재고 부족: inventory={inventory} < 목표 {buffer_target} "
+              f"(stock_seed/generate 확인)")
+    else:
+        print(f"  [정상] 전발행 재고 충분: inventory={inventory} (목표 {buffer_target})")
+
     if counts["reviewed"] < buffer_target:
-        print(f"  [경고] 재고 부족: reviewed={counts['reviewed']} < 목표 {buffer_target} "
-              f"(생성량↑/시드 보충 필요)")
+        print(f"  [진행] reviewed 전환 대기: reviewed={counts['reviewed']} < 목표 {buffer_target} "
+              f"(factcheck/review 주기에 따라 보충)")
     else:
         print(f"  [정상] 재고 충분: reviewed={counts['reviewed']} (목표 {buffer_target})")
 

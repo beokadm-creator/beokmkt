@@ -15,6 +15,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
   python run.py image_audit    # 이미지 뱅크 공개 URL 도달성 검증
   python run.py sync_snapshot   # 로컬 SQLite 상태를 관리자 대시보드용 Firestore 스냅샷으로 동기화
+  python run.py stock_seed      # 목표 재고 부족분만 자동 시드 보충
   python run.py archive_local [ids...] [--all-reviewed] # 검토 완료 실패/보류 보관
   python run.py loop           # 데모용: 한 번에 전체 흐름
 
@@ -108,6 +109,14 @@ def main() -> None:
         from tools import auto_seed
         n = auto_seed.run(channel=channel, max_seeds=max_seeds)
         print(f"auto_seed 완료: {n}건 생성")
+
+    elif cmd == "stock_seed":
+        # python run.py stock_seed [channel] [target]
+        channel = sys.argv[2] if len(sys.argv) > 2 else "selfhosted"
+        target = int(sys.argv[3]) if len(sys.argv) > 3 else None
+        from tools import auto_seed
+        n = auto_seed.run_stock(channel=channel, target=target)
+        print(f"stock_seed 완료: {n}건 생성")
 
     elif cmd == "selftest":
         from tools import selftest
