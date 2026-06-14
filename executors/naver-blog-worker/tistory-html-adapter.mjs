@@ -4,6 +4,7 @@ const AI_API_KEY = process.env.AI_API_KEY || ''
 const AI_MODEL = process.env.AI_MODEL || 'glm-5.1'
 const AI_ENDPOINT = 'https://api.z.ai/api/coding/paas/v4/chat/completions'
 const AI_DESIGN_ENABLED = process.env.TISTORY_AI_DESIGN === 'true'
+const TISTORY_AI_THINKING = process.env.TISTORY_AI_THINKING === 'true'
 
 function stripHtmlToStructured(html) {
   const blocks = []
@@ -81,6 +82,7 @@ async function callAi(messages) {
       messages,
       temperature: 0.2,
       max_tokens: 8192,
+      thinking: { type: TISTORY_AI_THINKING ? 'enabled' : 'disabled' },
     }),
   })
   if (!res.ok) {
@@ -369,18 +371,25 @@ function tistoryHtmlQuality(html) {
     callouts: (value.match(/<blockquote\b/gi) || []).length,
     images: (value.match(/<img\b/gi) || []).length,
     bolds: (value.match(/<strong\b/gi) || []).length,
+    hasLeadSummary: /핵심\s*요약|요약|먼저\s*확인|결론부터/i.test(text.slice(0, 700)),
+    hasCta: /상담|문의|운영\s*상담/i.test(text.slice(-900)),
   }
 }
 
 function validateTistoryHtml(html) {
   const quality = tistoryHtmlQuality(html)
   const reasons = []
-  if (quality.chars < 800) reasons.push(`본문 짧음(${quality.chars}자)`)
-  if (quality.headings < 2) reasons.push(`소제목 부족(${quality.headings})`)
-  if (quality.listItems < 3) reasons.push(`목록 부족(${quality.listItems})`)
-  if ((quality.tables + quality.callouts + quality.images + quality.bolds) < 2) {
+  if (quality.chars < 1000) reasons.push(`본문 짧음(${quality.chars}자)`)
+  if (quality.headings < 3) reasons.push(`소제목 부족(${quality.headings})`)
+  if (quality.listItems < 4) reasons.push(`목록 부족(${quality.listItems})`)
+  if ((quality.tables + quality.callouts) < 1) {
+    reasons.push('표 또는 콜아웃 없음')
+  }
+  if ((quality.tables + quality.callouts + quality.images + quality.bolds) < 3) {
     reasons.push('표/콜아웃/이미지/강조 구조 부족')
   }
+  if (!quality.hasLeadSummary) reasons.push('첫머리 요약 없음')
+  if (!quality.hasCta) reasons.push('상담 CTA 없음')
   return { ok: reasons.length === 0, reasons, quality }
 }
 

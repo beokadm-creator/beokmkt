@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-14 — 티스토리 rewriter 품질 게이트/GLM thinking 보정
+
+Phase B의 핵심인 티스토리 채널 재작성 품질을 실제 모델 호출 기준으로 보강했다. 기존 rewriter는 품질 지시는 있었지만 GLM reasoning 토큰이 길어지면 최종 `content`가 비어 원문 폴백되는 문제가 있었다.
+
+| 대상 | 내용 |
+|---|---|
+| `executors/naver-blog-worker/channel-rewriter.mjs` | 재작성 호출에 `thinking: disabled` 기본 적용. `AI_REWRITE_THINKING=true`일 때만 켜도록 분리 |
+| `executors/naver-blog-worker/channel-rewriter.mjs` | 티스토리 재작성 품질 함수 추가: 길이, h2, 목록, 표/콜아웃, 강조, 첫머리 요약, 마지막 상담 CTA 검사 |
+| `executors/naver-blog-worker/channel-rewriter.mjs` | 1차 재작성 품질 미달 시 실패 사유를 넣어 1회 수리 재작성 후, 그래도 미달이면 폴백 |
+| `executors/naver-blog-worker/tistory-html-adapter.mjs` | 발행 직전 HTML 게이트를 1000자, h2 3개, 목록 4개, 표/콜아웃, 요약, CTA 기준으로 강화 |
+| `executors/naver-blog-worker/.env.example` | `AI_REWRITE_MAX_TOKENS`, `AI_REWRITE_THINKING`, `TISTORY_AI_THINKING` 운영 설정 추가 |
+
+실측 검증:
+- thinking 미설정 상태: 실제 티스토리 재작성 2회 모두 빈 `content` → 원문 폴백 확인
+- thinking disabled 적용 후: 실제 공개 글 기준 `rewritten=true`
+- 결과 지표: 2614자, h2 4개, 목록 항목 14개, 표 1개, 콜아웃 1개, 이미지 1개, CTA 포함
+- 티스토리 변환 HTML 게이트 PASS
+
+---
+
 ## 2026-06-14 — 공개 상세/관리자 운영 UI 보정
 
 `/blog/` 인덱스는 콘텐츠 허브로 바뀌었지만, 개별 공개 글 상세의 사이드바와 SSR HTML에 이전 "구독형 홈페이지/월 5만원" 메시지가 남아 있어 검색·공유 HTML과 실제 화면의 주제가 어긋나는 문제를 수정했다.

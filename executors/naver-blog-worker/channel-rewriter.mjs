@@ -14,6 +14,8 @@ const AI_MODEL = process.env.AI_MODEL || 'glm-5.1'
 const AI_ENDPOINT = process.env.AI_REWRITE_ENDPOINT || 'https://api.z.ai/api/coding/paas/v4/chat/completions'
 const REWRITE_ENABLED = process.env.CHANNEL_REWRITE !== 'false'
 const AI_REWRITE_TIMEOUT_MS = Number(process.env.AI_REWRITE_TIMEOUT_MS || '120000')
+const AI_REWRITE_MAX_TOKENS = Number(process.env.AI_REWRITE_MAX_TOKENS || '4096')
+const AI_REWRITE_THINKING = process.env.AI_REWRITE_THINKING === 'true'
 const HANZI_RE = /[\u3400-\u4dbf\u4e00-\u9fff]/
 
 const CHANNEL_GUIDES = {
@@ -24,12 +26,13 @@ const CHANNEL_GUIDES = {
 - 제목도 원래 제목과 다르게 작성하되, 실무형 검색 제목처럼 차분하고 구체적으로 작성
 - 절대 금지: 낚시성 제목, 과장, 속어, 유행어, 감탄사, 이모지, "꿀팁", "환장", "대박", "지옥", "끝판왕", "완벽", "무조건", "충격", "실화"`,
   tistory: `티스토리 블로그 독자 특성에 맞게 재작성:
-- 구글 검색 유입 독자가 10초 안에 가치를 판단할 수 있게 첫머리에 핵심 요약 3줄을 둔다
+- 구글 검색 유입 독자가 10초 안에 가치를 판단할 수 있게 첫머리에 "핵심 요약" 3줄을 둔다
 - 단순 줄글 금지: h2/h3, 불릿, 번호 목록, 비교표, 체크리스트, blockquote 콜아웃을 상황에 맞게 적극 사용한다
+- 최소 구조: h2 3개 이상, 목록 항목 4개 이상, 표 또는 blockquote 1개 이상, strong 강조 2개 이상
 - 각 h2는 "무엇/왜/어떻게/주의점/체크리스트" 중 하나가 분명히 드러나게 쓴다
 - 실무자가 바로 적용할 수 있는 판단 기준, 단계, 확인 항목, 장애 대응 흐름을 포함한다
 - 내용이 둘 이상 비교되면 반드시 표를 쓴다. 절차가 있으면 번호 목록을 쓴다. 주의사항은 blockquote로 분리한다
-- 과장된 광고문 대신 차분한 전문가 톤으로, 마지막에 부드러운 상담 CTA를 둔다
+- 과장된 광고문 대신 차분한 전문가 톤으로, 마지막에 "비오케이솔루션" 또는 "상담/문의"가 들어간 부드러운 상담 CTA를 둔다
 - 제목도 원래 제목과 다르게 새로 작성하되 검색 의도와 실무 효용을 분명히 담는다
 - 절대 금지: 낚시성 제목, 과장, 속어, 유행어, 감탄사, 이모지, "꿀팁", "환장", "대박", "지옥", "끝판왕", "완벽", "무조건", "충격", "실화"`,
 }
@@ -82,7 +85,8 @@ async function callAi(messages) {
       model: AI_MODEL,
       messages,
       temperature: 0.35,
-      max_tokens: 8192,
+      max_tokens: AI_REWRITE_MAX_TOKENS,
+      thinking: { type: AI_REWRITE_THINKING ? 'enabled' : 'disabled' },
     }),
   })
   if (!res.ok) {
@@ -151,6 +155,40 @@ function hasEnoughRichStructure(html) {
   return headings >= 3 && lists >= 1 && listItems >= 3 && (tables + callouts + bolds) >= 2
 }
 
+function tistoryRewriteQuality(html, sourceChars = 0) {
+  const value = String(html ?? '')
+  const plain = stripToPlainText(value)
+  const firstBlock = plain.slice(0, 700)
+  const ctaTail = plain.slice(-900)
+  return {
+    chars: plain.length,
+    minChars: Math.max(1000, Math.floor(Number(sourceChars || 0) * 0.7)),
+    h2: (value.match(/<h2\b/gi) || []).length,
+    h3: (value.match(/<h3\b/gi) || []).length,
+    lists: (value.match(/<(ul|ol)\b/gi) || []).length,
+    listItems: (value.match(/<li\b/gi) || []).length,
+    tables: (value.match(/<table\b/gi) || []).length,
+    callouts: (value.match(/<blockquote\b/gi) || []).length,
+    bolds: (value.match(/<strong\b/gi) || []).length,
+    images: (value.match(/<img\b/gi) || []).length + (value.match(/!\[[^\]]*]\([^)\s]+\)/g) || []).length,
+    hasLeadSummary: /핵심\s*요약|요약|먼저\s*확인|결론부터/i.test(firstBlock),
+    hasCta: /상담|문의|운영\s*상담/i.test(ctaTail),
+  }
+}
+
+function validateTistoryRewrite(html, sourceChars = 0) {
+  const quality = tistoryRewriteQuality(html, sourceChars)
+  const reasons = []
+  if (quality.chars < quality.minChars) reasons.push(`본문 짧음(${quality.chars}/${quality.minChars}자)`)
+  if (quality.h2 < 3) reasons.push(`h2 부족(${quality.h2})`)
+  if (quality.listItems < 4) reasons.push(`목록 항목 부족(${quality.listItems})`)
+  if ((quality.tables + quality.callouts) < 1) reasons.push('표 또는 콜아웃 없음')
+  if ((quality.tables + quality.callouts + quality.bolds + quality.images) < 3) reasons.push('구조 강조 부족')
+  if (!quality.hasLeadSummary) reasons.push('첫머리 요약 없음')
+  if (!quality.hasCta) reasons.push('마지막 상담 CTA 없음')
+  return { ok: reasons.length === 0, reasons, quality }
+}
+
 function hasTistorySemanticRisk(text) {
   const value = String(text ?? '').replace(/\s+/g, ' ')
   const riskyPatterns = [
@@ -194,6 +232,7 @@ async function rewriteForChannel({ title, html, channel, canonicalUrl = '' }) {
 - 문장, 문단 구성, 소제목, 표현을 원문과 70% 이상 다르게 작성 (단순 동의어 치환 금지)
 - 원문에 없는 사실, 수치, 통계를 만들어내지 말 것
 - 분량은 원문의 80~120% 수준 유지
+- 티스토리는 첫머리 요약, h2 3개 이상, 목록 항목 4개 이상, 표 또는 blockquote 1개 이상, 마지막 상담 CTA를 반드시 포함
 - 허용 태그: h2, h3, p, ul, ol, li, strong, blockquote, img 사용 (인라인 스타일, class 금지)
 - 티스토리는 table, thead, tbody, tr, th, td 태그도 허용
 - 본문의 이미지 마크다운 ![설명](url) 은 src/alt를 변경·삭제하지 말고 자연스러운 위치에 그대로 유지할 것 (재작성된 흐름에 맞게 위치만 조정 가능)
@@ -203,50 +242,71 @@ async function rewriteForChannel({ title, html, channel, canonicalUrl = '' }) {
 ${guide}`
 
   try {
-    const response = await callAi([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: `원래 제목: ${title}\n\n원문:\n${plainText}` },
-    ])
-    const parsed = extractJson(response)
-    const newTitle = typeof parsed?.title === 'string' && parsed.title.trim() ? parsed.title.trim() : title
-    let newHtml = typeof parsed?.html === 'string' && parsed.html.trim() ? parsed.html.trim() : ''
-    if (!newHtml || stripToPlainText(newHtml).length < plainText.length * 0.5) {
-      console.warn(`[channel-rewriter] ${channel} 재작성 결과가 비정상적으로 짧아 원문 사용`)
-      return fallback
-    }
-    if (channel === 'naver' && hasForbiddenTone(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
-      console.warn('[channel-rewriter] naver 재작성 톤이 운영 기준에 맞지 않아 원문 사용')
-      return fallback
-    }
-    if (hasHanzi(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
-      console.warn(`[channel-rewriter] ${channel} 재작성 결과에 한자/중문자가 섞여 원문 사용`)
-      return fallback
-    }
-    if (channel === 'tistory') {
-      if (hasForbiddenTone(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
-        console.warn('[channel-rewriter] tistory 재작성 톤이 운영 기준에 맞지 않아 원문 사용')
-        return fallback
+    let lastFailure = ''
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const userPrompt = attempt === 1
+        ? `원래 제목: ${title}\n\n원문:\n${plainText}`
+        : `이전 재작성 결과가 품질 기준을 통과하지 못했습니다.\n실패 사유: ${lastFailure}\n\n아래 원문을 기준으로 다시 작성하세요. 누락 없이 같은 사실관계를 유지하되, 티스토리 글은 반드시 첫머리 요약, h2 3개 이상, 목록 4개 이상, 표 또는 blockquote, 마지막 상담 CTA를 포함하세요.\n\n원래 제목: ${title}\n\n원문:\n${plainText}`
+      const response = await callAi([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ])
+      const parsed = extractJson(response)
+      const newTitle = typeof parsed?.title === 'string' && parsed.title.trim() ? parsed.title.trim() : title
+      let newHtml = typeof parsed?.html === 'string' && parsed.html.trim() ? parsed.html.trim() : ''
+      const plainNew = stripToPlainText(newHtml)
+      if (!newHtml || plainNew.length < plainText.length * 0.5) {
+        lastFailure = `비정상적으로 짧은 결과(${plainNew.length}자)`
+        console.warn(`[channel-rewriter] ${channel} 재작성 ${attempt}차 실패: ${lastFailure}`)
+        continue
       }
-      if (!hasEnoughRichStructure(newHtml)) {
-        console.warn('[channel-rewriter] tistory 재작성 구조가 부족해 원문 사용')
-        return fallback
+      if (channel === 'naver' && hasForbiddenTone(`${newTitle}\n${plainNew}`)) {
+        lastFailure = '네이버 금칙 톤 포함'
+        console.warn(`[channel-rewriter] naver 재작성 ${attempt}차 실패: ${lastFailure}`)
+        continue
       }
-      if (hasTistorySemanticRisk(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
-        console.warn('[channel-rewriter] tistory 재작성 의미 반전 위험 문장이 있어 원문 사용')
-        return fallback
+      if (hasHanzi(`${newTitle}\n${plainNew}`)) {
+        lastFailure = '한자/중문자 혼입'
+        console.warn(`[channel-rewriter] ${channel} 재작성 ${attempt}차 실패: ${lastFailure}`)
+        continue
+      }
+      if (channel === 'tistory') {
+        if (hasForbiddenTone(`${newTitle}\n${plainNew}`)) {
+          lastFailure = '티스토리 금칙 톤 포함'
+          console.warn(`[channel-rewriter] tistory 재작성 ${attempt}차 실패: ${lastFailure}`)
+          continue
+        }
+        if (!hasEnoughRichStructure(newHtml)) {
+          lastFailure = '리치 구조 부족'
+          console.warn(`[channel-rewriter] tistory 재작성 ${attempt}차 실패: ${lastFailure}`)
+          continue
+        }
+        if (hasTistorySemanticRisk(`${newTitle}\n${plainNew}`)) {
+          lastFailure = '의미 반전 위험 문장 포함'
+          console.warn(`[channel-rewriter] tistory 재작성 ${attempt}차 실패: ${lastFailure}`)
+          continue
+        }
+        const rewriteQuality = validateTistoryRewrite(newHtml, plainText.length)
+        if (!rewriteQuality.ok) {
+          lastFailure = rewriteQuality.reasons.join(', ')
+          console.warn(`[channel-rewriter] tistory 재작성 ${attempt}차 품질 미달: ${lastFailure}`)
+          continue
+        }
+      }
+      // 모델이 마크다운으로 남긴 이미지를 <img>로 복원(어댑터가 인식하도록)
+      newHtml = markdownImagesToHtml(sanitizeAllowedHtml(newHtml))
+      return {
+        title: newTitle,
+        html: `${newHtml}${buildSourceFooter(canonicalUrl)}`,
+        rewritten: true,
       }
     }
-    // 모델이 마크다운으로 남긴 이미지를 <img>로 복원(어댑터가 인식하도록)
-    newHtml = markdownImagesToHtml(sanitizeAllowedHtml(newHtml))
-    return {
-      title: newTitle,
-      html: `${newHtml}${buildSourceFooter(canonicalUrl)}`,
-      rewritten: true,
-    }
+    console.warn(`[channel-rewriter] ${channel} 재작성 품질 기준 미달, 원문 사용: ${lastFailure}`)
+    return fallback
   } catch (e) {
     console.warn(`[channel-rewriter] ${channel} 재작성 실패, 원문 사용: ${e.message}`)
     return fallback
   }
 }
 
-export { rewriteForChannel }
+export { rewriteForChannel, validateTistoryRewrite }
