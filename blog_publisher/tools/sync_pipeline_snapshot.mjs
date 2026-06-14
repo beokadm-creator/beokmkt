@@ -76,6 +76,10 @@ function searchHealthStatus() {
   }
 }
 
+function externalAutoSeedEnabled() {
+  return readEnvString('ALLOW_EXTERNAL_AUTO_SEED', 'false').toLowerCase() === 'true'
+}
+
 function sessionFileHealth(channel, relativePath) {
   const sessionPath = path.resolve(WORKER_DIR, relativePath)
   try {
@@ -578,6 +582,7 @@ async function collectSnapshot() {
         focus_name: readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'),
         focus_inventory,
         focus_inventory_by_channel,
+        external_auto_seed_enabled: externalAutoSeedEnabled(),
         reviewed: by_status.reviewed,
         queued: by_status.queued,
         queued_due: dueRow?.n ?? 0,

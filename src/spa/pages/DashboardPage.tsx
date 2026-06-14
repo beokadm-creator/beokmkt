@@ -65,6 +65,7 @@ type OpsStats = {
   focus_name?: string
   focus_inventory?: number
   focus_inventory_by_channel?: Record<string, number>
+  external_auto_seed_enabled?: boolean
   reviewed: number
   queued: number
   queued_due: number
@@ -272,33 +273,51 @@ function StageBar({ by_status }: { by_status: ByStatus }) {
   )
 }
 
-function ChannelTable({ by_channel }: { by_channel: ByChannel }) {
+function ChannelTable({ by_channel, ops }: { by_channel: ByChannel; ops?: OpsStats | null }) {
+  const focusByChannel = ops?.focus_inventory_by_channel ?? {}
+  const externalAutoSeed = ops?.external_auto_seed_enabled === true
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-zinc-800 text-left">
-          <th className="pb-2 text-xs font-medium text-zinc-400">채널</th>
-          <th className="pb-2 text-xs font-medium text-zinc-400 text-right">발행됨</th>
-          <th className="pb-2 text-xs font-medium text-zinc-400 text-right">예약</th>
-          <th className="pb-2 text-xs font-medium text-zinc-400 text-right">수동처리</th>
-        </tr>
-      </thead>
-      <tbody>
-        {CHANNELS.map(({ key, label }) => {
-          const ch = by_channel[key] ?? { published: 0, queued: 0, needs_human: 0 }
-          return (
-            <tr key={key} className="border-b border-zinc-900/60">
-              <td className="py-2 text-zinc-200">{label}</td>
-              <td className="py-2 text-right tabular-nums text-emerald-300">{ch.published}</td>
-              <td className="py-2 text-right tabular-nums text-amber-300">{ch.queued}</td>
-              <td className={['py-2 text-right tabular-nums', ch.needs_human > 0 ? 'text-rose-300 font-medium' : 'text-zinc-500'].join(' ')}>
-                {ch.needs_human}
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+    <div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-zinc-800 text-left">
+            <th className="pb-2 text-xs font-medium text-zinc-400">채널</th>
+            <th className="pb-2 text-xs font-medium text-zinc-400 text-right">목표재고</th>
+            <th className="pb-2 text-xs font-medium text-zinc-400 text-right">발행됨</th>
+            <th className="pb-2 text-xs font-medium text-zinc-400 text-right">예약</th>
+            <th className="pb-2 text-xs font-medium text-zinc-400 text-right">수동처리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {CHANNELS.map(({ key, label }) => {
+            const ch = by_channel[key] ?? { published: 0, queued: 0, needs_human: 0 }
+            const focus = focusByChannel[key] ?? 0
+            const externalBlocked = (key === 'naver' || key === 'tistory') && !externalAutoSeed
+            return (
+              <tr key={key} className="border-b border-zinc-900/60">
+                <td className="py-2 text-zinc-200">
+                  {label}
+                  {externalBlocked ? <span className="ml-2 rounded border border-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">자동시드 off</span> : null}
+                </td>
+                <td className={['py-2 text-right tabular-nums', focus > 0 ? 'text-emerald-300' : externalBlocked ? 'text-zinc-500' : 'text-amber-300'].join(' ')}>
+                  {focus}
+                </td>
+                <td className="py-2 text-right tabular-nums text-emerald-300">{ch.published}</td>
+                <td className="py-2 text-right tabular-nums text-amber-300">{ch.queued}</td>
+                <td className={['py-2 text-right tabular-nums', ch.needs_human > 0 ? 'text-rose-300 font-medium' : 'text-zinc-500'].join(' ')}>
+                  {ch.needs_human}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      {!externalAutoSeed ? (
+        <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-xs leading-5 text-zinc-500">
+          네이버·티스토리 목표재고 0은 현재 정책입니다. 외부 채널 자동 시드는 중복/품질 리스크 때문에 `ALLOW_EXTERNAL_AUTO_SEED=true` 설정 전까지 보류됩니다.
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -1041,7 +1060,7 @@ export default function DashboardPage() {
       {/* 채널별 현황 */}
       <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
         <div className="mb-3 text-sm font-semibold">채널별 현황</div>
-        {data ? <ChannelTable by_channel={data.by_channel} /> : <div className="text-sm text-zinc-500">로딩 중…</div>}
+        {data ? <ChannelTable by_channel={data.by_channel} ops={data.ops} /> : <div className="text-sm text-zinc-500">로딩 중…</div>}
       </div>
 
       {/* 수동 처리 필요 */}

@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-15 — 관리자 채널별 목표 재고 표시
+
+네이버·티스토리 목표 주제 재고가 0이어도 채널 표에는 발행/예약/수동처리만 보여 운영 정책인지 장애인지 구분하기 어려웠다. `focus_inventory_by_channel`과 외부 자동 시드 설정을 관리자 채널 표에 연결해, 외부 채널 재고 0이 현재 `ALLOW_EXTERNAL_AUTO_SEED=false` 정책 때문임을 바로 볼 수 있게 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | `ops.external_auto_seed_enabled` 추가 |
+| `server/index.mjs` | `/api/pipeline/stats`에 `external_auto_seed_enabled` 추가 |
+| `src/spa/pages/DashboardPage.tsx` | 채널별 `목표재고` 열 추가, 네이버/티스토리 `자동시드 off` 배지와 설명 문구 표시 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+검증:
+- `node --check server/index.mjs`, `sync_pipeline_snapshot.mjs` PASS
+- `npx tsc --noEmit` PASS
+- `python3 blog_publisher/run.py sync_snapshot`에서 `external_auto_seed_enabled=false` 확인
+- `python3 blog_publisher/run.py quality_selftest`, `verify_public 10` PASS
+- `npm run build:spa` PASS
+
+---
+
 ## 2026-06-15 — 관리자 대시보드 이미지 자산 제한 노출
 
 Phase C 이미지 제한이 CLI `image_audit`에만 보이고 관리자 대시보드에서는 보이지 않았다. 운영자가 현재 beok 학회/명찰 글의 이미지 상태를 착각하지 않도록 로컬 스냅샷/API와 대시보드 운영 준비도에 이미지 자산 상태를 노출했다.

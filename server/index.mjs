@@ -85,6 +85,10 @@ function pipelineSearchHealthStatus() {
   }
 }
 
+function pipelineExternalAutoSeedEnabled() {
+  return readPipelineEnvString('ALLOW_EXTERNAL_AUTO_SEED', 'false').toLowerCase() === 'true'
+}
+
 function sessionFileHealth(label, relativePath) {
   const sessionPath = path.resolve(WORKER_DIR, relativePath)
   try {
@@ -2662,6 +2666,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         focus_name: readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'),
         focus_inventory: focusInventory,
         focus_inventory_by_channel: focusInventoryByChannel,
+        external_auto_seed_enabled: pipelineExternalAutoSeedEnabled(),
         reviewed: by_status.reviewed,
         queued: by_status.queued,
         queued_due: dueRow?.n ?? 0,
