@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-15 — Phase A 생성 품질 회귀테스트 추가
+
+Phase A의 핵심 변경(섹션 600~1000자 지시, 섹션 1500토큰, thinking ON, 한자 혼입 재시도/제거)이 코드에는 반영돼 있었지만 `quality_selftest`가 이를 직접 검증하지 못했다. 향후 프롬프트/모델 설정을 손대다가 생성 품질 계약이 조용히 후퇴하지 않도록 오프라인 Mock LLM 기반 회귀테스트를 추가했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/quality_selftest.py` | `compose_article()`를 Mock LLM으로 실행해 섹션 호출의 `thinking=True`, `max_tokens=MAX_TOKENS_SECTION`, 한자 혼입 재시도, 최종 한자 제거, 구조화 출력(`###`, 목록, 굵게, 표)을 검증 |
+| `blog_publisher/llm/client.py` | 설계 주석의 본문 thinking 설명을 현재 구현(ON·1500토큰·품질 우선)에 맞게 수정 |
+| `blog_publisher/DESIGN.md` | 섹션 생성 단계 설명을 thinking ON·1500토큰·한자 재시도로 갱신 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS. 로그에서 `한자 2자 혼입... 재시도` 확인
+- `python3 -m compileall -q blog_publisher` PASS
+- 오래된 `thinking OFF` 설명 검색 결과 없음
+
+---
+
 ## 2026-06-15 — 공개 블로그 대표 이미지 보존
 
 학회/명찰 글이면 공개 블로그 UI가 실제 `featured_image`를 무시하고 hongcomm 대체 이미지를 강제로 보여주던 문제를 수정했다. 발행 원고가 가진 대표 이미지를 사용자 화면, SSR HTML, OG/JSON-LD 메타에서 우선 보존하고, 대표 이미지가 없을 때만 학회 운영 대체 이미지를 사용한다.
