@@ -13,6 +13,9 @@
 |---|---|
 | `blog_publisher/tools/quality_selftest.py` | 자체 블로그 `render_body()`와 티스토리 `convertForTistory()`/`validateTistoryHtml()`을 실제 실행해 summary/toc/cta/table/image/callout, h2/list/table/blockquote/strong/CTA 유지 여부를 검사 |
 | `blog_publisher/run.py` | `python3 run.py quality_selftest` 명령 추가 |
+| `blog_publisher/ops/crontab.example` | 6시간마다 `quality_selftest` 실행해 발행 전 렌더러/어댑터 회귀를 로그로 남김 |
+| `blog_publisher/ops/newsyslog-blog.conf` | `/tmp/blog-quality.log` 로테이션 추가 |
+| `src/spa/pages/DashboardPage.tsx` | 로컬 조치 패널에 `발행 전 품질 셀프테스트` 명령 추가 |
 
 검증:
 - `python3 run.py quality_selftest` PASS
