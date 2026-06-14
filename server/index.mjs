@@ -2118,6 +2118,60 @@ function pipelineQuality(body = '', groundingRatio = null) {
   }
 }
 
+function qualityIssueLabels(quality) {
+  const issues = []
+  if (quality.chars > 0 && quality.chars < 1800) issues.push('본문 1,800자 미만')
+  if (quality.images === 0) issues.push('이미지 없음')
+  if (quality.headings < 3) issues.push('소제목 부족')
+  if (quality.grounding_ratio == null) issues.push('grounding 미측정')
+  else if (quality.grounding_ratio < 0.9) issues.push('grounding 0.90 미만')
+  return issues
+}
+
+function qualityActionFor(issues = [], status = '') {
+  const text = issues.join(' ')
+  if (/grounding/.test(text)) return '검색 연결/근거팩 확인 후 factcheck·review 재실행'
+  if (/본문|소제목/.test(text)) return status === 'published' ? '공개 글 삭제/수정 판단 후 재작성' : '본문 재작성 후 review 재실행'
+  if (/이미지/.test(text)) return 'beok 자산 URL 연결 또는 이미지 보강 후보 확인'
+  return '본문 품질 확인'
+}
+
+function collectQualityItems(db, limit = 12) {
+  return db.prepare(
+    `SELECT id, topic, title, channel, status, body, grounding_ratio, published_url, updated_at
+     FROM posts
+     WHERE status IN ('published','reviewed','queued')
+       AND (
+         LENGTH(COALESCE(body, '')) < 1800
+         OR grounding_ratio IS NULL
+         OR grounding_ratio < 0.9
+         OR (body NOT LIKE '%<img%' AND body NOT LIKE '%![%')
+       )
+     ORDER BY
+       CASE WHEN LENGTH(COALESCE(body, '')) < 1000 THEN 0 ELSE 1 END,
+       LENGTH(COALESCE(body, '')) ASC,
+       updated_at DESC
+     LIMIT ?`
+  ).all(limit)
+    .map((post) => {
+      const quality = pipelineQuality(String(post.body ?? ''), post.grounding_ratio)
+      const issues = qualityIssueLabels(quality)
+      return {
+        id: post.id,
+        topic: post.title || post.topic || '',
+        title: post.title || post.topic || '',
+        channel: post.channel,
+        status: post.status,
+        published_url: post.published_url || null,
+        quality,
+        issues,
+        action: qualityActionFor(issues, post.status),
+        updated_at: post.updated_at,
+      }
+    })
+    .filter((post) => post.issues.length > 0)
+}
+
 const PUBLIC_FORBIDDEN_TONE = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '충격', '실화', 'ㅋㅋ', 'ㅎㅎ', '[이미지:']
 
 function stripPublicNonContent(html = '') {
@@ -2344,7 +2398,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
   try {
     db = openPipelineDb()
   } catch {
-    return ok(res, { error: 'pipeline_db_unavailable', by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, public_quality: { checked: 0, ok: 0, failed: 0, items: [] }, needs_human_posts: [], recent: [] })
+    return ok(res, { error: 'pipeline_db_unavailable', by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, public_quality: { checked: 0, ok: 0, failed: 0, items: [] }, quality_items: [], needs_human_posts: [], recent: [] })
   }
   try {
     const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
@@ -2432,6 +2486,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
       FROM posts
       WHERE status IN ('published','reviewed','queued')`
     ).get()
+    const quality_items = collectQualityItems(db, 12)
     const public_quality = await collectPublicQuality(db, 20)
 
     ok(res, {
@@ -2446,6 +2501,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         weak_posts: qualityRow?.weak_posts ?? 0,
         avg_grounding: qualityRow?.avg_grounding == null ? null : Math.round(qualityRow.avg_grounding * 100) / 100,
       },
+      quality_items,
       public_quality,
       ops: {
         reviewed_target: reviewedTarget,
@@ -2468,7 +2524,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
       recent,
     })
   } catch (e) {
-    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, public_quality: { checked: 0, ok: 0, failed: 0, items: [] }, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, ops: null, needs_human_posts: [], recent: [] })
+    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, public_quality: { checked: 0, ok: 0, failed: 0, items: [] }, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, quality_items: [], ops: null, needs_human_posts: [], recent: [] })
   } finally {
     db.close()
   }

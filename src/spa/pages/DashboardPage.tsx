@@ -37,6 +37,24 @@ type RecentPost = {
   updated_at: string
 }
 
+type QualityItem = {
+  id: number | string
+  topic: string
+  title?: string
+  channel: string
+  status: string
+  published_url?: string | null
+  quality: {
+    chars: number
+    images: number
+    headings: number
+    grounding_ratio: number | null
+  }
+  issues: string[]
+  action?: string | null
+  updated_at: string
+}
+
 type OpsStats = {
   reviewed_target: number
   inventory_target?: number
@@ -116,6 +134,7 @@ type PipelineStats = {
     weak_posts: number
     avg_grounding: number | null
   }
+  quality_items?: QualityItem[]
   ops?: OpsStats | null
   local_snapshot?: {
     generated_at: string | null
@@ -416,6 +435,81 @@ function QualityActionPanel({ quality }: { quality?: PipelineStats['quality'] })
           <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
             <div className="text-xs font-medium text-zinc-400">{item.label}</div>
             <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function QualityItemsPanel({
+  items,
+  onOpenDetail,
+}: {
+  items?: QualityItem[]
+  onOpenDetail: (id: number | string) => void
+}) {
+  if (!items?.length) return null
+  return (
+    <div className="rounded-xl border border-amber-900/60 bg-zinc-950/50 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-amber-100">품질 보강 대상</div>
+          <div className="mt-1 text-xs text-zinc-500">짧은 글·근거 부족·구조 부족처럼 실제 산출물 기준으로 보강할 글입니다.</div>
+        </div>
+        <span className="rounded-md border border-amber-900/60 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">
+          {items.length}건 표시
+        </span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <div key={`${item.channel}-${item.id}`} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-zinc-500">#{item.id}</span>
+                  <StatusBadge value={item.channel} />
+                  <StatusBadge value={item.status} />
+                  {item.issues.slice(0, 4).map((issue) => (
+                    <span key={issue} className="rounded-md border border-amber-900/50 bg-amber-950/20 px-2 py-0.5 text-[11px] text-amber-200">
+                      {issue}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-2 truncate text-sm text-zinc-200">{item.title || item.topic}</div>
+                {item.action ? (
+                  <div className="mt-2 inline-flex rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300">
+                    다음 조치: {item.action}
+                  </div>
+                ) : null}
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500">
+                  <span>{formatDate(item.updated_at)}</span>
+                  <span>본문 {item.quality.chars.toLocaleString('ko-KR')}자</span>
+                  <span>이미지 {item.quality.images}</span>
+                  <span>소제목 {item.quality.headings}</span>
+                  <span>grounding {item.quality.grounding_ratio == null ? '미측정' : item.quality.grounding_ratio.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2 md:flex-col">
+                <button
+                  type="button"
+                  onClick={() => onOpenDetail(item.id)}
+                  className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                >
+                  상세
+                </button>
+                {item.published_url ? (
+                  <a
+                    href={item.published_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md border border-zinc-800 px-2 py-1 text-center text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                  >
+                    공개 글
+                  </a>
+                ) : null}
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -786,6 +880,8 @@ export default function DashboardPage() {
       ) : null}
 
       <QualityActionPanel quality={data?.quality} />
+
+      <QualityItemsPanel items={data?.quality_items} onOpenDetail={openDetail} />
 
       <DetailPanel
         detail={detail}

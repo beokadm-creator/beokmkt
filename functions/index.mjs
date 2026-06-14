@@ -146,6 +146,24 @@ function pipelineQuality(body = '', groundingRatio = null) {
   }
 }
 
+function qualityIssueLabels(quality) {
+  const issues = []
+  if (quality.chars > 0 && quality.chars < 1800) issues.push('본문 1,800자 미만')
+  if (quality.images === 0) issues.push('이미지 없음')
+  if (quality.headings < 3) issues.push('소제목 부족')
+  if (quality.grounding_ratio == null) issues.push('grounding 미측정')
+  else if (quality.grounding_ratio < 0.9) issues.push('grounding 0.90 미만')
+  return issues
+}
+
+function qualityActionFor(issues = [], status = '') {
+  const text = issues.join(' ')
+  if (/grounding/.test(text)) return '검색 연결/근거팩 확인 후 factcheck·review 재실행'
+  if (/본문|소제목/.test(text)) return status === 'published' ? '공개 글 삭제/수정 판단 후 재작성' : '본문 재작성 후 review 재실행'
+  if (/이미지/.test(text)) return 'beok 자산 URL 연결 또는 이미지 보강 후보 확인'
+  return '본문 품질 확인'
+}
+
 function publicQualityIssues({ channel = '', title = '', url = '', html = '', status = null }) {
   const issues = []
   const content = String(html ?? '')
@@ -2161,6 +2179,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
   let published_this_week = 0
   const needs_human_posts = []
   const recent = []
+  const quality_items = []
   const quality = {
     measured_posts: 0,
     avg_chars: 0,
@@ -2228,6 +2247,24 @@ app.get('/api/pipeline/stats', async (req, res) => {
       if (Number.isFinite(grounding)) {
         groundingSum += grounding
         groundingCount += 1
+      }
+      if (quality_items.length < 12) {
+        const itemQuality = pipelineQuality(content, post.grounding_ratio)
+        const issues = qualityIssueLabels(itemQuality)
+        if (issues.length > 0) {
+          quality_items.push({
+            id: post.pipeline_id ?? post.id,
+            topic: post.title ?? post.topic ?? '',
+            title: post.title ?? post.topic ?? '',
+            channel,
+            status,
+            published_url: post.public_url ?? post.url ?? (status === 'published' ? blogPostAbsoluteUrl(post, spaBaseUrl(req)) : null),
+            quality: itemQuality,
+            issues,
+            action: qualityActionFor(issues, status),
+            updated_at: serializeValue(post.updated_at ?? post.published_at ?? post.created_at) ?? '',
+          })
+        }
       }
     }
 
@@ -2397,6 +2434,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
   const responseQuality = localSnapshot?.quality && typeof localSnapshot.quality === 'object'
     ? localSnapshot.quality
     : quality
+  const responseQualityItems = Array.isArray(localSnapshot?.quality_items) ? localSnapshot.quality_items : quality_items
   const responseRecent = Array.isArray(localSnapshot?.recent) ? localSnapshot.recent : recent
   const responseNeedsHuman = Array.isArray(localSnapshot?.needs_human_posts) ? localSnapshot.needs_human_posts : needs_human_posts
   const responsePublicQuality = localSnapshot?.public_quality && typeof localSnapshot.public_quality === 'object'
@@ -2409,6 +2447,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
     published_today: Number.isFinite(Number(localSnapshot?.published_today)) ? Number(localSnapshot.published_today) : published_today,
     published_this_week: Number.isFinite(Number(localSnapshot?.published_this_week)) ? Number(localSnapshot.published_this_week) : published_this_week,
     quality: responseQuality,
+    quality_items: responseQualityItems,
     ops: snapshotOps ?? ops,
     public_quality: responsePublicQuality,
     needs_human_posts: responseNeedsHuman,

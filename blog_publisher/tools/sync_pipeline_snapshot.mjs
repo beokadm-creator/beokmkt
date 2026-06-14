@@ -29,6 +29,60 @@ function pipelineQuality(body = '', groundingRatio = null) {
   }
 }
 
+function qualityIssueLabels(quality) {
+  const issues = []
+  if (quality.chars > 0 && quality.chars < 1800) issues.push('본문 1,800자 미만')
+  if (quality.images === 0) issues.push('이미지 없음')
+  if (quality.headings < 3) issues.push('소제목 부족')
+  if (quality.grounding_ratio == null) issues.push('grounding 미측정')
+  else if (quality.grounding_ratio < 0.9) issues.push('grounding 0.90 미만')
+  return issues
+}
+
+function qualityActionFor(issues = [], status = '') {
+  const text = issues.join(' ')
+  if (/grounding/.test(text)) return '검색 연결/근거팩 확인 후 factcheck·review 재실행'
+  if (/본문|소제목/.test(text)) return status === 'published' ? '공개 글 삭제/수정 판단 후 재작성' : '본문 재작성 후 review 재실행'
+  if (/이미지/.test(text)) return 'beok 자산 URL 연결 또는 이미지 보강 후보 확인'
+  return '본문 품질 확인'
+}
+
+function collectQualityItems(db, limit = 12) {
+  return db.prepare(
+    `SELECT id, topic, title, channel, status, body, grounding_ratio, published_url, updated_at
+     FROM posts
+     WHERE status IN ('published','reviewed','queued')
+       AND (
+         LENGTH(COALESCE(body, '')) < 1800
+         OR grounding_ratio IS NULL
+         OR grounding_ratio < 0.9
+         OR (body NOT LIKE '%<img%' AND body NOT LIKE '%![%')
+       )
+     ORDER BY
+       CASE WHEN LENGTH(COALESCE(body, '')) < 1000 THEN 0 ELSE 1 END,
+       LENGTH(COALESCE(body, '')) ASC,
+       updated_at DESC
+     LIMIT ?`
+  ).all(limit)
+    .map((post) => {
+      const quality = pipelineQuality(post.body, post.grounding_ratio)
+      const issues = qualityIssueLabels(quality)
+      return {
+        id: post.id,
+        topic: post.title || post.topic || '',
+        title: post.title || post.topic || '',
+        channel: post.channel,
+        status: post.status,
+        published_url: post.published_url || null,
+        quality,
+        issues,
+        action: qualityActionFor(issues, post.status),
+        updated_at: post.updated_at,
+      }
+    })
+    .filter((post) => post.issues.length > 0)
+}
+
 function actionForExternalIssue(channel, error = '') {
   const msg = String(error ?? '')
   if (channel === 'tistory' && /세션|login|auth|TISTORY/i.test(msg)) return '티스토리 재인증 후 워커 재시작'
@@ -249,6 +303,7 @@ async function collectSnapshot() {
       published_url: post.published_url || null,
       updated_at: post.updated_at,
     }))
+    const quality_items = collectQualityItems(db, 12)
     let public_quality = { checked: 0, ok: 0, failed: 0, items: [] }
     try {
       public_quality = await collectPublicQuality(db, 20)
@@ -288,6 +343,7 @@ async function collectSnapshot() {
         weak_posts: qualityRow?.weak_posts ?? 0,
         avg_grounding: qualityRow?.avg_grounding == null ? null : Math.round(qualityRow.avg_grounding * 100) / 100,
       },
+      quality_items,
       public_quality,
       ops: {
         reviewed_target: reviewedTarget,
