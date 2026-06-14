@@ -316,6 +316,20 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;')
 }
 
+const PUBLIC_FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
+
+function publicIsConferenceBadgePost(post = {}) {
+  const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
+  const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${tags}`
+  const matches = PUBLIC_FOCUS_TERMS.filter((term) => haystack.includes(term)).length
+  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
+}
+
+function publicVisibleBlogPosts(posts = []) {
+  const focused = posts.filter(publicIsConferenceBadgePost)
+  return focused.length ? focused : posts
+}
+
 function buildSitemapXml(baseUrl, posts, options = {}) {
   const includeBlogIndex = options.includeBlogIndex !== false
   const includeImages = options.includeImages !== false
@@ -612,9 +626,10 @@ function spaBaseUrl(req) {
 function sitemapHandler(req, res) {
   const baseUrl = spaBaseUrl(req)
   const posts = store.blog_posts.filter((post) => !post.deleted_at && post.status === 'published')
+  const visiblePosts = publicVisibleBlogPosts(posts)
   res.set('Content-Type', 'application/xml; charset=utf-8')
   const isBlogOnlySitemap = req.path === '/blog/sitemap.xml' || req.path === '/blog/sitemap-posts.xml'
-  res.send(buildSitemapXml(baseUrl, posts, {
+  res.send(buildSitemapXml(baseUrl, visiblePosts, {
     includeRoot: !isBlogOnlySitemap,
     includeBlogIndex: !isBlogOnlySitemap,
     includeImages: req.path !== '/blog/sitemap-posts.xml',
@@ -650,8 +665,9 @@ function rssHandler(req, res) {
   const posts = store.blog_posts
     .filter((post) => !post.deleted_at && post.status === 'published')
     .sort((a, b) => String(b.published_at || b.created_at || '').localeCompare(String(a.published_at || a.created_at || '')))
+  const visiblePosts = publicVisibleBlogPosts(posts)
   res.set('Content-Type', 'application/rss+xml; charset=utf-8')
-  res.send(buildRssXml(baseUrl, posts))
+  res.send(buildRssXml(baseUrl, visiblePosts))
 }
 
 app.get('/rss.xml', rssHandler)

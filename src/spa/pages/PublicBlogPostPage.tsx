@@ -82,12 +82,15 @@ function wordCountForJsonLd(html: string) {
   return plain.split(/\s+/).filter(Boolean).length
 }
 
-function isConferenceBadgePost(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
-  const haystack = `${post.title} ${post.category} ${(post.tags ?? []).join(' ')}`
-  return /학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)
+const FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
+
+function isConferenceBadgePost(post: Pick<BlogPost, 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
+  const haystack = `${post.title} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${(post.tags ?? []).join(' ')}`
+  const matches = FOCUS_TERMS.filter((term) => haystack.includes(term)).length
+  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
 }
 
-function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
   if (isConferenceBadgePost(post)) return '학회운영'
   return post.category || '운영 글'
 }
@@ -136,7 +139,9 @@ function relatedScore(current: BlogPost, candidate: BlogPost) {
 }
 
 function pickRelatedPosts(current: BlogPost, posts: BlogPost[], limit = 3) {
+  const currentIsFocus = isConferenceBadgePost(current)
   return posts
+    .filter((candidate) => !currentIsFocus || isConferenceBadgePost(candidate))
     .map((candidate) => ({ candidate, score: relatedScore(current, candidate) }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => {

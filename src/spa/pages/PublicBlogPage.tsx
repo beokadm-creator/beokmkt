@@ -47,12 +47,15 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString('ko-KR')
 }
 
-function isConferenceBadgePost(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
-  const haystack = `${post.title} ${post.category} ${(post.tags ?? []).join(' ')}`
-  return /학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)
+const FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
+
+function isConferenceBadgePost(post: Pick<BlogPost, 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
+  const haystack = `${post.title} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${(post.tags ?? []).join(' ')}`
+  const matches = FOCUS_TERMS.filter((term) => haystack.includes(term)).length
+  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
 }
 
-function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
   if (isConferenceBadgePost(post)) return '학회운영'
   return post.category || '블로그'
 }
@@ -75,8 +78,10 @@ export default function PublicBlogPage() {
   const [data, setData] = useState<ListResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const posts = useMemo(() => data?.items ?? [], [data])
-  const featured = posts[0]
-  const articlePosts = featured ? posts.slice(1, 7) : posts.slice(0, 6)
+  const focusPosts = useMemo(() => posts.filter(isConferenceBadgePost), [posts])
+  const visiblePosts = focusPosts.length ? focusPosts : posts
+  const featured = visiblePosts[0]
+  const articlePosts = featured ? visiblePosts.slice(1, 7) : visiblePosts.slice(0, 6)
   const featuredImage = featured ? displayImage(featured) : null
 
   useEffect(() => {
@@ -112,7 +117,7 @@ export default function PublicBlogPage() {
         {
           '@context': 'https://schema.org',
           '@type': 'ItemList',
-          itemListElement: posts.slice(0, 20).map((post, index) => ({
+          itemListElement: visiblePosts.slice(0, 20).map((post, index) => ({
             '@type': 'ListItem',
             position: index + 1,
             url: `${window.location.origin}/blog/${encodeURIComponent(post.slug || post.id)}`,
@@ -121,7 +126,7 @@ export default function PublicBlogPage() {
         },
       ],
     })
-  }, [posts])
+  }, [visiblePosts])
 
   if (isLoading) {
     return (
@@ -189,9 +194,12 @@ export default function PublicBlogPage() {
               <div>
                 <h2 className="text-2xl font-bold text-white">최신 발행 글</h2>
                 <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  공개 URL로 확인된 글을 기준으로 명찰 출력과 현장 운영 기준을 추적합니다.
+                  공개 URL로 확인된 글 중 학회 명찰·사무국 운영 주제에 맞는 글만 먼저 보여줍니다.
                 </p>
               </div>
+              <span className="hidden rounded-md border border-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-400 sm:block">
+                목표 주제 {focusPosts.length}/{posts.length}
+              </span>
               <a href="/blog/rss.xml" className="hidden rounded-md border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-300 hover:border-yellow-300 hover:text-yellow-200 sm:block">
                 RSS
               </a>

@@ -446,13 +446,14 @@ async function sitemapHandler(req, res) {
   const posts = snap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((post) => !post.deleted_at)
+  const visiblePosts = publicVisibleBlogPosts(posts)
 
   res.set('Content-Type', 'application/xml; charset=utf-8')
   res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
   res.set('Vary', 'Accept-Encoding')
   res.removeHeader('X-Very-Need-Authorization')
   const isBlogOnlySitemap = req.path === '/blog/sitemap.xml' || req.path === '/blog/sitemap-posts.xml'
-  res.send(buildSitemapXml(baseUrl, posts, {
+  res.send(buildSitemapXml(baseUrl, visiblePosts, {
     includeRoot: !isBlogOnlySitemap,
     includeBlogIndex: !isBlogOnlySitemap,
     includeImages: req.path !== '/blog/sitemap-posts.xml',
@@ -509,10 +510,11 @@ async function rssHandler(req, res) {
       const db2 = b.published_at || b.created_at || ''
       return db2.localeCompare(da)
     })
+  const visiblePosts = publicVisibleBlogPosts(posts)
 
   res.set('Content-Type', 'application/rss+xml; charset=utf-8')
   res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
-  res.send(buildRssXml(baseUrl, posts))
+  res.send(buildRssXml(baseUrl, visiblePosts))
 }
 
 app.get('/rss.xml', rssHandler)
@@ -5325,10 +5327,22 @@ function enhanceBlogContentForReading(html = '') {
   }
 }
 
-function publicDisplayCategory(post = {}) {
+const PUBLIC_FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
+
+function publicIsConferenceBadgePost(post = {}) {
   const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
-  const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.category ?? ''} ${tags}`
-  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) return '학회운영'
+  const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${tags}`
+  const matches = PUBLIC_FOCUS_TERMS.filter((term) => haystack.includes(term)).length
+  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
+}
+
+function publicVisibleBlogPosts(posts = []) {
+  const focused = posts.filter(publicIsConferenceBadgePost)
+  return focused.length ? focused : posts
+}
+
+function publicDisplayCategory(post = {}) {
+  if (publicIsConferenceBadgePost(post)) return '학회운영'
   return post.category || '운영 글'
 }
 
@@ -5351,9 +5365,9 @@ function stableIndex(value, length) {
 }
 
 function publicFallbackImage(post = {}) {
-  const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
-  const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.category ?? ''} ${tags}`
-  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) {
+  if (publicIsConferenceBadgePost(post)) {
+    const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
+    const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${tags}`
     return CONFERENCE_IMAGES[stableIndex(`${post.id ?? ''} ${haystack}`, CONFERENCE_IMAGES.length)]
   }
   return null
@@ -5460,8 +5474,9 @@ function blogPostBodyHtml(post, extras = {}) {
 }
 
 function blogListBodyHtml(posts, baseUrl) {
-  const leadImage = publicDisplayImage(posts[0] || {})
-  const items = posts
+  const visiblePosts = publicVisibleBlogPosts(posts)
+  const leadImage = publicDisplayImage(visiblePosts[0] || {})
+  const items = visiblePosts
     .slice(0, 12)
     .map((post) => {
       const slug = post.slug || post.id
@@ -5502,7 +5517,7 @@ function blogListBodyHtml(posts, baseUrl) {
     `</section>`,
     `<section id="articles" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
     `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">최신 발행 글</h2>`,
-    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">공개 URL로 확인된 글을 기준으로 명찰 출력과 현장 운영 기준을 추적합니다.</p>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">공개 URL로 확인된 글 중 학회 명찰·사무국 운영 주제에 맞는 글을 먼저 보여줍니다.</p>`,
     `<ul style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">${items || '<li style="color:#71717a;">발행된 글이 없습니다.</li>'}</ul>`,
     `</section>`,
     `<section id="topics" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
@@ -5567,8 +5582,10 @@ function faqJsonLd(faq) {
 
 function selectRelatedPosts(post, allPosts, limit = 3) {
   const tags = new Set((Array.isArray(post.tags) ? post.tags : []).map((t) => String(t).toLowerCase()))
+  const currentIsFocus = publicIsConferenceBadgePost(post)
   return allPosts
     .filter((p) => p.id !== post.id && !p.deleted_at && p.status === 'published')
+    .filter((p) => !currentIsFocus || publicIsConferenceBadgePost(p))
     .map((p) => {
       const pTags = (Array.isArray(p.tags) ? p.tags : []).map((t) => String(t).toLowerCase())
       const tagOverlap = pTags.filter((t) => tags.has(t)).length
@@ -5627,6 +5644,7 @@ function breadcrumbJsonLd(items) {
 }
 
 function blogListJsonLd(posts, baseUrl) {
+  const visiblePosts = publicVisibleBlogPosts(posts)
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
@@ -5642,7 +5660,7 @@ function blogListJsonLd(posts, baseUrl) {
       { '@type': 'Thing', name: '현장 재발행' },
       { '@type': 'Thing', name: '참가자 QR·바코드' },
     ],
-    blogPost: posts.slice(0, 20).map((post) => ({
+    blogPost: visiblePosts.slice(0, 20).map((post) => ({
       '@type': 'BlogPosting',
       headline: post.title || '',
       url: `${baseUrl}/blog/${encodeURIComponent(post.slug || post.id)}`,
