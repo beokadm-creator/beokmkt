@@ -2251,6 +2251,7 @@ app.get('/api/dashboard', (req, res) => {
 function actionForExternalIssue(channel, error = '') {
   const msg = String(error ?? '')
   if (channel === 'tistory' && /세션|login|auth|TISTORY/i.test(msg)) return '티스토리 재인증 후 워커 재시작'
+  if (channel === 'naver' && /세션|login|auth|LOGIN_REQUIRED/i.test(msg)) return '네이버 재로그인 후 워커 재시작'
   if (channel === 'naver' && /404|삭제|품질|구조|PASTE|SmartEditor/i.test(msg)) return '네이버 공개상태·본문 품질 확인 후 재발행 판단'
   if (/세션|login|auth/i.test(msg)) return '채널 세션 재인증'
   if (/품질|review|grounding|구조/i.test(msg)) return '본문 품질 재검토'
@@ -2314,14 +2315,90 @@ function qualityActionFor(issues = [], status = '') {
   return '본문 품질 확인'
 }
 
-function pipelineBodyPreview(body = '') {
+function pipelineConferenceBadgeContext(row = {}, body = '') {
+  const text = `${row?.topic || ''} ${row?.title || ''} ${body || ''}`
+  return /학회|명찰|사무국|참가자|접수|재발행/.test(text)
+}
+
+function selfhostedOperationPreviewBlocks(row = {}, body = '') {
+  if (row?.channel !== 'selfhosted' || !pipelineConferenceBadgeContext(row, body)) {
+    return { html: '', contract: [] }
+  }
+  const raw = String(body || '')
+  const contract = []
+  const blocks = []
+  if (!/비오케이솔루션\s*실무\s*점검\s*범위|데이터\s*검수/.test(raw)) {
+    contract.push('실무 점검 범위')
+    blocks.push(`
+      <section data-preview-contract="service-proof">
+        <p><strong>비오케이솔루션 실무 점검 범위</strong></p>
+        <ul>
+          <li><strong>데이터 검수</strong> 참가자 이름, 소속, 역할, 등록 구분, 식별 코드를 출력 전 기준 파일로 정리합니다.</li>
+          <li><strong>출력 기준</strong> 명찰 크기, 줄바꿈, QR·바코드 인식, 여분 수량을 샘플 출력으로 확인합니다.</li>
+          <li><strong>현장 재발행</strong> 오탈자, 역할 변경, 분실 요청을 승인 기준과 출력 기록으로 나누어 처리합니다.</li>
+          <li><strong>사후 정리</strong> 미수령자, 현장 등록자, 변경 요청 기록을 행사 종료 후 정산 자료와 맞춥니다.</li>
+        </ul>
+      </section>
+    `)
+  }
+  if (!/사무국\s*운영\s*흐름|명찰\s*발행은\s*데이터\s*확정부터/.test(raw)) {
+    contract.push('사무국 운영 흐름')
+    blocks.push(`
+      <section data-preview-contract="operation-flow">
+        <p><strong>사무국 운영 흐름</strong></p>
+        <h2>명찰 발행은 데이터 확정부터 현장 기록까지 이어집니다</h2>
+        <ol>
+          <li><strong>명단 확정</strong> 참가자 최종 파일, 역할 구분, 등록 상태, QR·바코드 열을 하나의 기준으로 잠급니다.</li>
+          <li><strong>샘플 출력</strong> 긴 소속명, 줄바꿈, 색상, 절단선, 코드 스캔 결과를 실제 출력물로 확인합니다.</li>
+          <li><strong>현장 배치</strong> 접수대, 재발행 창구, 여분 명찰, 목걸이 줄, 승인 담당자를 같은 동선 안에 둡니다.</li>
+          <li><strong>기록 정리</strong> 수정 요청, 재출력 시간, 미수령자, 현장 등록자를 행사 후 정산 자료로 남깁니다.</li>
+        </ol>
+      </section>
+    `)
+  }
+  if (!/현장\s*혼잡을\s*줄이는\s*운영\s*기준\s*비교|흔한\s*문제\s*권장\s*기준/.test(raw)) {
+    contract.push('운영 기준 비교표')
+    blocks.push(`
+      <section data-preview-contract="ops-comparison">
+        <h2>현장 혼잡을 줄이는 운영 기준 비교</h2>
+        <table>
+          <thead><tr><th>항목</th><th>흔한 문제</th><th>권장 기준</th></tr></thead>
+          <tbody>
+            <tr><td>명단 파일</td><td>담당자별 파일이 흩어져 있음</td><td>최종 기준 파일 1개와 수정 로그 유지</td></tr>
+            <tr><td>출력 검수</td><td>전체 출력 후 오류를 현장에서 발견</td><td>샘플 출력으로 표기·코드·케이스 삽입 확인</td></tr>
+            <tr><td>재발행</td><td>요청이 오면 바로 재출력</td><td>승인자·수정 사유·출력 시간을 남긴 뒤 처리</td></tr>
+            <tr><td>행사 후 정리</td><td>미수령·변경 내역이 사라짐</td><td>정산 자료와 다음 행사 기준으로 재사용</td></tr>
+          </tbody>
+        </table>
+      </section>
+    `)
+  }
+  return { html: blocks.join('\n'), contract }
+}
+
+function pipelineRenderedPreviewHtml(row, body = '') {
   const value = String(body ?? '')
+  const base = /<(h[1-6]|p|ul|ol|li|blockquote|img|figure|table)\b/i.test(value)
+    ? sanitizePreviewHtml(value)
+    : markdownToPreviewHtml(value)
+  const extra = selfhostedOperationPreviewBlocks(row, value)
+  return {
+    html: sanitizePreviewHtml(`${extra.html}\n${base}`),
+    mode: extra.contract.length ? 'selfhosted_rendered_preview' : 'body_preview',
+    contract: extra.contract,
+  }
+}
+
+function pipelineBodyPreview(body = '') {
+  const row = body && typeof body === 'object' ? body : null
+  const value = String(row ? row.body ?? '' : body ?? '')
+  const preview = pipelineRenderedPreviewHtml(row, value)
   return {
     body_available: Boolean(value.trim()),
     body_excerpt: plainTextFromContent(value).slice(0, 1200),
-    preview_html: /<(h[1-6]|p|ul|ol|li|blockquote|img|figure|table)\b/i.test(value)
-      ? sanitizePreviewHtml(value)
-      : markdownToPreviewHtml(value),
+    preview_html: preview.html,
+    preview_mode: preview.mode,
+    preview_contract: preview.contract,
   }
 }
 
@@ -2356,7 +2433,7 @@ function collectQualityItems(db, limit = 12) {
         issues,
         action: qualityActionFor(issues, post.status),
         updated_at: post.updated_at,
-        ...pipelineBodyPreview(post.body),
+        ...pipelineBodyPreview(post),
       }
     })
     .filter((post) => post.issues.length > 0)
@@ -2543,6 +2620,7 @@ function markdownToPreviewHtml(markdown = '') {
   const lines = String(markdown ?? '').split(/\r?\n/)
   const out = []
   let listOpen = false
+  let tableRows = []
   let paragraph = []
   const closeParagraph = () => {
     if (!paragraph.length) return
@@ -2554,20 +2632,42 @@ function markdownToPreviewHtml(markdown = '') {
     out.push('</ul>')
     listOpen = false
   }
+  const closeTable = () => {
+    if (!tableRows.length) return
+    const rows = tableRows
+      .filter((row) => !/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(row))
+      .map((row, index) => {
+        const cells = row.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
+        const tag = index === 0 ? 'th' : 'td'
+        return `<tr>${cells.map((cell) => `<${tag}>${escapePreviewHtml(cell)}</${tag}>`).join('')}</tr>`
+      })
+      .join('')
+    if (rows) out.push(`<table><tbody>${rows}</tbody></table>`)
+    tableRows = []
+  }
   for (const raw of lines) {
     const line = raw.trim()
     if (!line) {
       closeParagraph()
       closeList()
+      closeTable()
       continue
     }
     const image = line.match(/^!\[([^\]]*)]\(([^)\s]+)\)$/)
     if (image) {
       closeParagraph()
       closeList()
+      closeTable()
       out.push(`<figure><img src="${escapePreviewHtml(image[2])}" alt="${escapePreviewHtml(image[1])}"></figure>`)
       continue
     }
+    if (/^\|.+\|$/.test(line)) {
+      closeParagraph()
+      closeList()
+      tableRows.push(line)
+      continue
+    }
+    closeTable()
     const h3 = line.match(/^###\s+(.+)$/)
     if (h3) {
       closeParagraph()
@@ -2596,6 +2696,7 @@ function markdownToPreviewHtml(markdown = '') {
   }
   closeParagraph()
   closeList()
+  closeTable()
   return out.join('\n')
 }
 
@@ -2776,9 +2877,7 @@ app.get('/api/pipeline/posts/:id', (req, res) => {
       can_archive: ['needs_human', 'failed'].includes(row.status),
       quality: pipelineQuality(body, row.grounding_ratio),
       body,
-      preview_html: /<(h[1-6]|p|ul|ol|li|blockquote|img|figure)\b/i.test(body)
-        ? sanitizePreviewHtml(body)
-        : markdownToPreviewHtml(body),
+      ...pipelineBodyPreview(row),
       created_at: row.created_at,
       updated_at: row.updated_at,
     })

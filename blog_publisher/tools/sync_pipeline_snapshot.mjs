@@ -249,7 +249,7 @@ function collectQualityItems(db, limit = 12) {
         issues,
         action: qualityActionFor(issues, post.status),
         updated_at: post.updated_at,
-        ...snapshotBodyPreview(post.body),
+        ...snapshotBodyPreview(post),
       }
     })
     .filter((post) => post.issues.length > 0)
@@ -258,6 +258,7 @@ function collectQualityItems(db, limit = 12) {
 function actionForExternalIssue(channel, error = '') {
   const msg = String(error ?? '')
   if (channel === 'tistory' && /세션|login|auth|TISTORY/i.test(msg)) return '티스토리 재인증 후 워커 재시작'
+  if (channel === 'naver' && /세션|login|auth|LOGIN_REQUIRED/i.test(msg)) return '네이버 재로그인 후 워커 재시작'
   if (channel === 'naver' && /404|삭제|품질|구조|PASTE|SmartEditor/i.test(msg)) return '네이버 공개상태·본문 품질 확인 후 재발행 판단'
   if (/세션|login|auth/i.test(msg)) return '채널 세션 재인증'
   if (/품질|review|grounding|구조/i.test(msg)) return '본문 품질 재검토'
@@ -336,6 +337,7 @@ function markdownToSnapshotPreviewHtml(markdown = '') {
   const lines = String(markdown ?? '').slice(0, 8000).split(/\r?\n/)
   const out = []
   let listOpen = false
+  let tableRows = []
   let paragraph = []
   const closeParagraph = () => {
     if (!paragraph.length) return
@@ -347,20 +349,42 @@ function markdownToSnapshotPreviewHtml(markdown = '') {
     out.push('</ul>')
     listOpen = false
   }
+  const closeTable = () => {
+    if (!tableRows.length) return
+    const rows = tableRows
+      .filter((row) => !/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(row))
+      .map((row, index) => {
+        const cells = row.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
+        const tag = index === 0 ? 'th' : 'td'
+        return `<tr>${cells.map((cell) => `<${tag}>${escapePreviewHtml(cell)}</${tag}>`).join('')}</tr>`
+      })
+      .join('')
+    if (rows) out.push(`<table><tbody>${rows}</tbody></table>`)
+    tableRows = []
+  }
   for (const raw of lines) {
     const line = raw.trim()
     if (!line) {
       closeParagraph()
       closeList()
+      closeTable()
       continue
     }
     const image = line.match(/^!\[([^\]]*)]\(([^)\s]+)\)$/)
     if (image) {
       closeParagraph()
       closeList()
+      closeTable()
       out.push(`<figure><img src="${escapePreviewHtml(image[2])}" alt="${escapePreviewHtml(image[1])}"></figure>`)
       continue
     }
+    if (/^\|.+\|$/.test(line)) {
+      closeParagraph()
+      closeList()
+      tableRows.push(line)
+      continue
+    }
+    closeTable()
     const heading = line.match(/^(#{2,3})\s+(.+)$/)
     if (heading) {
       closeParagraph()
@@ -383,23 +407,57 @@ function markdownToSnapshotPreviewHtml(markdown = '') {
   }
   closeParagraph()
   closeList()
+  closeTable()
   return sanitizeSnapshotPreviewHtml(out.join('\n'))
 }
 
-function snapshotPreviewHtml(body = '') {
+function snapshotConferenceBadgeContext(post = {}, body = '') {
+  const text = `${post?.topic || ''} ${post?.title || ''} ${body || ''}`
+  return /학회|명찰|사무국|참가자|접수|재발행/.test(text)
+}
+
+function snapshotSelfhostedOperationBlocks(post = {}, body = '') {
+  if (post?.channel !== 'selfhosted' || !snapshotConferenceBadgeContext(post, body)) {
+    return { html: '', contract: [] }
+  }
+  const raw = String(body || '')
+  const contract = []
+  const blocks = []
+  if (!/비오케이솔루션\s*실무\s*점검\s*범위|데이터\s*검수/.test(raw)) {
+    contract.push('실무 점검 범위')
+    blocks.push('<section data-preview-contract="service-proof"><p><strong>비오케이솔루션 실무 점검 범위</strong></p><ul><li><strong>데이터 검수</strong> 참가자 정보를 출력 전 기준 파일로 정리합니다.</li><li><strong>출력 기준</strong> 샘플 출력으로 줄바꿈과 QR·바코드 인식을 확인합니다.</li><li><strong>현장 재발행</strong> 승인 기준과 출력 기록을 나누어 처리합니다.</li><li><strong>사후 정리</strong> 미수령자와 변경 요청을 행사 종료 후 정산 자료와 맞춥니다.</li></ul></section>')
+  }
+  if (!/사무국\s*운영\s*흐름|명찰\s*발행은\s*데이터\s*확정부터/.test(raw)) {
+    contract.push('사무국 운영 흐름')
+    blocks.push('<section data-preview-contract="operation-flow"><p><strong>사무국 운영 흐름</strong></p><h2>명찰 발행은 데이터 확정부터 현장 기록까지 이어집니다</h2><ol><li><strong>명단 확정</strong> 최종 파일과 역할 구분을 잠급니다.</li><li><strong>샘플 출력</strong> 표기·줄바꿈·코드 스캔을 확인합니다.</li><li><strong>현장 배치</strong> 접수대와 재발행 창구를 같은 동선 안에 둡니다.</li><li><strong>기록 정리</strong> 수정 요청과 재출력 시간을 남깁니다.</li></ol></section>')
+  }
+  if (!/현장\s*혼잡을\s*줄이는\s*운영\s*기준\s*비교|흔한\s*문제\s*권장\s*기준/.test(raw)) {
+    contract.push('운영 기준 비교표')
+    blocks.push('<section data-preview-contract="ops-comparison"><h2>현장 혼잡을 줄이는 운영 기준 비교</h2><table><thead><tr><th>항목</th><th>흔한 문제</th><th>권장 기준</th></tr></thead><tbody><tr><td>명단 파일</td><td>담당자별 파일이 흩어져 있음</td><td>최종 기준 파일 1개와 수정 로그 유지</td></tr><tr><td>출력 검수</td><td>전체 출력 후 오류를 현장에서 발견</td><td>샘플 출력으로 표기·코드·케이스 삽입 확인</td></tr><tr><td>재발행</td><td>요청이 오면 바로 재출력</td><td>승인자·수정 사유·출력 시간을 남긴 뒤 처리</td></tr></tbody></table></section>')
+  }
+  return { html: blocks.join('\n'), contract }
+}
+
+function snapshotPreviewHtml(body = '', post = null) {
   const value = String(body ?? '').trim()
   if (!value) return ''
-  return /<(h[1-6]|p|ul|ol|li|blockquote|img|figure|table)\b/i.test(value)
+  const base = /<(h[1-6]|p|ul|ol|li|blockquote|img|figure|table)\b/i.test(value)
     ? sanitizeSnapshotPreviewHtml(value)
     : markdownToSnapshotPreviewHtml(value)
+  const extra = snapshotSelfhostedOperationBlocks(post, value)
+  return sanitizeSnapshotPreviewHtml(`${extra.html}\n${base}`)
 }
 
 function snapshotBodyPreview(body = '') {
-  const value = String(body ?? '')
+  const post = body && typeof body === 'object' ? body : null
+  const value = String(post ? post.body ?? '' : body ?? '')
+  const extra = snapshotSelfhostedOperationBlocks(post, value)
   return {
     body_available: Boolean(value.trim()),
     body_excerpt: publicPlainText(value).slice(0, 1200),
-    preview_html: snapshotPreviewHtml(value),
+    preview_html: snapshotPreviewHtml(value, post),
+    preview_mode: extra.contract.length ? 'selfhosted_rendered_preview' : 'body_preview',
+    preview_contract: extra.contract,
   }
 }
 

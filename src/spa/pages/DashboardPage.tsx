@@ -55,6 +55,8 @@ type QualityItem = {
   body_available?: boolean
   body_excerpt?: string
   preview_html?: string
+  preview_mode?: string
+  preview_contract?: string[]
   updated_at: string
 }
 
@@ -132,6 +134,8 @@ type PipelinePostDetail = {
   body_available?: boolean
   body?: string
   preview_html?: string
+  preview_mode?: string
+  preview_contract?: string[]
   quality?: {
     chars: number
     images: number
@@ -654,6 +658,7 @@ function QualityItemsPanel({
                   <span>소제목 {item.quality.headings}</span>
                   <span>grounding {item.quality.grounding_ratio == null ? '미측정' : item.quality.grounding_ratio.toFixed(2)}</span>
                   {item.preview_html ? <span>미리보기 있음</span> : null}
+                  {item.preview_contract?.length ? <span>렌더 계약 {item.preview_contract.length}</span> : null}
                 </div>
               </div>
               <div className="flex shrink-0 gap-2 md:flex-col">
@@ -683,7 +688,13 @@ function QualityItemsPanel({
   )
 }
 
-function PublicQualityPanel({ data }: { data?: PipelineStats['public_quality'] }) {
+function PublicQualityPanel({
+  data,
+  onOpenDetail,
+}: {
+  data?: PipelineStats['public_quality']
+  onOpenDetail: (id: number | string) => void
+}) {
   if (!data) return null
   const failed = data.failed > 0
   return (
@@ -704,12 +715,9 @@ function PublicQualityPanel({ data }: { data?: PipelineStats['public_quality'] }
       {data.items.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {data.items.map((item) => (
-            <a
+            <div
               key={`${item.channel}-${item.id}-${item.url}`}
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 hover:bg-zinc-900"
+              className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3"
             >
               <div className="flex items-center gap-2 text-xs">
                 <span className="font-mono text-zinc-500">#{item.id}</span>
@@ -738,7 +746,26 @@ function PublicQualityPanel({ data }: { data?: PipelineStats['public_quality'] }
                   {item.action}
                 </div>
               ) : null}
-            </a>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                >
+                  공개 글 열기
+                </a>
+                {typeof item.id === 'number' || /^\d+$/.test(String(item.id)) ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenDetail(item.id)}
+                    className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                  >
+                    로컬 상세
+                  </button>
+                ) : null}
+              </div>
+            </div>
           ))}
         </div>
       ) : null}
@@ -853,6 +880,24 @@ function DetailPanel({
           </div>
 
           <div className="min-w-0 rounded-lg border border-zinc-900 bg-white p-5 text-zinc-950">
+            <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <div className="text-xs font-semibold text-zinc-600">
+                {detail.preview_mode === 'selfhosted_rendered_preview' ? '자체 블로그 렌더 미리보기' : '본문 미리보기'}
+              </div>
+              {detail.preview_contract?.length ? (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {detail.preview_contract.map((item) => (
+                    <span key={item} className="rounded-md border border-zinc-300 bg-white px-2 py-0.5 text-[11px] text-zinc-700">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-1 text-[11px] text-zinc-500">
+                  DB 본문 기준 미리보기입니다.
+                </div>
+              )}
+            </div>
             {detail.preview_html ? (
               <article
                 className="prose prose-zinc max-w-none text-sm"
@@ -1024,7 +1069,7 @@ export default function DashboardPage() {
 
       <LocalOpsPanel active={totalFailures > 0} />
 
-      <PublicQualityPanel data={data?.public_quality} />
+      <PublicQualityPanel data={data?.public_quality} onOpenDetail={openDetail} />
 
       {/* 품질 지표 */}
       {data?.quality ? (
