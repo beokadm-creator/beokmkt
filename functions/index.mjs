@@ -157,7 +157,7 @@ function publicQualityIssues({ channel = '', title = '', url = '', html = '', st
   const h2 = (content.match(/<h2\b/gi) || []).length
 
   if (status !== 200) issues.push(`HTTP ${status ?? 'error'}`)
-  const forbidden = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '무조건', '충격', '실화', '[이미지:']
+  const forbidden = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '충격', '실화', '[이미지:']
     .filter((word) => content.includes(word) || text.includes(word))
   if (forbidden.length) issues.push(`금칙/마커: ${forbidden.slice(0, 3).join(', ')}`)
   const visibleStrike = [...content.matchAll(/<(?:s|strike|del)\b[^>]*>([\s\S]*?)<\/(?:s|strike|del)>/gi)]
@@ -181,6 +181,16 @@ function publicQualityIssues({ channel = '', title = '', url = '', html = '', st
   return { issues, chars: text.length, images, h1, h2 }
 }
 
+function publicQualityAction(channel, issues = []) {
+  const issueText = issues.join(' ')
+  if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
+    return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
+  }
+  if (channel === 'selfhosted') return '자체 블로그 글 수정 또는 비공개 처리 후 공개 품질 재검증'
+  if (channel === 'naver') return '네이버 공개 글 본문 확인 후 삭제/수정 판단'
+  return '공개 URL 본문 확인 후 정정'
+}
+
 async function fetchPublicQualityItem(item) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 6000)
@@ -195,8 +205,15 @@ async function fetchPublicQualityItem(item) {
     })
     const html = await res.text()
     const measured = publicQualityIssues({ ...item, html, status: res.status })
-    return { ...item, status: res.status, ...measured, ok: measured.issues.length === 0 }
+    return {
+      ...item,
+      status: res.status,
+      ...measured,
+      ok: measured.issues.length === 0,
+      action: measured.issues.length ? publicQualityAction(item.channel, measured.issues) : null,
+    }
   } catch (error) {
+    const issues = [error instanceof Error ? error.message : 'fetch failed']
     return {
       ...item,
       status: null,
@@ -205,7 +222,8 @@ async function fetchPublicQualityItem(item) {
       h1: 0,
       h2: 0,
       ok: false,
-      issues: [error instanceof Error ? error.message : 'fetch failed'],
+      issues,
+      action: publicQualityAction(item.channel, issues),
     }
   } finally {
     clearTimeout(timer)
@@ -2359,6 +2377,9 @@ app.get('/api/pipeline/stats', async (req, res) => {
     : quality
   const responseRecent = Array.isArray(localSnapshot?.recent) ? localSnapshot.recent : recent
   const responseNeedsHuman = Array.isArray(localSnapshot?.needs_human_posts) ? localSnapshot.needs_human_posts : needs_human_posts
+  const responsePublicQuality = localSnapshot?.public_quality && typeof localSnapshot.public_quality === 'object'
+    ? localSnapshot.public_quality
+    : public_quality
 
   ok(res, {
     by_status: responseByStatus,
@@ -2367,7 +2388,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
     published_this_week: Number.isFinite(Number(localSnapshot?.published_this_week)) ? Number(localSnapshot.published_this_week) : published_this_week,
     quality: responseQuality,
     ops: snapshotOps ?? ops,
-    public_quality,
+    public_quality: responsePublicQuality,
     needs_human_posts: responseNeedsHuman,
     local_snapshot: localSnapshot ? {
       generated_at: snapshotGeneratedAt,
