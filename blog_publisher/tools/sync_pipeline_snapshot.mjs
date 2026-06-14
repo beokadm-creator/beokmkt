@@ -137,6 +137,42 @@ function channelSessionHealth() {
   ]
 }
 
+function recentSessionError(db, channel) {
+  return db.prepare(
+    `SELECT id, last_error
+     FROM posts
+     WHERE channel = ?
+       AND status IN ('needs_human','failed')
+       AND last_error IS NOT NULL
+       AND (
+         last_error LIKE '%세션%'
+         OR last_error LIKE '%login%'
+         OR last_error LIKE '%auth%'
+         OR last_error LIKE '%LOGIN_REQUIRED%'
+         OR last_error LIKE '%AUTH_REQUIRED%'
+         OR last_error LIKE '%NOT_AUTHED%'
+       )
+     ORDER BY updated_at DESC
+     LIMIT 1`
+  ).get(channel)
+}
+
+function sessionHealth(db) {
+  return channelSessionHealth().map((health) => {
+    const error = recentSessionError(db, health.channel)
+    if (!error) return health
+    return {
+      ...health,
+      ok: false,
+      reason: error.last_error,
+      error_post_id: error.id,
+      action: health.channel === 'tistory'
+        ? 'npm run tistory-auth 후 워커 재시작'
+        : 'npm run login 후 워커 재시작',
+    }
+  })
+}
+
 function imageAssetHealthStatus() {
   return {
     ok: false,
@@ -609,7 +645,7 @@ async function collectSnapshot() {
         quality_gate: qualityGateStatus(),
         search_health: searchHealthStatus(),
         image_asset_health: imageAssetHealthStatus(),
-        session_health: channelSessionHealth(),
+        session_health: sessionHealth(db),
       },
       needs_human_posts,
       recent,

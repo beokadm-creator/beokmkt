@@ -103,6 +103,9 @@ type OpsStats = {
     channel: string
     exists: boolean
     ok: boolean
+    reason?: string | null
+    action?: string | null
+    error_post_id?: number | string | null
     path: string
     updated_at: string | null
     age_hours: number | null
@@ -371,7 +374,12 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
       label: '채널 세션',
       value: sessionAlert ? '확인' : sessionHealth.length ? '정상' : '미측정',
       sub: sessionHealth.length
-        ? sessionHealth.map((session) => `${session.channel} ${session.age_hours == null ? '없음' : `${session.age_hours}h`}`).join(' · ')
+        ? sessionHealth.map((session) => {
+          const state = session.ok
+            ? (session.age_hours == null ? '없음' : `${session.age_hours}h`)
+            : (session.action || session.reason || '재인증 필요')
+          return `${session.channel} ${state}`
+        }).join(' · ')
         : '스냅샷 갱신 필요',
       alert: sessionAlert,
     },

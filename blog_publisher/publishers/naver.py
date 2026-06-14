@@ -68,7 +68,7 @@ class NaverPublisher:
         code = data.get("code", "")
         msg = data.get("error", f"HTTP {resp.status_code}")
         if code == "LOGIN_REQUIRED":
-            raise FatalError(
+            raise NeedsHumanError(
                 f"네이버 세션 만료. executors/naver-blog-worker 에서 "
                 f"npm run login 으로 재로그인 후 워커를 재시작하세요."
             )

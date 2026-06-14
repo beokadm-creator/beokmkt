@@ -84,11 +84,15 @@ def report() -> dict[str, int]:
         row = by_channel[channel]
         inventory = sum(row.get(s, 0) for s in INVENTORY_STATUSES)
         active_queue = row.get("queued", 0) + row.get("publishing", 0)
+        policy = ""
+        if channel in {"naver", "tistory"} and not config.ALLOW_EXTERNAL_AUTO_SEED:
+            policy = " auto_seed=off"
         print(
             f"  {channel:10} inventory={inventory:>3} "
             f"focus={focus_inventory.get(channel, 0):>3} "
             f"queued={active_queue:>3} published={row.get('published', 0):>3} "
             f"needs_human={row.get('needs_human', 0):>3} failed={row.get('failed', 0):>3}"
+            f"{policy}"
         )
 
     buffer_target = config.DAILY_PUBLISH_TARGET * config.STOCK_BUFFER_DAYS
@@ -128,6 +132,20 @@ def report() -> dict[str, int]:
             print(f"  [확인] 즉시 발행 대상: queued_due={queued_due} (publish 실행 대상)")
         else:
             print(f"  [대기] 예약 글 {counts['queued']}건, 다음 예약 UTC={next_queued}")
+
+    external_channels = {"naver", "tistory"}
+    if not config.ALLOW_EXTERNAL_AUTO_SEED:
+        missing = [
+            channel for channel in sorted(external_channels)
+            if focus_inventory.get(channel, 0) == 0
+            and by_channel.get(channel, {}).get("queued", 0) == 0
+            and by_channel.get(channel, {}).get("publishing", 0) == 0
+        ]
+        if missing:
+            print(
+                "  [정책] 외부 채널 자동시드 비활성: "
+                f"{', '.join(missing)} 재고 0은 설정값(ALLOW_EXTERNAL_AUTO_SEED=false)에 따른 상태"
+            )
 
     if counts["needs_human"]:
         print(f"  [경고] 수동 처리 대기: needs_human={counts['needs_human']}")

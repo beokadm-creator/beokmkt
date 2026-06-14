@@ -64,7 +64,7 @@ class TistoryPublisher:
         msg = data.get("error", f"HTTP {resp.status_code}")
         if code in ("LOGIN_REQUIRED", "AUTH_REQUIRED",
                     "TISTORY_LOGIN_REQUIRED", "TISTORY_NOT_AUTHED"):
-            raise FatalError(
+            raise NeedsHumanError(
                 f"티스토리 세션 만료. executors/naver-blog-worker 에서 "
                 f"npm run tistory-auth 으로 재인증 후 워커를 재시작하세요."
             )
