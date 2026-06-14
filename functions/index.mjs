@@ -5466,13 +5466,13 @@ function blogPostBodyHtml(post, extras = {}) {
         </div>
         <div style="padding:26px;border:1px solid #27272a;border-radius:8px;background:rgba(24,24,27,.82);box-shadow:0 24px 60px rgba(0,0,0,.28);backdrop-filter:blur(18px);">
           <p style="margin:0;color:#fde68a;font-size:12px;font-weight:800;letter-spacing:.18em;">BOK SOLUTION</p>
-          <h2 style="margin:12px 0 0;color:#fff;font-size:28px;line-height:1.16;font-weight:1000;">학회 운영 사무국 명찰 출력</h2>
-          <p style="margin:13px 0 0;color:#d4d4d8;font-size:14px;line-height:1.75;">참가자 명단, QR·바코드 확인, 현장 재발행 기준을 실제 운영 흐름에 맞춰 정리합니다.</p>
+          <h2 style="margin:12px 0 0;color:#fff;font-size:28px;line-height:1.16;font-weight:1000;">비오케이솔루션 운영 상담</h2>
+          <p style="margin:13px 0 0;color:#d4d4d8;font-size:14px;line-height:1.75;">홈페이지, 관리자 시스템, 학회 접수·명찰 운영, MICE 레퍼런스를 실제 운영 흐름에 맞춰 검토합니다.</p>
           <div style="display:grid;gap:9px;margin-top:20px;color:#e5e7eb;font-size:14px;font-weight:700;">
-            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">명단 정리와 오탈자 검수</div>
-            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">QR·바코드 식별값 확인</div>
-            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">현장 재발행 승인 동선</div>
-            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">공개 발행 URL 품질 확인</div>
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">홈페이지 제작과 유지관리</div>
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">맞춤형 관리자 시스템</div>
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">학회 접수와 명찰 출력</div>
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">홍커뮤니케이션 MICE 레퍼런스</div>
           </div>
           <a href="${KAKAO_CHAT_URL}" target="_blank" rel="noopener" style="margin-top:20px;display:flex;width:100%;box-sizing:border-box;justify-content:center;padding:14px 18px;border-radius:6px;background:#fde047;color:#09090b;text-decoration:none;font-size:14px;font-weight:800;">운영 상담하기</a>
         </div>
@@ -5522,8 +5522,8 @@ function blogListBodyHtml(posts, baseUrl) {
     `<div style="max-width:1120px;margin:0 auto;padding:56px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;word-break:keep-all;overflow-wrap:break-word;">`,
     `<section style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:34px;align-items:center;">`,
     `<div>`,
-    `<p style="font-size:0.9rem;color:#fde047;margin:0 0 12px;">학회 운영 · 사무국 데이터 · 명찰 출력</p>`,
-    `<h1 style="font-size:clamp(2.25rem,5vw,3.6rem);font-weight:900;letter-spacing:-.04em;line-height:1.08;color:#fff;margin:0;max-width:820px;">학회 운영 사무국의 명찰 출력과 현장 재발행 기준을 정리합니다.</h1>`,
+    `<p style="font-size:0.9rem;color:#fde047;margin:0 0 12px;">홈페이지 제작 · 시스템 개발 · 학회 운영</p>`,
+    `<h1 style="font-size:clamp(2.25rem,5vw,3.6rem);font-weight:900;letter-spacing:-.04em;line-height:1.08;color:#fff;margin:0;max-width:820px;">비오케이솔루션의 개발과 행사 운영 경험을 검색 가능한 기록으로 남깁니다.</h1>`,
     `<p style="font-size:1rem;color:#a1a1aa;line-height:1.75;margin:20px 0 0;max-width:760px;">홈페이지 제작, 맞춤형 시스템 개발, 학회 접수·명찰 출력, 홍커뮤니케이션 MICE 레퍼런스를 서비스 축별로 분리해 기록합니다.</p>`,
     `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;">`,
     `<a href="#articles" style="display:inline-block;background:#fafafa;color:#09090b;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">최신 글 보기</a>`,
@@ -5667,7 +5667,7 @@ function blogListJsonLd(posts, baseUrl) {
     '@type': 'Blog',
     name: '비오케이솔루션 블로그',
     url: `${baseUrl}/blog/`,
-    description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠',
+    description: '학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그',
     inLanguage: 'ko-KR',
     publisher: { '@type': 'Organization', name: '비오케이솔루션', url: baseUrl },
     about: [
@@ -5733,7 +5733,7 @@ app.get('/blog/', async (req, res) => {
 
     const html = buildSsrHtml({
       title: '비오케이솔루션 블로그',
-      description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리와 발행 자동화 실무 콘텐츠입니다.',
+      description: '학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그입니다.',
       canonicalUrl: `${baseUrl}/blog/`,
       ogType: 'website',
       ogImage: '',
