@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-15 — 검색 미설정 시 생성 워커 반복 실패 방지
+
+검색 공급자 미설정 상태에서는 근거 기반 신규 원고를 만들 수 없으므로, 생성 워커가 draft를 claim한 뒤 실패·재시도 카운트를 올리는 대신 주기 자체를 조용히 건너뛰도록 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/config.py` | `search_health_status()`, `can_generate_with_evidence()` 추가 |
+| `blog_publisher/pipeline/generate.py` | 검색/근거 수집 불가 시 DB claim 전 skip. draft attempts를 올리지 않음 |
+| `blog_publisher/tools/status_report.py` | `run.py status`에 검색/근거 수집 가능 여부와 중단 사유 표시 |
+| `blog_publisher/tools/selftest.py` | mock 검색 환경을 readiness 게이트에 맞게 설정 |
+
+검증:
+- 검색 미설정 상태에서 `python3 blog_publisher/run.py generate` → `생성 0건`, attempts 증가 없음
+- `python3 blog_publisher/run.py status`에 `[중단] 검색/근거 수집 불가` 표시
+- `python3 -m compileall -q blog_publisher` PASS
+- `python3 blog_publisher/run.py selftest`, `quality_selftest`, `sync_snapshot`, `verify_public 10`, `needs_human` PASS
+- `node --check server/index.mjs`, `node --check blog_publisher/tools/sync_pipeline_snapshot.mjs`, `npx tsc --noEmit` PASS
+
+---
+
 ## 2026-06-15 — 근거 0건 자동 생성 차단 및 검색 상태 운영 노출
 
 네이버 신규 실발행 검증 중 검색/근거 수집이 0건인 상태에서 내부 기능을 추정한 원고가 만들어지는 문제가 확인됐다. 해당 원고는 발행하지 않고 보관했으며, 근거 없는 원고가 다시 발행 경로로 들어가지 않도록 생성·팩트체크 게이트를 강화했다.

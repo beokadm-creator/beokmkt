@@ -66,6 +66,14 @@ def report() -> dict[str, int]:
     buffer_target = config.DAILY_PUBLISH_TARGET * config.STOCK_BUFFER_DAYS
     inventory = sum(counts[s] for s in INVENTORY_STATUSES)
     print("\n=== 점검 ===")
+    search_health = config.search_health_status()
+    if search_health["ok"]:
+        provider = search_health["provider"] or "unknown"
+        naver_serp = "on" if search_health["naver_serp_ok"] else "off"
+        print(f"  [정상] 검색/근거 수집 가능: provider={provider}, naver_serp={naver_serp}")
+    else:
+        print(f"  [중단] 검색/근거 수집 불가: {search_health['reason']}")
+
     if inventory < buffer_target:
         print(f"  [경고] 전발행 재고 부족: inventory={inventory} < 목표 {buffer_target} "
               f"(stock_seed/generate 확인)")

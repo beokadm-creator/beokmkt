@@ -35,6 +35,8 @@ def _install_mocks():
     config.MAX_DUP_RATIO = 0.95
     config.MIN_GROUNDING_RATIO = 0.9
     config.MIN_REVIEW_SCORE = 80
+    config.SEARCH_PROVIDER = "tavily"
+    config.TAVILY_API_KEY = "mock"
     config.GENERATE_PROCESS_ISOLATION = False
     # 즉시 발행되도록 스케줄 분산/윈도우 무력화(테스트 결정성)
     config.PUBLISH_SPACING_MIN = 0

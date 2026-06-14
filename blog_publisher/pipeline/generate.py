@@ -440,6 +440,10 @@ def run_once(batch: int = 1) -> int:
         if not acquired:
             print("[generate] 다른 생성 프로세스가 실행 중이라 이번 주기는 건너뜀", flush=True)
             return processed
+        if not config.can_generate_with_evidence():
+            health = config.search_health_status()
+            print(f"[generate] 검색/근거 수집 미설정으로 이번 주기 건너뜀: {health['reason']}", flush=True)
+            return processed
 
         for post in db.fetch_generate_ready(limit=batch):
             if not db.claim(post["id"], "draft", "generating"):

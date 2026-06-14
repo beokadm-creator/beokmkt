@@ -57,6 +57,25 @@ DEFAULT_REFERENCES = os.getenv("DEFAULT_REFERENCES", "(없음)")
 SEARCH_PROVIDER = os.getenv("SEARCH_PROVIDER", "")          # tavily | (확장)
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
+
+def search_health_status() -> dict:
+    """신규 원고 생성에 필요한 검색/근거 수집 준비 상태."""
+    provider = (SEARCH_PROVIDER or "").strip().lower()
+    general_ok = provider == "tavily" and bool(TAVILY_API_KEY)
+    naver_serp_ok = bool(NAVER_CLIENT_ID and NAVER_CLIENT_SECRET)
+    return {
+        "provider": provider or None,
+        "general_search_ok": general_ok,
+        "naver_serp_ok": naver_serp_ok,
+        "ok": general_ok,
+        "reason": None if general_ok else "SEARCH_PROVIDER/TAVILY_API_KEY 미설정: 신규 원고 근거 수집 불가",
+    }
+
+
+def can_generate_with_evidence() -> bool:
+    """품질 게이트가 켜진 운영 모드에서 생성 워커가 진행 가능한지."""
+    return MIN_GROUNDING_RATIO <= 0 or bool(search_health_status()["ok"])
+
 # ---- 검색 노출(SEO) / 채널별 타깃 엔진 (기획 07) ----
 # 네이버 블로그→네이버 검색, 티스토리·자체→구글 검색.
 CHANNEL_TARGET_ENGINE = {
