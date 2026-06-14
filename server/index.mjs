@@ -2118,6 +2118,126 @@ function pipelineQuality(body = '', groundingRatio = null) {
   }
 }
 
+const PUBLIC_FORBIDDEN_TONE = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '충격', '실화', 'ㅋㅋ', 'ㅎㅎ', '[이미지:']
+
+function stripPublicNonContent(html = '') {
+  return String(html ?? '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+}
+
+function publicPlainText(html = '') {
+  return stripPublicNonContent(html)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function hasVisibleStrike(html = '') {
+  const value = stripPublicNonContent(html)
+  if (/text-decoration\s*:\s*line-through/i.test(value)) return true
+  const matches = value.matchAll(/<(?:s|strike|del)\b[^>]*>([\s\S]*?)<\/(?:s|strike|del)>/gi)
+  for (const match of matches) {
+    if (publicPlainText(match[1]).replace(/[\u200b\ufeff]/g, '').trim()) return true
+  }
+  return false
+}
+
+function publicQualityAction(channel, issues = []) {
+  const issueText = issues.join(' ')
+  if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
+    return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
+  }
+  if (channel === 'selfhosted') return '자체 블로그 글 수정 또는 비공개 처리 후 공개 품질 재검증'
+  if (channel === 'naver') return '네이버 공개 글 본문 확인 후 삭제/수정 판단'
+  return '공개 URL 본문 확인 후 정정'
+}
+
+async function inspectPublicPost(row) {
+  const url = String(row.published_url || '')
+  const channel = String(row.channel || '')
+  const title = String(row.title || row.topic || '')
+  const issues = []
+  let status = null
+  let html = ''
+
+  if (!url) {
+    issues.push('공개 URL 없음')
+  } else {
+    try {
+      const res = await fetch(url, {
+        headers: { 'user-agent': 'Mozilla/5.0 public-post-verifier/1.0' },
+        signal: AbortSignal.timeout(15000),
+      })
+      status = res.status
+      html = await res.text()
+    } catch (e) {
+      issues.push(`FETCH_ERROR: ${e instanceof Error ? e.message : String(e)}`.slice(0, 160))
+    }
+  }
+
+  const contentHtml = stripPublicNonContent(html)
+  const text = publicPlainText(html)
+  const chars = text.length
+  const images = (html.match(/<img\b/gi) || []).length
+  const h1 = (html.match(/<h1\b/gi) || []).length
+  const h2 = (html.match(/<h2\b/gi) || []).length
+
+  if (status !== 200) issues.push(`HTTP 상태 비정상(${status})`)
+  const matched = PUBLIC_FORBIDDEN_TONE.filter((word) => contentHtml.includes(word) || text.includes(word))
+  if (matched.length) issues.push(`금칙/마커 문구 노출(${matched.slice(0, 5).join(', ')})`)
+  if (hasVisibleStrike(contentHtml)) issues.push('취소선 서식 노출')
+
+  if (channel === 'selfhosted') {
+    if (chars < 1000) issues.push(`본문 짧음(${chars}자)`)
+    if (h1 !== 1) issues.push(`h1 개수 비정상(${h1})`)
+    if (/<article\b[^>]*>\s*<header\b/i.test(html)) issues.push('저장 본문 article/header 중복 노출')
+  } else if (channel === 'tistory') {
+    if (!/^https:\/\/[^/]+\.tistory\.com\/\d+(?:[/?#].*)?$/.test(url)) issues.push('티스토리 공개 URL 형식 아님')
+    if (chars < 800) issues.push(`본문 짧음(${chars}자)`)
+    if (h2 < 2) issues.push(`소제목 부족(${h2})`)
+  } else if (channel === 'naver') {
+    if (!/PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(url)) issues.push('네이버 공개 URL 형식 아님')
+    if (status === 200 && chars < 500) issues.push(`본문 짧음(${chars}자)`)
+  }
+
+  return {
+    id: row.id,
+    channel,
+    title,
+    url,
+    status,
+    chars,
+    images,
+    h1,
+    h2,
+    issues,
+    action: issues.length ? publicQualityAction(channel, issues) : null,
+  }
+}
+
+async function collectPublicQuality(db, limit = 20) {
+  const rows = db.prepare(
+    `SELECT id, channel, topic, title, published_url
+     FROM posts
+     WHERE status = 'published'
+     ORDER BY updated_at DESC, id DESC
+     LIMIT ?`
+  ).all(limit)
+  const results = await Promise.all(rows.map((row) => inspectPublicPost(row)))
+  const failedItems = results.filter((item) => item.issues.length > 0)
+  return {
+    checked: results.length,
+    ok: results.length - failedItems.length,
+    failed: failedItems.length,
+    items: failedItems,
+  }
+}
+
 function escapePreviewHtml(value = '') {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -2196,12 +2316,12 @@ function markdownToPreviewHtml(markdown = '') {
   return out.join('\n')
 }
 
-app.get('/api/pipeline/stats', (req, res) => {
+app.get('/api/pipeline/stats', async (req, res) => {
   let db
   try {
     db = openPipelineDb()
   } catch {
-    return ok(res, { error: 'pipeline_db_unavailable', by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, needs_human_posts: [], recent: [] })
+    return ok(res, { error: 'pipeline_db_unavailable', by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, public_quality: { checked: 0, ok: 0, failed: 0, items: [] }, needs_human_posts: [], recent: [] })
   }
   try {
     const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
@@ -2289,6 +2409,7 @@ app.get('/api/pipeline/stats', (req, res) => {
       FROM posts
       WHERE status IN ('published','reviewed','queued')`
     ).get()
+    const public_quality = await collectPublicQuality(db, 20)
 
     ok(res, {
       by_status,
@@ -2302,6 +2423,7 @@ app.get('/api/pipeline/stats', (req, res) => {
         weak_posts: qualityRow?.weak_posts ?? 0,
         avg_grounding: qualityRow?.avg_grounding == null ? null : Math.round(qualityRow.avg_grounding * 100) / 100,
       },
+      public_quality,
       ops: {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
@@ -2323,7 +2445,7 @@ app.get('/api/pipeline/stats', (req, res) => {
       recent,
     })
   } catch (e) {
-    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, ops: null, needs_human_posts: [], recent: [] })
+    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, public_quality: { checked: 0, ok: 0, failed: 0, items: [] }, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, ops: null, needs_human_posts: [], recent: [] })
   } finally {
     db.close()
   }

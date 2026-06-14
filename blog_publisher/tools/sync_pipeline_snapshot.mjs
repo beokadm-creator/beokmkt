@@ -56,7 +56,105 @@ function pipelineRequeuePolicy(post) {
   return { can_requeue: true, reason: null }
 }
 
-function collectSnapshot() {
+const PUBLIC_FORBIDDEN_TONE = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '충격', '실화', 'ㅋㅋ', 'ㅎㅎ', '[이미지:']
+
+function stripPublicNonContent(html = '') {
+  return String(html ?? '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+}
+
+function publicPlainText(html = '') {
+  return stripPublicNonContent(html)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function hasVisibleStrike(html = '') {
+  const value = stripPublicNonContent(html)
+  if (/text-decoration\s*:\s*line-through/i.test(value)) return true
+  const matches = value.matchAll(/<(?:s|strike|del)\b[^>]*>([\s\S]*?)<\/(?:s|strike|del)>/gi)
+  for (const match of matches) {
+    if (publicPlainText(match[1]).replace(/[\u200b\ufeff]/g, '').trim()) return true
+  }
+  return false
+}
+
+function publicQualityAction(channel, issues = []) {
+  const issueText = issues.join(' ')
+  if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
+    return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
+  }
+  if (channel === 'selfhosted') return '자체 블로그 글 수정 또는 비공개 처리 후 공개 품질 재검증'
+  if (channel === 'naver') return '네이버 공개 글 본문 확인 후 삭제/수정 판단'
+  return '공개 URL 본문 확인 후 정정'
+}
+
+async function inspectPublicPost(row) {
+  const url = String(row.published_url || '')
+  const channel = String(row.channel || '')
+  const title = String(row.title || row.topic || '')
+  const issues = []
+  let status = null
+  let html = ''
+  if (!url) {
+    issues.push('공개 URL 없음')
+  } else {
+    try {
+      const res = await fetch(url, {
+        headers: { 'user-agent': 'Mozilla/5.0 public-post-verifier/1.0' },
+        signal: AbortSignal.timeout(15000),
+      })
+      status = res.status
+      html = await res.text()
+    } catch (e) {
+      issues.push(`FETCH_ERROR: ${e instanceof Error ? e.message : String(e)}`.slice(0, 160))
+    }
+  }
+  const contentHtml = stripPublicNonContent(html)
+  const text = publicPlainText(html)
+  const chars = text.length
+  const images = (html.match(/<img\b/gi) || []).length
+  const h1 = (html.match(/<h1\b/gi) || []).length
+  const h2 = (html.match(/<h2\b/gi) || []).length
+  if (status !== 200) issues.push(`HTTP 상태 비정상(${status})`)
+  const matched = PUBLIC_FORBIDDEN_TONE.filter((word) => contentHtml.includes(word) || text.includes(word))
+  if (matched.length) issues.push(`금칙/마커 문구 노출(${matched.slice(0, 5).join(', ')})`)
+  if (hasVisibleStrike(contentHtml)) issues.push('취소선 서식 노출')
+  if (channel === 'selfhosted') {
+    if (chars < 1000) issues.push(`본문 짧음(${chars}자)`)
+    if (h1 !== 1) issues.push(`h1 개수 비정상(${h1})`)
+    if (/<article\b[^>]*>\s*<header\b/i.test(html)) issues.push('저장 본문 article/header 중복 노출')
+  } else if (channel === 'tistory') {
+    if (!/^https:\/\/[^/]+\.tistory\.com\/\d+(?:[/?#].*)?$/.test(url)) issues.push('티스토리 공개 URL 형식 아님')
+    if (chars < 800) issues.push(`본문 짧음(${chars}자)`)
+    if (h2 < 2) issues.push(`소제목 부족(${h2})`)
+  } else if (channel === 'naver') {
+    if (!/PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(url)) issues.push('네이버 공개 URL 형식 아님')
+    if (status === 200 && chars < 500) issues.push(`본문 짧음(${chars}자)`)
+  }
+  return { id: row.id, channel, title, url, status, chars, images, h1, h2, issues, action: issues.length ? publicQualityAction(channel, issues) : null }
+}
+
+async function collectPublicQuality(db, limit = 20) {
+  const rows = db.prepare(
+    `SELECT id, channel, topic, title, published_url
+     FROM posts
+     WHERE status = 'published'
+     ORDER BY updated_at DESC, id DESC
+     LIMIT ?`
+  ).all(limit)
+  const results = await Promise.all(rows.map((row) => inspectPublicPost(row)))
+  const items = results.filter((item) => item.issues.length > 0)
+  return { checked: results.length, ok: results.length - items.length, failed: items.length, items }
+}
+
+async function collectSnapshot() {
   const db = new Database(DB_PATH, { readonly: true, fileMustExist: true })
   try {
     const by_status = Object.fromEntries(ALL_STATUSES.map((status) => [status, 0]))
@@ -131,6 +229,29 @@ function collectSnapshot() {
       published_url: post.published_url || null,
       updated_at: post.updated_at,
     }))
+    let public_quality = { checked: 0, ok: 0, failed: 0, items: [] }
+    try {
+      public_quality = await collectPublicQuality(db, 20)
+    } catch (e) {
+      public_quality = {
+        checked: 0,
+        ok: 0,
+        failed: 1,
+        items: [{
+          id: 'public-quality',
+          channel: 'system',
+          title: '공개 품질 검증 실패',
+          url: '',
+          status: null,
+          chars: 0,
+          images: 0,
+          h1: 0,
+          h2: 0,
+          issues: [e instanceof Error ? e.message : String(e)],
+          action: '맥에서 python3 blog_publisher/run.py verify_public 20 실행',
+        }],
+      }
+    }
 
     return {
       source: 'local_sqlite',
@@ -147,6 +268,7 @@ function collectSnapshot() {
         weak_posts: qualityRow?.weak_posts ?? 0,
         avg_grounding: qualityRow?.avg_grounding == null ? null : Math.round(qualityRow.avg_grounding * 100) / 100,
       },
+      public_quality,
       ops: {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
@@ -169,7 +291,7 @@ function collectSnapshot() {
 
 initializeApp({ projectId: FIREBASE_PROJECT_ID })
 const firestore = getFirestore()
-const snapshot = collectSnapshot()
+const snapshot = await collectSnapshot()
 await firestore.collection('pipeline_snapshots').doc('local').set({
   ...snapshot,
   synced_at: FieldValue.serverTimestamp(),
@@ -180,5 +302,6 @@ console.log(JSON.stringify({
   project_id: FIREBASE_PROJECT_ID,
   generated_at: snapshot.generated_at,
   by_status: snapshot.by_status,
+  public_quality: snapshot.public_quality,
   ops: snapshot.ops,
 }, null, 2))

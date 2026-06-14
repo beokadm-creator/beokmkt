@@ -104,6 +104,7 @@ type PipelineStats = {
       h1: number
       h2: number
       issues: string[]
+      action?: string | null
     }[]
   }
   quality?: {
@@ -407,6 +408,11 @@ function PublicQualityPanel({ data }: { data?: PipelineStats['public_quality'] }
                   </span>
                 ))}
               </div>
+              {item.action ? (
+                <div className="mt-2 rounded-md border border-amber-900/50 bg-amber-950/15 px-2 py-1 text-[11px] text-amber-200">
+                  {item.action}
+                </div>
+              ) : null}
             </a>
           ))}
         </div>
