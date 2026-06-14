@@ -6,6 +6,7 @@ import path from 'path'
 const BLOG_NAME = process.env.TISTORY_BLOG_NAME || 'beoksolution'
 const STORAGE_PATH = path.resolve(process.env.TISTORY_SESSION_PATH || './.session/tistory-session.json')
 const NAV_TIMEOUT = Number(process.env.NAVER_BLOG_TIMEOUT_MS || '60000')
+const PUBLIC_ORIGIN = `https://${BLOG_NAME}.tistory.com`
 
 class TistoryError extends Error {
   constructor(code, message, details = null) {
@@ -59,6 +60,61 @@ async function assertTistoryAuthenticated() {
   }
 }
 
+function normalizeText(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim()
+}
+
+function isPublicPostUrl(url) {
+  return typeof url === 'string' && new RegExp(`^https://${BLOG_NAME}\\.tistory\\.com/\\d+(?:[/?#].*)?$`).test(url)
+}
+
+async function resolvePublishedUrl(page, title) {
+  await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {})
+  await page.waitForTimeout(2000)
+
+  const currentUrl = page.url()
+  if (isPublicPostUrl(currentUrl)) return currentUrl.split(/[?#]/)[0]
+
+  const canonical = await page.locator('link[rel="canonical"]').first()
+    .getAttribute('href')
+    .catch(() => null)
+  if (isPublicPostUrl(canonical)) return canonical.split(/[?#]/)[0]
+
+  const rssUrl = `${PUBLIC_ORIGIN}/rss`
+  const expectedTitle = normalizeText(title)
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const rss = await fetch(rssUrl, { cache: 'no-store' }).then((res) => res.text()).catch(() => '')
+    if (rss) {
+      const itemPattern = /<item\b[\s\S]*?<\/item>/gi
+      const items = rss.match(itemPattern) || []
+      for (const item of items) {
+        const titleMatch = item.match(/<title>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/title>/i)
+        const linkMatch = item.match(/<link>\s*([^<]+)\s*<\/link>/i)
+        const itemTitle = normalizeText(titleMatch?.[1] || '')
+        const itemLink = (linkMatch?.[1] || '').trim()
+        if (itemTitle && expectedTitle && itemTitle === expectedTitle && isPublicPostUrl(itemLink)) {
+          return itemLink.split(/[?#]/)[0]
+        }
+      }
+
+      // 티스토리 에디터가 제목을 보정하는 경우가 있어 최신 공개글을 후보로 한 번 더 본다.
+      const latestLink = items[0]?.match(/<link>\s*([^<]+)\s*<\/link>/i)?.[1]?.trim()
+      const latestTitle = normalizeText(items[0]?.match(/<title>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/title>/i)?.[1] || '')
+      if (isPublicPostUrl(latestLink) && latestTitle && (
+        latestTitle.includes(expectedTitle.slice(0, 12)) || expectedTitle.includes(latestTitle.slice(0, 12))
+      )) {
+        return latestLink.split(/[?#]/)[0]
+      }
+    }
+    await page.waitForTimeout(1500)
+  }
+
+  throw new TistoryError(
+    'TISTORY_PUBLIC_URL_NOT_FOUND',
+    `티스토리 발행 후 공개 글 URL을 확인하지 못했습니다. current_url=${currentUrl}`
+  )
+}
+
 async function writePostWithBrowser({ title, content_html, tags }) {
   const { browser, context, page } = await openTistoryEditorPage()
   try {
@@ -106,14 +162,8 @@ async function writePostWithBrowser({ title, content_html, tags }) {
     await saveBtn.waitFor({ state: 'visible', timeout: 10000 })
     await saveBtn.click()
 
-    await page.waitForURL(url => !url.includes('newpost'), { timeout: 30000 }).catch(() => {})
-    await page.waitForTimeout(2000)
-
-    const url = page.url()
-    let publishedUrl = url.includes('.tistory.com') && /\d+/.test(url) ? url : null
-    if (!publishedUrl) {
-      publishedUrl = url
-    }
+    await page.waitForURL(url => !url.toString().includes('newpost'), { timeout: 30000 }).catch(() => {})
+    const publishedUrl = await resolvePublishedUrl(page, title)
 
     await persistSession(context, STORAGE_PATH)
 

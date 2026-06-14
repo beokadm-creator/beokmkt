@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-14 — 채널별 실발행 검증 및 외부 발행 안정화
+
+자체 블로그·티스토리·네이버를 각각 실제 발행 경로로 태우며 발견한 문제를 수정.
+
+| 대상 | 내용 |
+|---|---|
+| `executors/naver-blog-worker/tistory-client.mjs` | 티스토리 발행 성공 URL을 관리 화면(`/manage/posts/`)이 아니라 공개 글 URL(`/숫자`)만 인정. 현재 URL/canonical/RSS로 공개 URL 확인 후 저장 |
+| `executors/naver-blog-worker/index.mjs` | 티스토리 멱등성 URL 검증 강화: `*.tistory.com/숫자`만 유효 발행 URL로 인정 |
+| `executors/naver-blog-worker/naver-html-adapter.mjs` | 네이버 입력 전 마크다운 이미지/제목/목록/문단을 HTML로 정규화. 기존 inline style 삽입 시 `>`가 빠지던 HTML 깨짐 수정 |
+| `executors/naver-blog-worker/index.mjs` | 네이버 SmartEditor 붙여넣기 검증 보강. 원격 이미지 누락만으로 전체 발행 차단하지 않고, 문단 구조 붕괴는 계속 차단 |
+| `executors/naver-blog-worker/index.mjs` | 네이버 발행 레이어 열림 확인/재오픈, 최종 발행 버튼을 레이어 내부 `seOnePublishBtn`/`confirm_btn` 중심으로 클릭. 실패 시 screenshot/html/buttons 덤프 저장 |
+
+검증:
+- 자체 블로그 id=17 공개 발행 및 HTTP 200 확인: `https://beokmkt.web.app/blog/비오케이솔루션-학회-명찰-출력-운영-체크리스트`
+- 티스토리 id=18 공개 발행 확인: `https://beoksolution.tistory.com/15` (RSS/공개 HTML 확인, DB·멱등성 로그 공개 URL로 보정)
+- 네이버 id=19 공개 발행 확인: `https://blog.naver.com/beoksolution/224315713776` (RSS/DB/멱등성 로그 확인)
+- `node --check` 통과: `index.mjs`, `naver-html-adapter.mjs`, `tistory-client.mjs`
+
+---
+
 ## 2026-06-14 — 네이버 글쓰기 URL/SmartEditor ONE 셀렉터 수정
 
 | 대상 | 내용 |

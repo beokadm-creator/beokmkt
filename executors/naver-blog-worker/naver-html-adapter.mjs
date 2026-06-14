@@ -6,6 +6,94 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
+function applyInlineMarkdown(text) {
+  return escapeHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
+}
+
+function markdownToHtml(markdown) {
+  const hasStructuralHtml = /<(h[1-6]|p|ul|ol|li|blockquote|table|img)\b/i.test(markdown)
+  const hasMarkdownBlocks = /(^|\n)\s*(#{2,3}\s+|[-*]\s+|\d+\.\s+|!\[[^\]]*\]\([^)\s]+\))/m.test(markdown)
+  if (hasStructuralHtml && !hasMarkdownBlocks) return markdown
+
+  const lines = String(markdown ?? '').split(/\r?\n/)
+  const out = []
+  let paragraph = []
+  let listType = ''
+
+  const closeParagraph = () => {
+    if (!paragraph.length) return
+    out.push(`<p>${applyInlineMarkdown(paragraph.join(' '))}</p>`)
+    paragraph = []
+  }
+  const closeList = () => {
+    if (!listType) return
+    out.push(`</${listType}>`)
+    listType = ''
+  }
+  const openList = (type) => {
+    closeParagraph()
+    if (listType === type) return
+    closeList()
+    listType = type
+    out.push(`<${type}>`)
+  }
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      closeParagraph()
+      closeList()
+      continue
+    }
+
+    const image = line.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)
+    if (image) {
+      closeParagraph()
+      closeList()
+      out.push(`<figure><img src="${escapeHtml(image[2])}" alt="${escapeHtml(image[1])}"></figure>`)
+      continue
+    }
+
+    const h3 = line.match(/^###\s+(.+)$/)
+    if (h3) {
+      closeParagraph()
+      closeList()
+      out.push(`<h3>${applyInlineMarkdown(h3[1])}</h3>`)
+      continue
+    }
+
+    const h2 = line.match(/^##\s+(.+)$/)
+    if (h2) {
+      closeParagraph()
+      closeList()
+      out.push(`<h2>${applyInlineMarkdown(h2[1])}</h2>`)
+      continue
+    }
+
+    const bullet = line.match(/^[-*]\s+(.+)$/)
+    if (bullet) {
+      openList('ul')
+      out.push(`<li>${applyInlineMarkdown(bullet[1])}</li>`)
+      continue
+    }
+
+    const numbered = line.match(/^\d+\.\s+(.+)$/)
+    if (numbered) {
+      openList('ol')
+      out.push(`<li>${applyInlineMarkdown(numbered[1])}</li>`)
+      continue
+    }
+
+    paragraph.push(line)
+  }
+  closeParagraph()
+  closeList()
+
+  return out.join('\n')
+}
+
 const INLINE_STYLES = {
   h2: 'font-size:1.5em;font-weight:700;margin:1.2em 0 .6em;line-height:1.4;color:#222;',
   h3: 'font-size:1.2em;font-weight:700;margin:1em 0 .5em;line-height:1.4;color:#333;',
@@ -46,7 +134,7 @@ function rewriteTag(match, fullTag, tagName) {
   if (/style=["'][^"']*["']/i.test(fullTag)) {
     return fullTag.replace(/style=["']([^"']*)["']/i, (m, existing) => `style="${existing};${style}"`)
   }
-  return fullTag.replace(/<(\w+)([^>]*)>/i, `<$1$2 style="${style}"`)
+  return fullTag.replace(/<(\w+)([^>]*)>/i, `<$1$2 style="${style}">`)
 }
 
 function addInlineStyles(html) {
@@ -115,7 +203,7 @@ function convertCtaBlock(html) {
 
 function convertForNaver(html) {
   if (!html || typeof html !== 'string') return ''
-  let out = html
+  let out = markdownToHtml(html)
 
   out = stripUnsafeTags(out)
   out = convertBrandHeader(out)

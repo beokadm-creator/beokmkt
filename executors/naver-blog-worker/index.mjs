@@ -31,6 +31,7 @@ const WRITE_URL = process.env.NAVER_BLOG_WRITE_URL || (
     : 'https://blog.naver.com/PostWrite.naver'
 )
 const LOGIN_URL = 'https://nid.naver.com/nidlogin.login'
+const DEBUG_DIR = path.resolve(process.env.BLOG_WORKER_DEBUG_DIR || './.session/debug')
 
 // 멱등성: 발행 성공 기록(post_id+platform). 재시도 시 중복 발행 방지.
 const PUBLISHED_LOG = path.resolve('./.session/published-log.json')
@@ -55,6 +56,9 @@ function isValidPublishedUrl(platform, url) {
   if (platform === 'naver') {
     return /PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(url)
   }
+  if (platform === 'tistory') {
+    return /^https:\/\/[^/]+\.tistory\.com\/\d+(?:[/?#].*)?$/.test(url)
+  }
   return /^https?:\/\//.test(url)
 }
 
@@ -71,6 +75,41 @@ function log(level, ...args) {
   const prefix = `[${ts}] [${level.toUpperCase()}]`
   if (level === 'error') console.error(prefix, ...args)
   else console.log(prefix, ...args)
+}
+
+function safeName(value) {
+  return String(value || 'unknown').replace(/[^a-zA-Z0-9가-힣._-]+/g, '-').slice(0, 80)
+}
+
+async function dumpPageDiagnostics(page, label, context = '') {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const base = path.join(DEBUG_DIR, `${stamp}-${safeName(label)}-${safeName(context)}`)
+  try {
+    await fs.mkdir(DEBUG_DIR, { recursive: true })
+    await page.screenshot({ path: `${base}.png`, fullPage: true }).catch(() => {})
+    await fs.writeFile(`${base}.html`, await page.content()).catch(() => {})
+    const buttons = await page.locator('button, a[role="button"], a').evaluateAll((nodes) => nodes
+      .map((node) => ({
+        tag: node.tagName,
+        text: (node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim(),
+        className: node.className || '',
+        id: node.id || '',
+        href: node.href || '',
+        visible: !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length),
+      }))
+      .filter((node) => node.visible && node.text)
+      .slice(0, 200)
+    ).catch(() => [])
+    await fs.writeFile(`${base}.buttons.json`, JSON.stringify({
+      url: page.url(),
+      label,
+      context,
+      buttons,
+    }, null, 2)).catch(() => {})
+    log('warn', `진단 덤프 저장: ${base}.{png,html,buttons.json}`)
+  } catch (e) {
+    log('warn', `진단 덤프 실패(무시): ${e.message}`)
+  }
 }
 
 async function pathExists(p) {
@@ -101,7 +140,7 @@ async function loginIfNeeded(page) {
   throw new WorkerError('LOGIN_REQUIRED', '세션이 만료되었습니다. npm run login 으로 다시 로그인하세요.')
 }
 
-async function pasteHtmlIntoEditor(page, html) {
+async function pasteHtmlIntoEditor(page, html, debugContext = '') {
   await page.bringToFront()
   const smartEditorBody = page.locator(
     '.se-section-text .se-text-paragraph, .se-component.se-text .se-text-paragraph, .se-module.se-module-text:not(.se-title-text) .se-text-paragraph'
@@ -144,8 +183,9 @@ async function pasteHtmlIntoEditor(page, html) {
       const images = document.querySelectorAll('.se-component.se-image img, .se-image img, .se-module-image img').length
       return { paragraphs, images }
     }).catch(() => ({ paragraphs: 0, images: 0 }))
-    // 이미지가 있던 글인데 에디터에 0개면 평문으로 붕괴된 것
-    if (expectedImages >= 1 && actual.images === 0) return false
+    if (expectedImages >= 1 && actual.images === 0) {
+      log('warn', '네이버 에디터 이미지 삽입 확인 실패 — 본문 구조가 유지되면 발행 계속')
+    }
     // 블록이 여럿이던 글이 본문 문단 1개 이하로 뭉개졌으면 붕괴
     if (expectedBlocks >= 5 && actual.paragraphs <= 1) return false
     return true
@@ -221,6 +261,7 @@ async function pasteHtmlIntoEditor(page, html) {
 
   // 평문 타이핑 폴백은 제거했다. 모든 리치 전략이 구조 보존에 실패하면
   // 제목/목록/이미지가 날아간 '쓰레기 글'을 발행하느니 needs_human으로 격리한다.
+  await dumpPageDiagnostics(page, 'naver-paste-structure-lost', debugContext)
   throw new WorkerError(
     'PASTE_STRUCTURE_LOST',
     'SmartEditor 본문 구조 입력 실패 (리치 paste 전략 모두 실패 — 평문 발행 차단)'
@@ -289,8 +330,14 @@ async function selectNaverTheme(page, theme) {
   }
 }
 
-async function clickPublishButton(page, theme = '') {
+async function clickPublishButton(page, theme = '', debugContext = '') {
   await dismissEditorOverlays(page)
+
+  const finalPublishVisible = async () => (
+    await page.locator('button[data-testid="seOnePublishBtn"], button[class^="confirm_btn"]').first()
+      .isVisible()
+      .catch(() => false)
+  )
 
   const clickFirstVisible = async (selectors, label) => {
     for (const sel of selectors) {
@@ -319,30 +366,69 @@ async function clickPublishButton(page, theme = '') {
     throw new WorkerError('PUBLISH_BUTTON_NOT_FOUND', '발행 버튼을 찾지 못했습니다.')
   }
 
-  await page.waitForTimeout(1500)
+  await page.waitForTimeout(1200)
+  if (!(await finalPublishVisible())) {
+    log('warn', '네이버 발행 설정 레이어 미확인 — 1차 발행 버튼 재클릭')
+    await clickFirstVisible([
+      'button[class^="publish_btn"]',
+      'button[class*=" publish_btn"]',
+      '.se_publish_btn',
+    ], '네이버 1차 발행 버튼(재시도)')
+    await page.waitForTimeout(1200)
+  }
+
   await page.locator('.se-help-panel-close-button').first()
     .click({ timeout: 1000, force: true })
     .catch(() => {})
 
   // 발행 설정 레이어가 열린 상태에서 주제 선택(검색 분류 신호)
-  await selectNaverTheme(page, theme)
+  if (await finalPublishVisible()) {
+    await selectNaverTheme(page, theme)
+    if (!(await finalPublishVisible())) {
+      log('warn', '네이버 주제 선택 후 발행 레이어가 닫힘 — 재오픈')
+      await clickFirstVisible([
+        'button[class^="publish_btn"]',
+        'button[class*=" publish_btn"]',
+        '.se_publish_btn',
+      ], '네이버 1차 발행 버튼(주제 선택 후 재오픈)')
+      await page.waitForTimeout(1200)
+    }
+  }
 
   const confirmSelectors = [
+    'button[data-testid="seOnePublishBtn"]',
     'button[class^="confirm_btn"]',
     'button[class*=" confirm_btn"]',
+    'button[class*="confirm"]',
     '[data-action="confirm"]',
+    '.layer_btn_area__UzyKH button:has-text("발행")',
+    '.layer_publish__vA9PX button:has-text("발행")',
+    '[class*="layer_btn_area"] button:has-text("발행")',
+    '[class*="layer_publish"] button:has-text("발행")',
   ]
   let confirmed = false
   for (const sel of confirmSelectors) {
-    const handle = page.locator(sel).first()
-    if ((await handle.count()) > 0 && (await handle.isVisible().catch(() => false))) {
+    const handles = page.locator(sel)
+    const count = await handles.count().catch(() => 0)
+    for (let i = 0; i < count; i += 1) {
+      const handle = handles.nth(i)
+      if (!(await handle.isVisible().catch(() => false))) continue
+      const text = (await handle.innerText().catch(() => '')).replace(/\s+/g, ' ').trim()
+      if (text && !/(발행|확인|완료|등록)/.test(text)) continue
       await handle.click({ timeout: 5000, force: true })
-      log('info', `네이버 최종 발행 버튼 클릭: ${sel}`)
+      log('info', `네이버 최종 발행 버튼 클릭: ${sel}${text ? ` text="${text}"` : ''}`)
+      await page.waitForTimeout(1200)
+      if (await page.locator('button[data-testid="seOnePublishBtn"], button[class^="confirm_btn"]').first().isVisible().catch(() => false)) {
+        log('warn', `네이버 최종 발행 버튼 클릭 후 레이어가 닫히지 않음: ${sel}`)
+        continue
+      }
       confirmed = true
       break
     }
+    if (confirmed) break
   }
   if (!confirmed) {
+    await dumpPageDiagnostics(page, 'naver-confirm-not-found', debugContext)
     throw new WorkerError('PUBLISH_CONFIRM_NOT_FOUND', '최종 발행 버튼을 찾지 못했습니다.')
   }
 }
@@ -445,7 +531,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
 
     await fillNaverTitle(page, publishTitle)
 
-    await pasteHtmlIntoEditor(page, naverHtml)
+    await pasteHtmlIntoEditor(page, naverHtml, post_id || publishTitle)
 
     if (Array.isArray(tags) && tags.length) {
       const tagInput = page.locator('input[placeholder*="태그"], .tag_input input, input[name="tags"]').first()
@@ -455,9 +541,10 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
       }
     }
 
-    await clickPublishButton(page, topic_theme)
+    await clickPublishButton(page, topic_theme, post_id || publishTitle)
     const publishedUrl = await capturePublishedUrl(page)
     if (!publishedUrl) {
+      await dumpPageDiagnostics(page, 'naver-url-not-found', post_id || publishTitle)
       throw new WorkerError('PUBLISH_URL_NOT_FOUND', '네이버 발행 후 공개 글 URL을 확인하지 못했습니다.')
     }
     await saveStorageState(context)
