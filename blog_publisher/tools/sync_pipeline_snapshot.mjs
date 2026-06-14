@@ -3,13 +3,14 @@ import path from 'path'
 import os from 'os'
 import { fileURLToPath } from 'url'
 import Database from 'better-sqlite3'
-import { readFileSync } from 'fs'
+import { readFileSync, statSync } from 'fs'
 import { initializeApp } from 'firebase-admin/app'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DB_PATH = path.resolve(__dirname, '../db/blog.db')
 const ENV_PATH = path.resolve(__dirname, '../.env')
+const WORKER_DIR = path.resolve(__dirname, '../../executors/naver-blog-worker')
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'beokmkt'
 const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
 const CHANNELS = ['naver', 'tistory', 'selfhosted']
@@ -37,6 +38,40 @@ function qualityGateStatus() {
     enforced: minGrounding > 0 && minReviewScore > 0,
     ok: minGrounding >= 0.9 && minReviewScore >= 80,
   }
+}
+
+function sessionFileHealth(channel, relativePath) {
+  const sessionPath = path.resolve(WORKER_DIR, relativePath)
+  try {
+    const stat = statSync(sessionPath)
+    const ageHours = Math.round(((Date.now() - stat.mtimeMs) / 36_000) / 10)
+    return {
+      channel,
+      exists: true,
+      ok: ageHours <= 72,
+      path: relativePath,
+      updated_at: stat.mtime.toISOString(),
+      age_hours: ageHours,
+      size: stat.size,
+    }
+  } catch {
+    return {
+      channel,
+      exists: false,
+      ok: false,
+      path: relativePath,
+      updated_at: null,
+      age_hours: null,
+      size: 0,
+    }
+  }
+}
+
+function channelSessionHealth() {
+  return [
+    sessionFileHealth('naver', './.session/naver-session.json'),
+    sessionFileHealth('tistory', './.session/tistory-session.json'),
+  ]
 }
 
 function pipelineQuality(body = '', groundingRatio = null) {
@@ -383,6 +418,7 @@ async function collectSnapshot() {
         stale,
         stuck_threshold_min: stuckThresholdMin,
         quality_gate: qualityGateStatus(),
+        session_health: channelSessionHealth(),
       },
       needs_human_posts,
       recent,

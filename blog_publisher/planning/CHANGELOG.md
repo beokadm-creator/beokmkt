@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-15 — 관리자 운영 준비도에 채널 세션 헬스 노출
+
+네이버/티스토리 발행 실패의 주요 원인인 세션 만료를 발행 시점이 아니라 대시보드에서 미리 확인할 수 있도록 세션 파일 헬스 상태를 운영 준비도에 추가했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | 네이버/티스토리 세션 파일 존재 여부, 갱신 시각, age hour, 파일 크기, 72시간 기준 ok 여부를 `ops.session_health`로 동기화 |
+| `server/index.mjs` | 로컬 `/api/pipeline/stats`도 같은 세션 헬스 상태 반환 |
+| `src/spa/pages/DashboardPage.tsx` | 운영 준비도 카드에 `채널 세션` 셀 추가. 세션 없음/72시간 초과 시 확인 필요 표시 |
+| `functions/ssr-template.mjs` | SPA 빌드 산출 템플릿 갱신 |
+
+검증:
+- `node --check server/index.mjs`, `node --check blog_publisher/tools/sync_pipeline_snapshot.mjs` PASS
+- `npx tsc --noEmit` PASS
+- `python3 blog_publisher/run.py sync_snapshot`에서 naver/tistory 세션 `ok: true` 확인
+- `npm run lint -- .` 0 errors / 기존 warnings 유지
+- `python3 blog_publisher/run.py quality_selftest`, `verify_public 10`, `needs_human` PASS
+- `npm run build:spa`, Firebase Hosting 배포 PASS
+
+---
+
 ## 2026-06-15 — 관리자 운영 준비도에 품질 게이트 상태 노출
 
 발행 품질 사고의 직접 원인이었던 `MIN_GROUNDING_RATIO`/`MIN_REVIEW_SCORE` 설정을 운영자가 대시보드에서 바로 볼 수 있도록 파이프라인 스냅샷과 로컬 관리자 API에 품질 게이트 상태를 추가했다.

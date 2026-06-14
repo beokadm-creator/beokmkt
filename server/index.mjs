@@ -5,7 +5,7 @@ import { getAuth } from 'firebase-admin/auth'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
-import { readFileSync } from 'fs'
+import { readFileSync, statSync } from 'fs'
 import Database from 'better-sqlite3'
 import { getIdempotency, loadStore, newId, nowIso, saveStore, setIdempotency } from './store.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
@@ -19,6 +19,10 @@ const PIPELINE_DB_PATH = path.resolve(
 const PIPELINE_ENV_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../blog_publisher/.env'
+)
+const WORKER_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../executors/naver-blog-worker'
 )
 
 function readPipelineEnvNumber(key, fallback) {
@@ -43,6 +47,40 @@ function pipelineQualityGateStatus() {
     enforced: minGrounding > 0 && minReviewScore > 0,
     ok: minGrounding >= 0.9 && minReviewScore >= 80,
   }
+}
+
+function sessionFileHealth(label, relativePath) {
+  const sessionPath = path.resolve(WORKER_DIR, relativePath)
+  try {
+    const stat = statSync(sessionPath)
+    const ageHours = Math.round(((Date.now() - stat.mtimeMs) / 36_000) / 10)
+    return {
+      channel: label,
+      exists: true,
+      ok: ageHours <= 72,
+      path: relativePath,
+      updated_at: stat.mtime.toISOString(),
+      age_hours: ageHours,
+      size: stat.size,
+    }
+  } catch {
+    return {
+      channel: label,
+      exists: false,
+      ok: false,
+      path: relativePath,
+      updated_at: null,
+      age_hours: null,
+      size: 0,
+    }
+  }
+}
+
+function channelSessionHealth() {
+  return [
+    sessionFileHealth('naver', './.session/naver-session.json'),
+    sessionFileHealth('tistory', './.session/tistory-session.json'),
+  ]
 }
 
 function openPipelineDb() {
@@ -2549,6 +2587,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         snapshot_age_sec: 0,
         snapshot_stale: false,
         quality_gate: pipelineQualityGateStatus(),
+        session_health: channelSessionHealth(),
       },
       needs_human_posts,
       recent,
