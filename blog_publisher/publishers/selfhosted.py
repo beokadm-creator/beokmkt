@@ -40,6 +40,9 @@ class SelfHostedPublisher:
                 "canonical_url": post.get("canonical_url", ""),
                 "lang": post.get("locale", "ko"),
                 "source_url": post.get("source_url", ""),
+                "category": post.get("category", ""),
+                "topic": post.get("topic", ""),
+                "blog_profile": post.get("blog_profile", ""),
             })
 
         tags = _loads(post.get("tags"))

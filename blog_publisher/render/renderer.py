@@ -167,6 +167,17 @@ def _reading_minutes(text: str) -> int:
     return max(1, round(len(_plain_text(text)) / 650))
 
 
+def _tags(post: dict) -> list[str]:
+    tags = post.get("tags", []) or []
+    if isinstance(tags, str):
+        try:
+            parsed = json.loads(tags)
+            tags = parsed if isinstance(parsed, list) else []
+        except (TypeError, ValueError, json.JSONDecodeError):
+            tags = [t.strip() for t in tags.split(",") if t.strip()]
+    return [str(t).strip() for t in tags if str(t).strip()]
+
+
 def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str:
     desc = (post.get("meta_desc") or "").strip()
     bullets = [title for _hid, title in toc[:3]]
@@ -189,7 +200,7 @@ def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str
 def _cta_html(post: dict) -> str:
     category = post.get("category") or ""
     topic = f"{post.get('topic', '')} {post.get('title', '')}"
-    if category == "beok" or "명찰" in topic or "학회" in topic or not category:
+    if "명찰" in topic or "학회" in topic or "사무국" in topic:
         return (
             '<aside class="soft-cta">'
             '<strong>학회 명찰 출력과 현장 재발행 기준이 필요하다면</strong>'
@@ -197,7 +208,15 @@ def _cta_html(post: dict) -> str:
             '<a href="https://beoksolution.com" target="_blank" rel="noopener">상담 문의하기</a>'
             '</aside>'
         )
-    if "AI" in category or "예약" in category or "홈페이지" in category or "홈페이지" in topic:
+    if (
+        category == "beok"
+        or not category
+        or "AI" in category
+        or "예약" in category
+        or "홈페이지" in category
+        or "홈페이지" in topic
+        or "자동화" in topic
+    ):
         return (
             '<aside class="soft-cta">'
             '<strong>운영 업무를 실제 시스템과 연결해야 한다면</strong>'
@@ -219,7 +238,7 @@ def _source_footer_html(post: dict) -> str:
 
 
 def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]], source_md: str) -> str:
-    tags = post.get("tags", []) or []
+    tags = _tags(post)
     tags_html = "".join(
         f'<a href="/tag/{html.escape(t)}">#{html.escape(t)}</a>' for t in tags
     )
@@ -239,7 +258,7 @@ def _build_article_html(post: dict) -> tuple[str, str, str]:
     body_md = post.get("body", "")
     content_html, toc = _markdown_to_html(body_md)
     published = post.get("published_at") or datetime.now(timezone.utc)
-    tags = post.get("tags", []) or []
+    tags = _tags(post)
 
     tags_html = "".join(
         f'<a href="/tag/{html.escape(t)}">#{html.escape(t)}</a>' for t in tags

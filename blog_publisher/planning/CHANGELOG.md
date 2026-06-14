@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-15 — 자체 블로그 CTA/태그 렌더링 품질 보정
+
+queued/reviewed 글을 실제 렌더링해 읽어본 결과, 홈페이지 제작 글에도 학회 명찰 CTA가 붙고 로컬 DB의 JSON 태그 문자열이 글자 단위 태그로 풀릴 수 있는 문제가 있었다. 발행 직전 렌더러가 글의 주제에 맞는 CTA와 태그를 안정적으로 만들도록 보정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/render/renderer.py` | `tags`가 JSON 문자열이어도 배열로 파싱. 학회/명찰/사무국 글에만 명찰 CTA를 쓰고, beok 홈페이지·예약·자동화 글에는 운영 시스템 CTA를 사용 |
+| `blog_publisher/publishers/selfhosted.py` | 자체 블로그 발행 렌더링 시 `category`, `topic`, `blog_profile`도 전달해 CTA 분기가 실제 발행 경로에서도 동작하게 함 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- queued id 41, reviewed id 42/43 렌더링에서 홈페이지 글 CTA가 운영 시스템 상담 문구로 변경됨
+- id 41/42/43 태그가 글자 단위가 아니라 실제 SEO 태그 배열로 출력됨
+
+---
+
 ## 2026-06-15 — 채널별 실발행 검증과 생성 워커 하드 타임아웃
 
 자체 블로그·티스토리·네이버 블로그를 각각 1건씩 실제 발행 경로로 실행해 공개 URL까지 확인했다. 발행기는 세 채널 모두 동작했지만, 운영 재고가 쌓이지 않는 직접 원인은 `generate` 단계였다. 기존 생성 워커는 외부 LLM/SSL 대기에서 멈추면 cron 주기 전체를 붙잡고 `generating` 상태도 남길 수 있었다.
