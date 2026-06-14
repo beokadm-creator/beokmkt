@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-15 — 관리자 품질 보강 대상 미리보기 정합성 개선
+
+관리자 대시보드의 `quality_items`가 클라우드 스냅샷에서는 본문 excerpt/preview를 포함하지만 로컬 API에서는 빠져 있어 실행 위치에 따라 운영자가 보는 정보가 달랐다. 품질 보강 대상 목록에서 상세를 열기 전에도 실제 본문 일부를 바로 읽고 판단할 수 있도록 로컬 API와 UI를 맞췄다.
+
+| 대상 | 내용 |
+|---|---|
+| `server/index.mjs` | 로컬 `/api/pipeline/stats`의 `quality_items`에 `body_available`, `body_excerpt`, `preview_html` 추가 |
+| `src/spa/pages/DashboardPage.tsx` | 품질 보강 대상 카드에 본문 excerpt와 미리보기 보유 신호 노출 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+검증:
+- `npx tsc --noEmit` PASS
+- `node --check server/index.mjs`, `node --check functions/index.mjs` PASS
+- `python3 blog_publisher/run.py quality_selftest`, `verify_public 10` PASS
+- `npm run build:spa` PASS
+
+---
+
 ## 2026-06-15 — Phase A 생성 품질 회귀테스트 추가
 
 Phase A의 핵심 변경(섹션 600~1000자 지시, 섹션 1500토큰, thinking ON, 한자 혼입 재시도/제거)이 코드에는 반영돼 있었지만 `quality_selftest`가 이를 직접 검증하지 못했다. 향후 프롬프트/모델 설정을 손대다가 생성 품질 계약이 조용히 후퇴하지 않도록 오프라인 Mock LLM 기반 회귀테스트를 추가했다.

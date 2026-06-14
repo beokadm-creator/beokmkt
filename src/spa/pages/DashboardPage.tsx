@@ -52,6 +52,9 @@ type QualityItem = {
   }
   issues: string[]
   action?: string | null
+  body_available?: boolean
+  body_excerpt?: string
+  preview_html?: string
   updated_at: string
 }
 
@@ -525,6 +528,11 @@ function QualityItemsPanel({
                   ))}
                 </div>
                 <div className="mt-2 truncate text-sm text-zinc-200">{item.title || item.topic}</div>
+                {item.body_excerpt ? (
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-500">
+                    {item.body_excerpt}
+                  </p>
+                ) : null}
                 {item.action ? (
                   <div className="mt-2 inline-flex rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300">
                     다음 조치: {item.action}
@@ -536,6 +544,7 @@ function QualityItemsPanel({
                   <span>이미지 {item.quality.images}</span>
                   <span>소제목 {item.quality.headings}</span>
                   <span>grounding {item.quality.grounding_ratio == null ? '미측정' : item.quality.grounding_ratio.toFixed(2)}</span>
+                  {item.preview_html ? <span>미리보기 있음</span> : null}
                 </div>
               </div>
               <div className="flex shrink-0 gap-2 md:flex-col">

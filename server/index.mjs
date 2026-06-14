@@ -2232,6 +2232,17 @@ function qualityActionFor(issues = [], status = '') {
   return '본문 품질 확인'
 }
 
+function pipelineBodyPreview(body = '') {
+  const value = String(body ?? '')
+  return {
+    body_available: Boolean(value.trim()),
+    body_excerpt: plainTextFromContent(value).slice(0, 1200),
+    preview_html: /<(h[1-6]|p|ul|ol|li|blockquote|img|figure|table)\b/i.test(value)
+      ? sanitizePreviewHtml(value)
+      : markdownToPreviewHtml(value),
+  }
+}
+
 function collectQualityItems(db, limit = 12) {
   return db.prepare(
     `SELECT id, topic, title, channel, status, body, grounding_ratio, published_url, updated_at
@@ -2263,6 +2274,7 @@ function collectQualityItems(db, limit = 12) {
         issues,
         action: qualityActionFor(issues, post.status),
         updated_at: post.updated_at,
+        ...pipelineBodyPreview(post.body),
       }
     })
     .filter((post) => post.issues.length > 0)
