@@ -18,9 +18,9 @@ const IMAGE_POOL = {
     { url: 'https://beokmkt.web.app/assets/blog/beok/seo-card.svg', alt: '비오케이솔루션 검색 노출 기본 세팅 카드', tags: ['SEO', '검색', '노출', '구글', '서치콘솔', '사이트맵', '색인', '메타', '마케팅'] },
     { url: 'https://beokmkt.web.app/assets/blog/beok/automation-card.svg', alt: '비오케이솔루션 예약 결제 알림 자동화 카드', tags: ['콘텐츠', '자동화', '예약', '결제', '알림톡', 'AI', '문의', '응대', '폼'] },
     { url: 'https://beokmkt.web.app/assets/blog/beok/workflow-card.svg', alt: '비오케이솔루션 홈페이지 운영 흐름 카드', tags: ['브랜딩', '캠페인', '전략', '홈페이지', '운영', '개선', '전환'] },
-    { url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80', alt: '디지털 마케팅 성과 대시보드', tags: ['마케팅', '디지털', '성과', '대시보드', '분석', 'SEO'] },
-    { url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80', alt: '콘텐츠 마케팅 데이터 분석 화면', tags: ['콘텐츠', '콘텐츠 마케팅', '자동화', '분석', '데이터', '전략'] },
-    { url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80', alt: '마케팅 전략 회의와 캠페인 기획', tags: ['브랜딩', '광고', '캠페인', 'SNS', '전략', '마케팅'] },
+    { url: 'https://beokmkt.web.app/assets/blog/beok/checklist-card.svg', alt: '비오케이솔루션 홈페이지 운영 체크리스트 카드', tags: ['체크리스트', '준비', '주의', '필수', '방법', '단계', '확인', '운영'] },
+    { url: 'https://hongcomm.kr/img/page/a1.png', alt: '온라인 등록과 접수 시스템 화면', tags: ['마케팅', '디지털', '성과', '대시보드', '분석', '등록', '접수', '시스템'] },
+    { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 운영 통합 관리 시스템 화면', tags: ['콘텐츠', '자동화', '분석', '데이터', '전략', '운영', '관리', '시스템'] },
     { url: 'https://hongcomm.kr/theme/basic/img/kaid.png', alt: '마케팅 랜딩페이지와 홈페이지 사례', tags: ['홈페이지', '랜딩페이지', '브랜딩', '전환', '솔루션'] },
   ],
   company: [
