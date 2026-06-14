@@ -73,11 +73,11 @@ export default function PublicBlogPostPage() {
           image: post.featured_image ? [post.featured_image] : undefined,
           author: {
             '@type': 'Organization',
-            name: '홍커뮤니케이션',
+            name: '비오케이솔루션',
           },
           publisher: {
             '@type': 'Organization',
-            name: '홍커뮤니케이션',
+            name: '비오케이솔루션',
             url: window.location.origin,
           },
         },

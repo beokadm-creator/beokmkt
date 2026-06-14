@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { apiJson } from '../lib/api'
+import { ApiRequestError, apiJson } from '../lib/api'
 import StatusBadge from '../components/StatusBadge'
 
 type ByStatus = Record<string, number>
@@ -9,9 +9,20 @@ type ByChannel = Record<string, ChannelStats>
 type NeedsHumanPost = {
   id: number | string
   topic: string
+  title?: string
   channel: string
+  status: string
   last_error: string | null
+  published_url?: string | null
   action?: string | null
+  can_requeue?: boolean
+  reason?: string | null
+  quality?: {
+    chars: number
+    images: number
+    headings: number
+    grounding_ratio: number | null
+  }
   updated_at: string
 }
 
@@ -100,6 +111,16 @@ function KpiCard({ label, value, sub, alert }: { label: string; value: number; s
       {sub ? <div className="mt-1 text-xs text-zinc-500">{sub}</div> : null}
     </div>
   )
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiRequestError) {
+    const details = error.details && typeof error.details === 'object' && 'reason' in error.details
+      ? String((error.details as { reason?: unknown }).reason)
+      : ''
+    return details || error.message || fallback
+  }
+  return error instanceof Error ? error.message : fallback
 }
 
 function StageBar({ by_status }: { by_status: ByStatus }) {
@@ -301,7 +322,7 @@ export default function DashboardPage() {
       if (d.error) setError(`DB 오류: ${d.error}`)
       else setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '불러오기 실패')
+      setError(errorMessage(e, '불러오기 실패'))
     }
   }, [])
 
@@ -313,7 +334,7 @@ export default function DashboardPage() {
       setDetail(next)
     } catch (e) {
       setDetail(null)
-      setDetailError(e instanceof Error ? e.message : '상세 불러오기 실패')
+      setDetailError(errorMessage(e, '상세 불러오기 실패'))
     } finally {
       setDetailLoading(false)
     }
@@ -328,7 +349,7 @@ export default function DashboardPage() {
       await fetchStats()
       await openDetail(detail.id)
     } catch (e) {
-      setDetailError(e instanceof Error ? e.message : '재큐잉 실패')
+      setDetailError(errorMessage(e, '재큐잉 실패'))
     } finally {
       setRequeueing(false)
     }
@@ -439,7 +460,15 @@ export default function DashboardPage() {
       {/* 수동 처리 필요 */}
       {data && data.needs_human_posts.length > 0 ? (
         <div className="rounded-xl border border-rose-900/50 bg-zinc-900/30 p-4">
-          <div className="mb-3 text-sm font-semibold text-rose-300">수동 처리 필요 ({data.needs_human_posts.length})</div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-rose-300">수동 처리 필요 ({data.needs_human_posts.length})</div>
+              <div className="mt-1 text-xs text-zinc-500">자동 재시도 금지 사유와 공개 글 확인 대상을 먼저 분리합니다.</div>
+            </div>
+            <span className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-400">
+              재시도 가능 {data.needs_human_posts.filter((post) => post.can_requeue).length}
+            </span>
+          </div>
           <div className="flex flex-col gap-2">
             {data.needs_human_posts.map((post) => (
               <div key={post.id} className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2">
@@ -447,25 +476,62 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono text-zinc-500">#{post.id}</span>
                     <StatusBadge value={post.channel} />
+                    <StatusBadge value={post.status} />
+                    <span
+                      className={[
+                        'rounded-md border px-2 py-0.5 text-[11px]',
+                        post.can_requeue
+                          ? 'border-emerald-900/60 bg-emerald-950/30 text-emerald-200'
+                          : 'border-amber-900/60 bg-amber-950/30 text-amber-200',
+                      ].join(' ')}
+                    >
+                      {post.can_requeue ? '재시도 가능' : '자동 차단'}
+                    </span>
                   </div>
                   <div className="mt-1 truncate text-sm text-zinc-200">{post.topic}</div>
                   {post.last_error ? (
                     <div className="mt-1 truncate text-xs text-rose-400">{post.last_error}</div>
                   ) : null}
+                  {!post.can_requeue && post.reason ? (
+                    <div className="mt-2 inline-flex rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-300">
+                      차단 사유: {post.reason}
+                    </div>
+                  ) : null}
                   {post.action ? (
-                    <div className="mt-2 inline-flex rounded-md border border-amber-900/40 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">
+                    <div className="mt-2 ml-0 inline-flex rounded-md border border-amber-900/40 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">
                       다음 조치: {post.action}
                     </div>
                   ) : null}
-                  <div className="mt-1 text-xs text-zinc-600">{formatDate(post.updated_at)}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500">
+                    <span>{formatDate(post.updated_at)}</span>
+                    {post.quality ? (
+                      <>
+                        <span>본문 {post.quality.chars.toLocaleString('ko-KR')}자</span>
+                        <span>이미지 {post.quality.images}</span>
+                        <span>소제목 {post.quality.headings}</span>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => openDetail(post.id)}
-                  className="shrink-0 self-center rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
-                >
-                  원인 보기
-                </button>
+                <div className="flex shrink-0 flex-col gap-2 self-center">
+                  <button
+                    type="button"
+                    onClick={() => openDetail(post.id)}
+                    className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                  >
+                    원인 보기
+                  </button>
+                  {post.published_url ? (
+                    <a
+                      href={post.published_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md border border-zinc-800 px-2 py-1 text-center text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                    >
+                      공개 글
+                    </a>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>

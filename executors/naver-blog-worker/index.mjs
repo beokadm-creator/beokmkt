@@ -35,6 +35,21 @@ const DEBUG_DIR = path.resolve(process.env.BLOG_WORKER_DEBUG_DIR || './.session/
 
 // 멱등성: 발행 성공 기록(post_id+platform). 재시도 시 중복 발행 방지.
 const PUBLISHED_LOG = path.resolve('./.session/published-log.json')
+let publishQueue = Promise.resolve()
+
+async function runPublishExclusive(label, task) {
+  const previous = publishQueue.catch(() => {})
+  let release
+  publishQueue = new Promise((resolve) => { release = resolve })
+  await previous
+  log('info', `발행 큐 진입: ${label}`)
+  try {
+    return await task()
+  } finally {
+    release()
+    log('info', `발행 큐 해제: ${label}`)
+  }
+}
 
 async function loadPublishedLog() {
   try { return JSON.parse(await fs.readFile(PUBLISHED_LOG, 'utf-8')) } catch { return {} }
@@ -843,43 +858,45 @@ async function handlePublish(req, res, platform) {
     log('info', `content_html length=${(body.content_html || '').length} preview=${(body.content_html || '').slice(0, 100)}`)
   }
 
-  // 멱등성: 이미 발행된 post_id+platform이면 재발행하지 않고 기존 URL 반환
-  const dedupKey = postId ? `${platform}:${postId}` : ''
-  if (dedupKey) {
-    const logData = await loadPublishedLog()
-    if (logData[dedupKey] && isValidPublishedUrl(platform, logData[dedupKey].url)) {
-      log('warn', `중복 발행 차단 [${dedupKey}] → 기존 URL 반환: ${logData[dedupKey].url}`)
-      return sendJson(res, 200, { ok: true, platform, url: logData[dedupKey].url, deduped: true })
-    } else if (logData[dedupKey]) {
-      log('warn', `무효 발행 로그 무시 [${dedupKey}] → ${logData[dedupKey].url || '(URL 없음)'}`)
-    }
-  }
-
-  try {
-    let result
-    if (platform === 'tistory') {
-      log('info', '티스토리 API 호출 중…')
-      result = await publishToTistory(body)
-    } else if (platform === 'naver') {
-      log('info', '네이버 블로그 Playwright 실행 중…')
-      result = await publishToNaver(body)
-    } else if (platform === 'twitter') {
-      log('info', '트위터 Playwright 실행 중…')
-      result = await publishToTwitter(body)
-    } else {
-      return sendJson(res, 400, { error: `지원하지 않는 platform: ${platform}` })
+  return runPublishExclusive(`${platform}:${postId || body.title}`, async () => {
+    // 멱등성: 큐 안에서 다시 확인해 동시 요청의 성공 직후 재발행을 차단한다.
+    const dedupKey = postId ? `${platform}:${postId}` : ''
+    if (dedupKey) {
+      const logData = await loadPublishedLog()
+      if (logData[dedupKey] && isValidPublishedUrl(platform, logData[dedupKey].url)) {
+        log('warn', `중복 발행 차단 [${dedupKey}] → 기존 URL 반환: ${logData[dedupKey].url}`)
+        return sendJson(res, 200, { ok: true, platform, url: logData[dedupKey].url, deduped: true })
+      } else if (logData[dedupKey]) {
+        log('warn', `무효 발행 로그 무시 [${dedupKey}] → ${logData[dedupKey].url || '(URL 없음)'}`)
+      }
     }
 
-    log('info', `✅ 발행 성공 [${platform}] → ${result.url || '(URL 없음)'}`)
-    if (dedupKey) await recordPublished(dedupKey, result.url)
-    if (postId) await reportResultToMain(postId, platform, { status: 'success', title: body.title, url: result.url, published_at: result.published_at })
-    return sendJson(res, 200, { ok: true, platform, ...result })
-  } catch (e) {
-    const code = e instanceof WorkerError ? e.code : (e instanceof TistoryError ? e.code : 'UNKNOWN')
-    log('error', `❌ 발행 실패 [${code}]: ${e.message}`)
-    if (postId) await reportResultToMain(postId, platform, { status: 'failed', title: body.title, error: e.message, code })
-    return sendJson(res, 500, { ok: false, error: e.message, code })
-  }
+    try {
+      let result
+      if (platform === 'tistory') {
+        log('info', '티스토리 API 호출 중…')
+        result = await publishToTistory(body)
+      } else if (platform === 'naver') {
+        log('info', '네이버 블로그 Playwright 실행 중…')
+        result = await publishToNaver(body)
+      } else if (platform === 'twitter') {
+        log('info', '트위터 Playwright 실행 중…')
+        result = await publishToTwitter(body)
+      } else {
+        return sendJson(res, 400, { error: `지원하지 않는 platform: ${platform}` })
+      }
+
+      log('info', `✅ 발행 성공 [${platform}] → ${result.url || '(URL 없음)'}`)
+      if (dedupKey) await recordPublished(dedupKey, result.url)
+      if (postId) await reportResultToMain(postId, platform, { status: 'success', title: body.title, url: result.url, published_at: result.published_at })
+      return sendJson(res, 200, { ok: true, platform, ...result })
+    } catch (e) {
+      const code = e instanceof WorkerError ? e.code : (e instanceof TistoryError ? e.code : 'UNKNOWN')
+      log('error', `❌ 발행 실패 [${code}]: ${e.message}`)
+      if (postId) await reportResultToMain(postId, platform, { status: 'failed', title: body.title, error: e.message, code })
+      return sendJson(res, 500, { ok: false, error: e.message, code })
+    }
+  })
 }
 
 async function handlePublishAll(req, res) {
@@ -894,21 +911,26 @@ async function handlePublishAll(req, res) {
   log('info', `다중 플랫폼 발행 요청 post_id=${postId} platforms=[${platforms.join(',')}]`)
 
   const results = {}
-  const pubLog = postId ? await loadPublishedLog() : {}
   for (const platform of platforms) {
-    if (postId && pubLog[`${platform}:${postId}`] && isValidPublishedUrl(platform, pubLog[`${platform}:${postId}`].url)) {
-      results[platform] = { ok: true, url: pubLog[`${platform}:${postId}`].url, deduped: true }
-      continue
-    }
     try {
-      let r
-      if (platform === 'tistory') r = await publishToTistory(body)
-      else if (platform === 'naver') r = await publishToNaver(body)
-      else if (platform === 'twitter') r = await publishToTwitter(body)
-      else { results[platform] = { ok: false, error: 'unsupported' }; continue }
-      results[platform] = { ok: true, ...r }
-      if (postId) await recordPublished(`${platform}:${postId}`, r.url)
-      if (postId) await reportResultToMain(postId, platform, { status: 'success', url: r.url, published_at: r.published_at })
+      await runPublishExclusive(`${platform}:${postId || body.title}`, async () => {
+        const dedupKey = postId ? `${platform}:${postId}` : ''
+        if (dedupKey) {
+          const pubLog = await loadPublishedLog()
+          if (pubLog[dedupKey] && isValidPublishedUrl(platform, pubLog[dedupKey].url)) {
+            results[platform] = { ok: true, url: pubLog[dedupKey].url, deduped: true }
+            return
+          }
+        }
+        let r
+        if (platform === 'tistory') r = await publishToTistory(body)
+        else if (platform === 'naver') r = await publishToNaver(body)
+        else if (platform === 'twitter') r = await publishToTwitter(body)
+        else { results[platform] = { ok: false, error: 'unsupported' }; return }
+        results[platform] = { ok: true, ...r }
+        if (postId) await recordPublished(`${platform}:${postId}`, r.url)
+        if (postId) await reportResultToMain(postId, platform, { status: 'success', url: r.url, published_at: r.published_at })
+      })
     } catch (e) {
       const code = e instanceof WorkerError ? e.code : (e instanceof TistoryError ? e.code : 'UNKNOWN')
       results[platform] = { ok: false, error: e.message, code }

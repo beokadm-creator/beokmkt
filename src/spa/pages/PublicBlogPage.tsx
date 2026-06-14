@@ -66,11 +66,11 @@ export default function PublicBlogPage() {
   useEffect(() => {
     const canonical = `${window.location.origin}/blog/`
     applySeo({
-      title: '초기 제작비 0원 홈페이지 구독 서비스 | 홍커뮤니케이션',
-      description: '월 5만원 라이트 홈페이지부터 예약, 결제, 알림톡, AI 자동화까지 확장하는 구독형 홈페이지 제작·운영 서비스입니다.',
+      title: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+      description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리와 발행 자동화 실무 콘텐츠입니다.',
       canonical,
       type: 'website',
-      keywords: ['홈페이지 구독', '초기 제작비 무료', '홈페이지 유지관리', '예약 시스템', '결제 연동', '알림톡', 'AI 자동화'],
+      keywords: ['학회 운영', '사무국', '명찰 출력', '현장 재발행', '참가자 데이터', '비오케이솔루션'],
       jsonLd: [
         {
           '@context': 'https://schema.org',
@@ -79,7 +79,7 @@ export default function PublicBlogPage() {
           description: '초기 제작비 없이 홈페이지 제작, 서버, 유지관리, SEO, 예약·결제·알림톡, AI 자동화까지 단계별로 제공하는 구독 서비스',
           provider: {
             '@type': 'Organization',
-            name: '홍커뮤니케이션',
+            name: '비오케이솔루션',
             url: window.location.origin,
           },
           areaServed: 'KR',
@@ -98,13 +98,13 @@ export default function PublicBlogPage() {
         {
           '@context': 'https://schema.org',
           '@type': 'Blog',
-          name: '홍커뮤니케이션 레퍼런스와 인사이트',
-          description: '홈페이지 제작, 행사 운영, 예약 시스템, AI 자동화 관련 실무형 인사이트',
+          name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+          description: '학회 운영, 명찰 출력, 현장 재발행, 참가자 데이터 정리 관련 실무형 인사이트',
           url: canonical,
           inLanguage: 'ko-KR',
           publisher: {
             '@type': 'Organization',
-            name: '홍커뮤니케이션',
+            name: '비오케이솔루션',
             url: window.location.origin,
           },
         },
@@ -146,11 +146,10 @@ export default function PublicBlogPage() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 bg-zinc-950">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/blog/" className="text-sm font-semibold tracking-tight text-white">홍커뮤니케이션</Link>
+          <Link to="/blog/" className="text-sm font-semibold tracking-tight text-white">비오케이솔루션</Link>
           <nav className="hidden items-center gap-6 text-sm text-zinc-400 md:flex">
-            <a href="#plans" className="hover:text-white">요금제</a>
-            <a href="#ai" className="hover:text-white">AI 운영</a>
-            <a href="#references" className="hover:text-white">레퍼런스</a>
+            <a href="#articles" className="hover:text-white">최신 글</a>
+            <a href="#references" className="hover:text-white">운영 주제</a>
           </nav>
           <a
             href={KAKAO_CHAT_URL}
@@ -167,17 +166,16 @@ export default function PublicBlogPage() {
         <section className="border-b border-zinc-800">
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
             <div>
-              <p className="text-sm font-medium text-yellow-300">초기 제작비 0원 · 서버비와 유지관리 포함</p>
+              <p className="text-sm font-medium text-yellow-300">학회 운영 · 사무국 데이터 · 명찰 출력</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight tracking-tight text-white md:text-5xl">
-                홈페이지를 만들고 끝내지 말고, 매달 운영되는 영업 시스템으로 시작하세요.
+                학회 운영 사무국의 명찰 출력과 현장 재발행 기준을 정리합니다.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-                월 5만원 라이트 홈페이지부터 예약, 결제, 알림톡, AI 상담 엔진까지 사업 단계에 맞춰 확장합니다.
-                제작비 부담을 낮추고 운영과 개선을 구독으로 관리합니다.
+                참가자 명단 정리, QR·바코드 검수, 현장 재발행, 발행 자동화까지 실제 운영 흐름에 맞춘 콘텐츠를 모읍니다.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="#plans" className="rounded-md bg-white px-5 py-3 text-center text-sm font-semibold text-zinc-950 hover:bg-zinc-200">
-                  요금제 확인하기
+                <a href="#articles" className="rounded-md bg-white px-5 py-3 text-center text-sm font-semibold text-zinc-950 hover:bg-zinc-200">
+                  최신 글 보기
                 </a>
                 <a
                   href={KAKAO_CHAT_URL}
@@ -190,12 +188,53 @@ export default function PublicBlogPage() {
               </div>
             </div>
             <div className="grid content-start gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-5">
-              {['제작비 없이 시작', '서버/SSL 포함', 'SEO 기본 세팅', '예약·결제 확장', 'AI 운영 자동화'].map((item) => (
+              {['참가자 명단 검수', 'QR·바코드 확인', '현장 재발행 기준', '사무국 운영 체크리스트', '발행 자동화 검증'].map((item) => (
                 <div key={item} className="flex items-center justify-between border-b border-zinc-800 py-3 last:border-b-0">
                   <span className="text-sm text-zinc-300">{item}</span>
                   <span className="text-sm font-semibold text-yellow-300">포함</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="articles" className="border-b border-zinc-800">
+          <div className="mx-auto max-w-6xl px-6 py-14">
+            <div className="flex items-end justify-between gap-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white">최신 발행 글</h2>
+                <p className="mt-3 text-sm leading-6 text-zinc-400">
+                  명찰 출력, 현장 재발행, 참가자 데이터 정리 기준을 실제 발행 글로 확인합니다.
+                </p>
+              </div>
+              <a href="/blog/rss.xml" className="hidden rounded-md border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-300 hover:border-yellow-300 hover:text-yellow-200 sm:block">
+                RSS
+              </a>
+            </div>
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {posts.slice(0, 6).map((post) => (
+                <Link
+                  key={post.id}
+                  to={`/blog/${encodeURIComponent(post.slug || post.id)}`}
+                  className="group rounded-lg border border-zinc-800 bg-zinc-900/45 p-5 transition hover:border-yellow-300/70 hover:bg-zinc-900"
+                >
+                  <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
+                    <span>{post.category || '블로그'}</span>
+                    <span>{new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR')}</span>
+                  </div>
+                  <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-6 text-zinc-100 group-hover:text-yellow-100">
+                    {post.title}
+                  </h3>
+                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-zinc-400">
+                    {post.seo_description || post.excerpt || '실무 운영 기준을 정리한 글입니다.'}
+                  </p>
+                </Link>
+              ))}
+              {posts.length === 0 ? (
+                <div className="rounded-lg border border-zinc-800 bg-zinc-900/45 p-5 text-sm text-zinc-500">
+                  발행된 글이 없습니다.
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -342,7 +381,7 @@ export default function PublicBlogPage() {
 
       {/* Footer */}
       <footer className="border-t border-zinc-800 py-6 text-center text-xs text-zinc-600">
-        © {new Date().getFullYear()} 홍커뮤니케이션 · beoksolution
+        © {new Date().getFullYear()} 비오케이솔루션 · beoksolution
       </footer>
     </div>
   )

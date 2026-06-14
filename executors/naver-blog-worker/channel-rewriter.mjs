@@ -13,6 +13,8 @@ const AI_API_KEY = process.env.AI_API_KEY || ''
 const AI_MODEL = process.env.AI_MODEL || 'glm-5.1'
 const AI_ENDPOINT = process.env.AI_REWRITE_ENDPOINT || 'https://api.z.ai/api/coding/paas/v4/chat/completions'
 const REWRITE_ENABLED = process.env.CHANNEL_REWRITE !== 'false'
+const AI_REWRITE_TIMEOUT_MS = Number(process.env.AI_REWRITE_TIMEOUT_MS || '120000')
+const HANZI_RE = /[\u3400-\u4dbf\u4e00-\u9fff]/
 
 const CHANNEL_GUIDES = {
   naver: `네이버 블로그 독자 특성에 맞게 재작성:
@@ -71,6 +73,7 @@ function stripToPlainText(html) {
 async function callAi(messages) {
   const res = await fetch(AI_ENDPOINT, {
     method: 'POST',
+    signal: AbortSignal.timeout(AI_REWRITE_TIMEOUT_MS),
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${AI_API_KEY}`,
@@ -131,6 +134,10 @@ const FORBIDDEN_NAVER_TONE = [
 function hasForbiddenTone(text) {
   const value = String(text ?? '')
   return FORBIDDEN_NAVER_TONE.some((word) => value.includes(word))
+}
+
+function hasHanzi(text) {
+  return HANZI_RE.test(String(text ?? ''))
 }
 
 function hasEnoughRichStructure(html) {
@@ -209,6 +216,10 @@ ${guide}`
     }
     if (channel === 'naver' && hasForbiddenTone(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
       console.warn('[channel-rewriter] naver 재작성 톤이 운영 기준에 맞지 않아 원문 사용')
+      return fallback
+    }
+    if (hasHanzi(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
+      console.warn(`[channel-rewriter] ${channel} 재작성 결과에 한자/중문자가 섞여 원문 사용`)
       return fallback
     }
     if (channel === 'tistory') {

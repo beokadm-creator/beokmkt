@@ -460,7 +460,7 @@ function buildRssXml(baseUrl, posts) {
     ].filter(Boolean).join('')
   }).join('\n')
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>홍커뮤니케이션 블로그</title><link>${escapeXml(baseUrl)}/blog/</link><atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" /><description>MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠</description><language>ko-KR</language>\n${items}\n</channel></rss>`
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>비오케이솔루션 학회 운영 사무국 명찰 출력 발행</title><link>${escapeXml(baseUrl)}/blog/</link><atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" /><description>학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠</description><language>ko-KR</language>\n${items}\n</channel></rss>`
 }
 
 function rssHandler(req, res) {
@@ -2081,6 +2081,9 @@ function pipelineRequeuePolicy(row) {
   if (!['needs_human', 'failed'].includes(row.status)) {
     return { can_requeue: false, reason: 'needs_human/failed 상태만 재큐잉 가능' }
   }
+  if (/세션|login|auth|LOGIN_REQUIRED|AUTH_REQUIRED|NOT_AUTHED|TISTORY/i.test(error)) {
+    return { can_requeue: false, reason: '채널 세션/인증 문제는 재인증 후 수동 재큐잉' }
+  }
   if (row.channel === 'naver' && /404|삭제|품질/i.test(error)) {
     return { can_requeue: false, reason: '네이버에서 삭제/품질 처리된 글은 자동 재발행 금지' }
   }
@@ -2226,11 +2229,19 @@ app.get('/api/pipeline/stats', (req, res) => {
     ).get()
 
     const needs_human_posts = db.prepare(
-      "SELECT id, topic, title, channel, last_error, updated_at FROM posts WHERE status IN ('needs_human','failed') ORDER BY updated_at DESC LIMIT 10"
+      "SELECT id, topic, title, channel, status, body, grounding_ratio, last_error, published_url, updated_at FROM posts WHERE status IN ('needs_human','failed') ORDER BY updated_at DESC LIMIT 12"
     ).all()
       .map((post) => ({
-        ...post,
+        id: post.id,
         topic: post.title || post.topic || '',
+        title: post.title || post.topic || '',
+        channel: post.channel,
+        status: post.status,
+        last_error: post.last_error || null,
+        published_url: post.published_url || null,
+        updated_at: post.updated_at,
+        quality: pipelineQuality(String(post.body ?? ''), post.grounding_ratio),
+        ...pipelineRequeuePolicy(post),
         action: actionForExternalIssue(post.channel, post.last_error || ''),
       }))
 

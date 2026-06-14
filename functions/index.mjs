@@ -121,6 +121,10 @@ function actionForExternalIssue(channel, error = '') {
   return '원인 확인'
 }
 
+function cloudRequeuePolicy(reason = '클라우드 대시보드에서는 로컬 SQLite 큐 재등록을 수행하지 않습니다.') {
+  return { can_requeue: false, reason }
+}
+
 function plainTextFromContent(content = '') {
   return String(content)
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -295,10 +299,10 @@ function buildRssXml(baseUrl, posts) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
     '  <channel>',
-    '    <title>홍커뮤니케이션 블로그</title>',
+    '    <title>비오케이솔루션 학회 운영 사무국 명찰 출력 발행</title>',
     `    <link>${escapeXml(baseUrl)}/blog/</link>`,
     `    <atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" />`,
-    '    <description>MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠</description>',
+    '    <description>학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠</description>',
     '    <language>ko-KR</language>',
     items,
     '  </channel>',
@@ -2082,12 +2086,18 @@ app.get('/api/pipeline/stats', async (req, res) => {
       if (result.status === 'failed') {
         by_channel[platform].needs_human += 1
         if (needs_human_posts.length < 10) {
+          const content = String(post.content ?? post.body ?? post.html ?? '')
           needs_human_posts.push({
             id: post.pipeline_id ?? post.id,
             topic: post.title ?? post.topic ?? '',
+            title: post.title ?? post.topic ?? '',
             channel: platform,
+            status: 'failed',
             last_error: result.error ?? null,
+            published_url: result.url ?? null,
             action: actionForExternalIssue(platform, result.error ?? ''),
+            quality: pipelineQuality(content, post.grounding_ratio),
+            ...cloudRequeuePolicy('외부 발행 실패 로그입니다. 로컬 파이프라인 DB에서 처리하세요.'),
             updated_at: serializeValue(result.updated_at ?? post.updated_at ?? post.created_at) ?? '',
           })
         }
@@ -2095,12 +2105,18 @@ app.get('/api/pipeline/stats', async (req, res) => {
     }
 
     if (status === 'needs_human' && needs_human_posts.length < 10) {
+      const content = String(post.content ?? post.body ?? post.html ?? '')
       needs_human_posts.push({
         id: post.pipeline_id ?? post.id,
         topic: post.title ?? post.topic ?? '',
+        title: post.title ?? post.topic ?? '',
         channel,
+        status,
         last_error: post.last_error ?? null,
+        published_url: post.public_url ?? post.url ?? null,
         action: actionForExternalIssue(channel, post.last_error ?? ''),
+        quality: pipelineQuality(content, post.grounding_ratio),
+        ...cloudRequeuePolicy(),
         updated_at: updatedAt ?? '',
       })
     }
@@ -2141,9 +2157,14 @@ app.get('/api/pipeline/stats', async (req, res) => {
       needs_human_posts.push({
         id: result.source_id ?? result.id,
         topic: result.title ?? result.topic ?? '',
+        title: result.title ?? result.topic ?? '',
         channel: platform,
+        status: 'failed',
         last_error: result.error ?? null,
+        published_url: result.url ?? null,
         action: actionForExternalIssue(platform, result.error ?? ''),
+        quality: pipelineQuality(''),
+        ...cloudRequeuePolicy('외부 발행 결과 로그입니다. 로컬 파이프라인 DB에서 재큐잉하세요.'),
         updated_at: updatedAt,
       })
     }
@@ -4723,9 +4744,9 @@ function escapeHtml(value) {
 function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonLd, bodyHtml, publishedTime, modifiedTime }) {
   const template = ssrTemplate || '<!doctype html><html lang="ko"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title></title></head><body><div id="root"></div></body></html>'
 
-  const siteName = '홍커뮤니케이션 블로그'
+  const siteName = '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'
   const safeTitle = escapeHtml(title || siteName)
-  const safeDesc = escapeHtml(description || 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠를 확인하세요.')
+  const safeDesc = escapeHtml(description || '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠를 확인하세요.')
   const safeCanonical = escapeHtml(canonicalUrl || '')
   const safeOgImage = escapeHtml(ogImage || '')
   const safeOgType = escapeHtml(ogType || 'website')
@@ -4736,12 +4757,12 @@ function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonL
   const headInjection = [
     `<title>${safeTitle}</title>`,
     `<meta name="description" content="${safeDesc}" />`,
-    `<meta name="author" content="홍커뮤니케이션" />`,
+    `<meta name="author" content="비오케이솔루션" />`,
     `<meta name="language" content="ko-KR" />`,
     `<meta name="theme-color" content="#09090b" />`,
     `<link rel="canonical" href="${safeCanonical}" />`,
     `<link rel="sitemap" type="application/xml" href="/sitemap.xml" />`,
-    `<link rel="alternate" type="application/rss+xml" title="홍커뮤니케이션 블로그 RSS" href="/blog/rss.xml" />`,
+    `<link rel="alternate" type="application/rss+xml" title="비오케이솔루션 학회 운영 사무국 명찰 출력 발행 RSS" href="/blog/rss.xml" />`,
     `<link rel="alternate" type="text/markdown" title="LLMs guide" href="/llms.txt" />`,
     process.env.NAVER_SITE_VERIFICATION
       ? `<meta name="naver-site-verification" content="${escapeHtml(process.env.NAVER_SITE_VERIFICATION)}" />`
@@ -4807,7 +4828,7 @@ function organizationJsonLd(baseUrl) {
   return JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: '홍커뮤니케이션',
+    name: '비오케이솔루션',
     url: baseUrl,
     sameAs: organizationSameAs(),
     knowsAbout: [
@@ -4828,12 +4849,12 @@ function webSiteJsonLd(baseUrl) {
   return JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: '홍커뮤니케이션 블로그',
+    name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
     url: baseUrl,
     inLanguage: 'ko-KR',
     publisher: {
       '@type': 'Organization',
-      name: '홍커뮤니케이션',
+      name: '비오케이솔루션',
       url: baseUrl,
     },
   })
@@ -5042,9 +5063,9 @@ function blogListBodyHtml(posts, baseUrl) {
 
   return [
     `<div style="max-width:1120px;margin:0 auto;padding:56px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;">`,
-    `<p style="font-size:0.9rem;color:#fde047;margin:0 0 12px;">초기 제작비 0원 · 서버비와 유지관리 포함</p>`,
-    `<h1 style="font-size:2.6rem;font-weight:800;line-height:1.2;color:#fff;margin:0;max-width:820px;">홈페이지를 만들고 끝내지 말고, 매달 운영되는 영업 시스템으로 시작하세요.</h1>`,
-    `<p style="font-size:1rem;color:#a1a1aa;line-height:1.7;margin:20px 0 0;max-width:760px;">월 5만원 라이트 홈페이지부터 예약, 결제, 알림톡, AI 상담 엔진까지 사업 단계에 맞춰 확장합니다. 제작비 부담을 낮추고 운영과 개선을 구독으로 관리합니다.</p>`,
+    `<p style="font-size:0.9rem;color:#fde047;margin:0 0 12px;">학회 운영 · 사무국 데이터 · 명찰 출력</p>`,
+    `<h1 style="font-size:2.6rem;font-weight:800;line-height:1.2;color:#fff;margin:0;max-width:820px;">학회 운영 사무국의 명찰 출력과 현장 재발행 기준을 정리합니다.</h1>`,
+    `<p style="font-size:1rem;color:#a1a1aa;line-height:1.7;margin:20px 0 0;max-width:760px;">참가자 명단 정리, QR·바코드 검수, 현장 재발행, 발행 자동화까지 실제 운영 흐름에 맞춘 콘텐츠를 모읍니다.</p>`,
     `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;">`,
     `<a href="https://pf.kakao.com/_wxexmxgn/chat" style="display:inline-block;background:#fde047;color:#09090b;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">카카오톡으로 상담하기</a>`,
     `<a href="#plans" style="display:inline-block;border:1px solid #52525b;color:#fff;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">요금제 확인하기</a>`,
@@ -5103,9 +5124,9 @@ function blogPostingJsonLd(post, baseUrl) {
     inLanguage: 'ko-KR',
     datePublished: post.published_at || post.created_at || '',
     dateModified: post.updated_at || post.published_at || post.created_at || '',
-    author: { '@type': 'Organization', name: '홍커뮤니케이션' },
-    publisher: { '@type': 'Organization', name: '홍커뮤니케이션', url: baseUrl },
-    isPartOf: { '@type': 'Blog', name: '홍커뮤니케이션 블로그', url: `${baseUrl}/blog/` },
+    author: { '@type': 'Organization', name: '비오케이솔루션' },
+    publisher: { '@type': 'Organization', name: '비오케이솔루션', url: baseUrl },
+    isPartOf: { '@type': 'Blog', name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행', url: `${baseUrl}/blog/` },
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     wordCount: articleText ? articleText.split(/\s+/).length : undefined,
   }
@@ -5196,11 +5217,11 @@ function blogListJsonLd(posts, baseUrl) {
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
-    name: '홍커뮤니케이션 블로그',
+    name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
     url: `${baseUrl}/blog/`,
-    description: 'MICE 행사기획, IT 솔루션, 동시통역 관련 인사이트와 실무형 콘텐츠',
+    description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠',
     inLanguage: 'ko-KR',
-    publisher: { '@type': 'Organization', name: '홍커뮤니케이션', url: baseUrl },
+    publisher: { '@type': 'Organization', name: '비오케이솔루션', url: baseUrl },
     about: [
       { '@type': 'Thing', name: 'MICE' },
       { '@type': 'Thing', name: '행사기획' },
@@ -5224,7 +5245,7 @@ function serviceOfferJsonLd(baseUrl) {
     '@type': 'Service',
     name: '홈페이지 구독형 제작·운영 서비스',
     description: '초기 제작비 없이 홈페이지 제작, 서버, 유지관리, SEO, 예약·결제·알림톡, AI 자동화까지 단계별로 제공하는 구독 서비스',
-    provider: { '@type': 'Organization', name: '홍커뮤니케이션', url: baseUrl },
+    provider: { '@type': 'Organization', name: '비오케이솔루션', url: baseUrl },
     areaServed: 'KR',
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
@@ -5270,8 +5291,8 @@ app.get('/blog/', async (req, res) => {
     ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
-      title: '초기 제작비 0원 홈페이지 구독 서비스 | 홍커뮤니케이션',
-      description: '월 5만원 라이트 홈페이지부터 예약, 결제, 알림톡, AI 자동화까지 확장하는 구독형 홈페이지 제작·운영 서비스입니다.',
+      title: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+      description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리와 발행 자동화 실무 콘텐츠입니다.',
       canonicalUrl: `${baseUrl}/blog/`,
       ogType: 'website',
       ogImage: '',
@@ -5303,7 +5324,7 @@ app.get('/blog/:slug', async (req, res) => {
     if (snap.empty) {
       res.set('Content-Type', 'text/html; charset=utf-8')
       res.status(404).send(buildSsrHtml({
-        title: '포스트를 찾을 수 없습니다 | 홍커뮤니케이션 블로그',
+        title: '포스트를 찾을 수 없습니다 | 비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
         description: '요청하신 블로그 포스트를 찾을 수 없습니다.',
         canonicalUrl: `${baseUrl}/blog/${slug}`,
         ogType: 'website',
@@ -5320,7 +5341,7 @@ app.get('/blog/:slug', async (req, res) => {
     if (post.status !== 'published' || post.deleted_at) {
       res.set('Content-Type', 'text/html; charset=utf-8')
       res.status(404).send(buildSsrHtml({
-        title: '포스트를 찾을 수 없습니다 | 홍커뮤니케이션 블로그',
+        title: '포스트를 찾을 수 없습니다 | 비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
         description: '요청하신 블로그 포스트를 찾을 수 없습니다.',
         canonicalUrl: `${baseUrl}/blog/${slug}`,
         ogType: 'website',
@@ -5361,7 +5382,7 @@ app.get('/blog/:slug', async (req, res) => {
     const jsonLd = jsonLdEntries.map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
-      title: `${seoTitle} | 홍커뮤니케이션 블로그`,
+      title: `${seoTitle} | 비오케이솔루션 학회 운영 사무국 명찰 출력 발행`,
       description: seoDesc,
       canonicalUrl,
       ogType: 'article',
