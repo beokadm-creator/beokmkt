@@ -10,6 +10,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py review                     # 품질 검수
   python run.py schedule
   python run.py publish
+  python run.py publish_one <post_id>  # 지정 ID 1건만 발행(수동 검증용)
   python run.py status         # 파이프라인 상태별 건수 리포트
   python run.py verify_public  # published 공개 URL 실제 HTML 품질 검증
   python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
@@ -80,6 +81,13 @@ def main() -> None:
     elif cmd == "publish":
         from pipeline import publish
         print(f"발행 {publish.run_once()}")
+
+    elif cmd == "publish_one":
+        if len(sys.argv) < 3:
+            print("사용: python run.py publish_one <post_id>")
+            raise SystemExit(2)
+        from pipeline import publish
+        print(f"단건 발행 id={sys.argv[2]} {publish.publish_one(int(sys.argv[2]))}")
 
     elif cmd == "loop":
         from pipeline import factcheck, generate, publish, review, schedule_publish
