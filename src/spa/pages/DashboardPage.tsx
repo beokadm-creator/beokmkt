@@ -225,6 +225,43 @@ function KpiCard({ label, value, sub, alert }: { label: string; value: number; s
   )
 }
 
+function CommandBlock({ label, command }: { label: string; command: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copyCommand() {
+    try {
+      await navigator.clipboard.writeText(command)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 text-xs font-medium text-zinc-400">{label}</div>
+        <button
+          type="button"
+          onClick={copyCommand}
+          className={[
+            'h-7 shrink-0 rounded-md border px-2 text-[11px]',
+            copied
+              ? 'border-emerald-800 bg-emerald-950/40 text-emerald-200'
+              : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200',
+          ].join(' ')}
+        >
+          {copied ? '복사됨' : '복사'}
+        </button>
+      </div>
+      <code className="mt-2 block overflow-x-auto whitespace-nowrap rounded-md border border-zinc-900 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-200">
+        {command}
+      </code>
+    </div>
+  )
+}
+
 function errorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiRequestError) {
     const details = error.details && typeof error.details === 'object' && 'reason' in error.details
@@ -494,10 +531,7 @@ function LocalOpsPanel({ active }: { active: boolean }) {
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         {commands.map((item) => (
-          <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
-            <div className="text-xs font-medium text-zinc-400">{item.label}</div>
-            <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
-          </div>
+          <CommandBlock key={item.label} label={item.label} command={item.command} />
         ))}
       </div>
     </div>
@@ -541,10 +575,7 @@ function SearchRecoveryPanel({ search }: { search?: OpsStats['search_health'] })
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         {commands.map((item) => (
-          <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
-            <div className="text-xs font-medium text-zinc-400">{item.label}</div>
-            <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
-          </div>
+          <CommandBlock key={item.label} label={item.label} command={item.command} />
         ))}
       </div>
     </div>
@@ -594,24 +625,12 @@ function SessionRecoveryPanel({ sessions }: { sessions?: OpsStats['session_healt
               <div className="mt-2 line-clamp-2 text-xs leading-5 text-rose-300">{session.reason}</div>
             ) : null}
             <div className="mt-3 space-y-2">
-              <div>
-                <div className="text-[11px] font-medium text-zinc-500">1. 브라우저 재로그인</div>
-                <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-200">
-                  {commandFor(session.channel)}
-                </code>
-              </div>
-              <div>
-                <div className="text-[11px] font-medium text-zinc-500">2. 워커·대시보드 반영</div>
-                <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-200">
-                  launchctl kickstart -k gui/$(id -u)/com.beok.blog-worker && cd blog_publisher && python3 run.py sync_snapshot
-                </code>
-              </div>
-              <div>
-                <div className="text-[11px] font-medium text-zinc-500">3. 대상 확인</div>
-                <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-200">
-                  cd blog_publisher && python3 run.py needs_human
-                </code>
-              </div>
+              <CommandBlock label="1. 브라우저 재로그인" command={commandFor(session.channel)} />
+              <CommandBlock
+                label="2. 워커·대시보드 반영"
+                command="launchctl kickstart -k gui/$(id -u)/com.beok.blog-worker && cd blog_publisher && python3 run.py sync_snapshot"
+              />
+              <CommandBlock label="3. 대상 확인" command="cd blog_publisher && python3 run.py needs_human" />
             </div>
           </div>
         ))}
@@ -665,10 +684,7 @@ function QualityActionPanel({ quality }: { quality?: PipelineStats['quality'] })
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         {actions.map((item) => (
-          <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
-            <div className="text-xs font-medium text-zinc-400">{item.label}</div>
-            <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
-          </div>
+          <CommandBlock key={item.label} label={item.label} command={item.command} />
         ))}
       </div>
     </div>

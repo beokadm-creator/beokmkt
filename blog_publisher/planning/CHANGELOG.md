@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-06-15 — 관리자 운영 명령 복사 UX 추가
+
+대시보드가 필요한 CLI 명령을 보여주고는 있었지만, 운영자가 긴 명령을 직접 드래그해야 했다. 세션 복구·검색 복구·품질 점검·로컬 큐 조치 명령을 공통 `CommandBlock`으로 통합하고, 각 명령에 복사 버튼을 붙였다.
+
+| 대상 | 내용 |
+|---|---|
+| `src/spa/pages/DashboardPage.tsx` | `CommandBlock` 추가. 운영 명령 표시와 클립보드 복사 버튼 공통화 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+검증:
+- `npx tsc --noEmit`, `npm run build:spa`, `npm run lint -- --max-warnings=999`, `python3 blog_publisher/run.py quality_selftest` PASS
+
+---
+
 ## 2026-06-15 — 관리자 세션 복구 UX 분리
 
 네이버 세션 만료가 운영 준비도 한 줄과 `needs_human` 목록에만 보여, 운영자가 어떤 명령을 어떤 순서로 실행해야 하는지 바로 알기 어려웠다. 외부 채널 세션 문제를 별도 패널로 분리하고, 채널별 재로그인·워커 재시작·스냅샷 갱신·대상 확인 명령을 한 화면에 노출했다.
