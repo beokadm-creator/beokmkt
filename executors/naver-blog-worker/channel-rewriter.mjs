@@ -16,10 +16,11 @@ const REWRITE_ENABLED = process.env.CHANNEL_REWRITE !== 'false'
 
 const CHANNEL_GUIDES = {
   naver: `네이버 블로그 독자 특성에 맞게 재작성:
-- 검색자가 친근하게 읽을 수 있는 경험담/대화형 문체 (존댓말, "~인데요", "~하시면 좋아요" 톤)
+- 검색자가 편하게 읽을 수 있는 자연스러운 존댓말. 단, 전문성과 신뢰감을 최우선으로 유지
 - 문단을 짧게 끊어 모바일에서 읽기 쉽게
 - 네이버 검색 사용자가 입력할 법한 표현을 소제목에 반영
-- 제목도 네이버 검색 클릭을 유도하는 형태로 새로 작성 (원래 제목과 다르게)`,
+- 제목도 원래 제목과 다르게 작성하되, 실무형 검색 제목처럼 차분하고 구체적으로 작성
+- 절대 금지: 낚시성 제목, 과장, 속어, 유행어, 감탄사, 이모지, "꿀팁", "환장", "대박", "지옥", "끝판왕", "완벽", "무조건", "충격", "실화"`,
   tistory: `티스토리 블로그 독자 특성에 맞게 재작성:
 - 구글 검색 유입 독자가 바로 훑어볼 수 있게 첫머리에 핵심 요약 3줄을 둔다
 - 단순 줄글 금지: h2/h3, 불릿, 번호 목록, 비교표를 상황에 맞게 적극 사용한다
@@ -75,7 +76,7 @@ async function callAi(messages) {
     body: JSON.stringify({
       model: AI_MODEL,
       messages,
-      temperature: 0.7,
+      temperature: 0.35,
       max_tokens: 8192,
     }),
   })
@@ -106,6 +107,33 @@ function extractJson(text) {
 function buildSourceFooter(canonicalUrl) {
   if (!canonicalUrl) return ''
   return `\n<p>이 글의 원본과 더 많은 자료는 <a href="${canonicalUrl}">비오케이솔루션 블로그</a>에서 확인하실 수 있습니다.</p>`
+}
+
+const FORBIDDEN_NAVER_TONE = [
+  '꿀팁',
+  '환장',
+  '대박',
+  '지옥',
+  '끝판왕',
+  '무조건',
+  '충격',
+  '실화',
+  'ㅋㅋ',
+  'ㅎㅎ',
+  '😅',
+  '🔥',
+  '✨',
+]
+
+function hasForbiddenTone(text) {
+  const value = String(text ?? '')
+  return FORBIDDEN_NAVER_TONE.some((word) => value.includes(word))
+}
+
+function sanitizeAllowedHtml(html) {
+  return String(html ?? '')
+    .replace(/<\/?(?:s|strike|del)\b[^>]*>/gi, '')
+    .replace(/\sstyle=["'][^"']*text-decoration\s*:\s*(?:line-through|line-through[^;"']*)[^"']*["']/gi, '')
 }
 
 /**
@@ -154,8 +182,12 @@ ${guide}`
       console.warn(`[channel-rewriter] ${channel} 재작성 결과가 비정상적으로 짧아 원문 사용`)
       return fallback
     }
+    if (channel === 'naver' && hasForbiddenTone(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
+      console.warn('[channel-rewriter] naver 재작성 톤이 운영 기준에 맞지 않아 원문 사용')
+      return fallback
+    }
     // 모델이 마크다운으로 남긴 이미지를 <img>로 복원(어댑터가 인식하도록)
-    newHtml = markdownImagesToHtml(newHtml)
+    newHtml = markdownImagesToHtml(sanitizeAllowedHtml(newHtml))
     return {
       title: newTitle,
       html: `${newHtml}${buildSourceFooter(canonicalUrl)}`,

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { apiJson } from '../lib/api'
 import StatusBadge from '../components/StatusBadge'
 
@@ -8,7 +7,7 @@ type ChannelStats = { published: number; queued: number; needs_human: number }
 type ByChannel = Record<string, ChannelStats>
 
 type NeedsHumanPost = {
-  id: number
+  id: number | string
   topic: string
   channel: string
   last_error: string | null
@@ -17,12 +16,38 @@ type NeedsHumanPost = {
 }
 
 type RecentPost = {
-  id: number
+  id: number | string
   topic: string
   channel: string
   status: string
   published_url: string | null
   updated_at: string
+}
+
+type PipelinePostDetail = {
+  id: number | string
+  cloud_id?: string
+  channel: string
+  status: string
+  title: string
+  topic?: string
+  meta_desc?: string
+  tags?: string[]
+  published_url?: string | null
+  last_error?: string | null
+  action?: string | null
+  can_requeue?: boolean
+  requeue_block_reason?: string | null
+  body_available?: boolean
+  body?: string
+  preview_html?: string
+  quality?: {
+    chars: number
+    images: number
+    headings: number
+    grounding_ratio: number | null
+  }
+  updated_at?: string
 }
 
 type PipelineStats = {
@@ -58,6 +83,14 @@ const CHANNELS: { key: string; label: string }[] = [
   { key: 'tistory', label: 'Tistory' },
   { key: 'selfhosted', label: '자체 블로그' },
 ]
+
+function formatDate(value?: string | null) {
+  if (!value) return '시각 없음'
+  const normalized = /(?:Z|[+-]\d\d:?\d\d)$/.test(value) ? value : `${value}Z`
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('ko-KR')
+}
 
 function KpiCard({ label, value, sub, alert }: { label: string; value: number; sub?: string; alert?: boolean }) {
   return (
@@ -144,10 +177,121 @@ function ChannelTable({ by_channel }: { by_channel: ByChannel }) {
   )
 }
 
+function DetailPanel({
+  detail,
+  loading,
+  error,
+  requeueing,
+  onClose,
+  onRequeue,
+}: {
+  detail: PipelinePostDetail | null
+  loading: boolean
+  error: string | null
+  requeueing: boolean
+  onClose: () => void
+  onRequeue: () => void
+}) {
+  if (!detail && !loading && !error) return null
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70">
+      <div className="flex items-start justify-between gap-4 border-b border-zinc-900 px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-zinc-500">#{detail?.id ?? '...'}</span>
+            {detail ? <StatusBadge value={detail.channel} /> : null}
+            {detail ? <StatusBadge value={detail.status} /> : null}
+          </div>
+          <div className="mt-2 truncate text-sm font-semibold text-zinc-100">
+            {loading ? '불러오는 중...' : detail?.title || '상세 없음'}
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-900">
+          닫기
+        </button>
+      </div>
+
+      {error ? <div className="m-4 rounded-lg border border-rose-900/50 bg-rose-950/20 px-3 py-2 text-sm text-rose-300">{error}</div> : null}
+
+      {detail ? (
+        <div className="grid gap-4 p-4 lg:grid-cols-[320px_1fr]">
+          <div className="space-y-3">
+            <div className="rounded-lg border border-zinc-900 bg-zinc-950 p-3">
+              <div className="text-xs font-medium text-zinc-500">운영 조치</div>
+              <div className="mt-2 text-sm text-zinc-200">{detail.action || '원인 확인'}</div>
+              {detail.last_error ? <div className="mt-2 break-words text-xs text-rose-300">{detail.last_error}</div> : null}
+              {detail.requeue_block_reason ? (
+                <div className="mt-2 rounded-md border border-amber-900/40 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">
+                  {detail.requeue_block_reason}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                disabled={!detail.can_requeue || requeueing}
+                onClick={onRequeue}
+                className={[
+                  'mt-3 h-8 w-full rounded-lg border px-3 text-xs',
+                  detail.can_requeue
+                    ? 'border-emerald-800 bg-emerald-950/30 text-emerald-200 hover:bg-emerald-900/30'
+                    : 'cursor-not-allowed border-zinc-800 bg-zinc-900/40 text-zinc-600',
+                ].join(' ')}
+              >
+                {requeueing ? '큐 등록 중...' : '재시도 큐 등록'}
+              </button>
+            </div>
+
+            <div className="rounded-lg border border-zinc-900 bg-zinc-950 p-3">
+              <div className="text-xs font-medium text-zinc-500">품질 신호</div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-md border border-zinc-900 bg-zinc-900/50 p-2">
+                  <div className="text-base font-semibold tabular-nums">{detail.quality?.chars ?? 0}</div>
+                  <div className="text-[11px] text-zinc-500">문자</div>
+                </div>
+                <div className="rounded-md border border-zinc-900 bg-zinc-900/50 p-2">
+                  <div className="text-base font-semibold tabular-nums">{detail.quality?.images ?? 0}</div>
+                  <div className="text-[11px] text-zinc-500">이미지</div>
+                </div>
+                <div className="rounded-md border border-zinc-900 bg-zinc-900/50 p-2">
+                  <div className="text-base font-semibold tabular-nums">{detail.quality?.headings ?? 0}</div>
+                  <div className="text-[11px] text-zinc-500">소제목</div>
+                </div>
+              </div>
+            </div>
+
+            {detail.published_url ? (
+              <a href={detail.published_url} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-center text-xs text-zinc-200 hover:bg-zinc-800">
+                공개 글 열기 ↗
+              </a>
+            ) : null}
+          </div>
+
+          <div className="min-w-0 rounded-lg border border-zinc-900 bg-white p-5 text-zinc-950">
+            {detail.preview_html ? (
+              <article
+                className="prose prose-zinc max-w-none text-sm"
+                dangerouslySetInnerHTML={{ __html: detail.preview_html }}
+              />
+            ) : (
+              <div className="text-sm text-zinc-500">
+                이 상세 정보에는 본문 미리보기가 없습니다. 클라우드 외부 발행 로그는 로컬 SQLite 본문을 포함하지 않습니다.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<PipelineStats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [detail, setDetail] = useState<PipelinePostDetail | null>(null)
+  const [detailError, setDetailError] = useState<string | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [requeueing, setRequeueing] = useState(false)
 
   const fetchStats = useCallback(async () => {
     try {
@@ -160,6 +304,35 @@ export default function DashboardPage() {
       setError(e instanceof Error ? e.message : '불러오기 실패')
     }
   }, [])
+
+  const openDetail = useCallback(async (id: number | string) => {
+    setDetailLoading(true)
+    setDetailError(null)
+    try {
+      const next = await apiJson<PipelinePostDetail>(`/api/pipeline/posts/${encodeURIComponent(String(id))}`)
+      setDetail(next)
+    } catch (e) {
+      setDetail(null)
+      setDetailError(e instanceof Error ? e.message : '상세 불러오기 실패')
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [])
+
+  const requeueSelected = useCallback(async () => {
+    if (!detail) return
+    setRequeueing(true)
+    setDetailError(null)
+    try {
+      await apiJson(`/api/pipeline/posts/${encodeURIComponent(String(detail.id))}/requeue`, { method: 'POST' })
+      await fetchStats()
+      await openDetail(detail.id)
+    } catch (e) {
+      setDetailError(e instanceof Error ? e.message : '재큐잉 실패')
+    } finally {
+      setRequeueing(false)
+    }
+  }, [detail, fetchStats, openDetail])
 
   useEffect(() => {
     fetchStats()
@@ -245,6 +418,18 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
+      <DetailPanel
+        detail={detail}
+        loading={detailLoading}
+        error={detailError}
+        requeueing={requeueing}
+        onClose={() => {
+          setDetail(null)
+          setDetailError(null)
+        }}
+        onRequeue={requeueSelected}
+      />
+
       {/* 채널별 현황 */}
       <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
         <div className="mb-3 text-sm font-semibold">채널별 현황</div>
@@ -272,16 +457,15 @@ export default function DashboardPage() {
                       다음 조치: {post.action}
                     </div>
                   ) : null}
-                  <div className="mt-1 text-xs text-zinc-600">
-                    {new Date(post.updated_at + 'Z').toLocaleString('ko-KR')}
-                  </div>
+                  <div className="mt-1 text-xs text-zinc-600">{formatDate(post.updated_at)}</div>
                 </div>
-                <Link
-                  to={`/blog-posts?pipeline_id=${post.id}`}
-                  className="shrink-0 self-center text-xs text-zinc-400 hover:text-zinc-200"
+                <button
+                  type="button"
+                  onClick={() => openDetail(post.id)}
+                  className="shrink-0 self-center rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
                 >
-                  글 목록 →
-                </Link>
+                  원인 보기
+                </button>
               </div>
             ))}
           </div>
@@ -298,11 +482,18 @@ export default function DashboardPage() {
               <div className="flex-1 min-w-0">
                 <div className="truncate text-sm text-zinc-200">{post.topic || '(제목 없음)'}</div>
                 <div className="mt-0.5 text-xs text-zinc-500">
-                  {new Date(post.updated_at + 'Z').toLocaleString('ko-KR')}
+                  {formatDate(post.updated_at)}
                 </div>
               </div>
               <StatusBadge value={post.channel} />
               <StatusBadge value={post.status} />
+              <button
+                type="button"
+                onClick={() => openDetail(post.id)}
+                className="shrink-0 text-xs text-zinc-400 hover:text-zinc-200"
+              >
+                상세
+              </button>
               {post.published_url ? (
                 <a
                   href={post.published_url}

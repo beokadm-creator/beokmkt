@@ -121,6 +121,37 @@ function actionForExternalIssue(channel, error = '') {
   return '원인 확인'
 }
 
+function plainTextFromContent(content = '') {
+  return String(content)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[#*_>`~\[\]()!-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function pipelineQuality(body = '', groundingRatio = null) {
+  const content = String(body ?? '')
+  const plain = plainTextFromContent(content)
+  return {
+    chars: plain.length,
+    images: (content.match(/<img\b/gi) || []).length + (content.match(/!\[[^\]]*]\([^)\s]+\)/g) || []).length,
+    headings: (content.match(/^#{2,3}\s+/gm) || []).length + (content.match(/<h[23]\b/gi) || []).length,
+    grounding_ratio: groundingRatio == null ? null : Number(groundingRatio),
+  }
+}
+
+function sanitizePreviewHtml(html = '') {
+  return String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\s+on\w+="[^"]*"/gi, '')
+    .replace(/\s+on\w+='[^']*'/gi, '')
+    .replace(/javascript:/gi, '')
+}
+
 function slugifyBlogPost(value) {
   const slug = String(value ?? '')
     .trim()
@@ -2140,6 +2171,67 @@ app.get('/api/pipeline/stats', async (req, res) => {
       .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())
       .slice(0, 10),
   })
+})
+
+app.get('/api/pipeline/posts/:id', async (req, res) => {
+  const id = String(req.params.id ?? '').trim()
+  if (!id) return fail(res, 400, 'VALIDATION_ERROR', 'pipeline post id is required', {})
+
+  const blogSnap = await db.collection('blog_posts').doc(id).get().catch(() => null)
+  if (blogSnap?.exists) {
+    const post = { id: blogSnap.id, ...blogSnap.data() }
+    const content = String(post.content ?? post.body ?? post.html ?? '')
+    return ok(res, {
+      id: post.pipeline_id ?? post.id,
+      cloud_id: post.id,
+      channel: typeof post.channel === 'string' ? post.channel : 'selfhosted',
+      status: typeof post.status === 'string' ? post.status : 'draft',
+      title: post.title ?? post.topic ?? '',
+      topic: post.topic ?? '',
+      meta_desc: post.seo_description ?? post.meta_desc ?? '',
+      tags: Array.isArray(post.tags) ? post.tags : [],
+      published_url: post.public_url ?? post.url ?? (post.status === 'published' ? blogPostAbsoluteUrl(post, spaBaseUrl(req)) : null),
+      last_error: post.last_error ?? null,
+      action: actionForExternalIssue(post.channel ?? 'selfhosted', post.last_error ?? ''),
+      can_requeue: false,
+      requeue_block_reason: '클라우드 대시보드에서는 로컬 SQLite 큐 재등록을 수행하지 않습니다.',
+      body_available: Boolean(content),
+      body: content,
+      preview_html: sanitizePreviewHtml(content),
+      quality: pipelineQuality(content, post.grounding_ratio),
+      updated_at: serializeValue(post.updated_at ?? post.published_at ?? post.created_at) ?? '',
+    })
+  }
+
+  const candidates = [id]
+  for (const platform of ['naver', 'tistory']) {
+    if (!id.startsWith(`${platform}:`)) candidates.push(`${platform}:${id}`)
+  }
+  for (const docId of candidates) {
+    const snap = await db.collection('external_publish_results').doc(docId).get().catch(() => null)
+    if (!snap?.exists) continue
+    const result = { id: snap.id, ...snap.data() }
+    return ok(res, {
+      id: result.source_id ?? result.id,
+      cloud_id: result.id,
+      channel: result.platform ?? String(result.id).split(':')[0] ?? 'external',
+      status: result.status === 'success' ? 'published' : result.status ?? 'failed',
+      title: result.title ?? result.topic ?? '',
+      topic: result.topic ?? '',
+      published_url: result.url ?? null,
+      last_error: result.error ?? null,
+      action: actionForExternalIssue(result.platform ?? '', result.error ?? ''),
+      can_requeue: false,
+      requeue_block_reason: '외부 발행 결과 로그입니다. 로컬 파이프라인 DB에서 재큐잉하세요.',
+      body_available: false,
+      body: '',
+      preview_html: '',
+      quality: pipelineQuality(''),
+      updated_at: serializeValue(result.updated_at ?? result.published_at ?? result.created_at) ?? '',
+    })
+  }
+
+  return fail(res, 404, 'NOT_FOUND', 'pipeline post not found', { id })
 })
 
 app.post('/api/source-items/import', async (req, res) => {

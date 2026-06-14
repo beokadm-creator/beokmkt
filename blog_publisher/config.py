@@ -136,6 +136,7 @@ SELFHOST_RENDER_HTML = os.getenv("SELFHOST_RENDER_HTML", "true").lower() == "tru
 # ---- 네이버/티스토리 워커 (executors/naver-blog-worker) ----
 # Python→Node.js HTTP 사이드카 URL. 워커가 이 포트로 Playwright를 실행한다.
 NAVER_WORKER_URL = os.getenv("NAVER_WORKER_URL", "http://localhost:8788")
+EXTERNAL_PUBLISH_TIMEOUT_SEC = int(os.getenv("EXTERNAL_PUBLISH_TIMEOUT_SEC", "900"))
 
 # ---- 네이버 ----
 NAVER_BLOG_ID = os.getenv("NAVER_BLOG_ID", "")

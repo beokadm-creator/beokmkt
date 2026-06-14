@@ -20,6 +20,10 @@ function openPipelineDb() {
   return new Database(PIPELINE_DB_PATH, { readonly: true, fileMustExist: true })
 }
 
+function openPipelineDbWritable() {
+  return new Database(PIPELINE_DB_PATH, { fileMustExist: true })
+}
+
 initializeApp()
 
 const app = express()
@@ -180,9 +184,14 @@ app.use(async (req, res, next) => {
   if (req.path === '/api/blog-posts' && req.method === 'GET') return next()
   if (/^\/api\/blog-posts\/[^/]+$/.test(req.path) && req.method === 'GET') return next()
   if (/^\/api\/blog-posts\/slug\/[^/]+$/.test(req.path) && req.method === 'GET') return next()
+  // Local ops/API clients may use BLOG_API_KEY instead of Firebase auth.
+  const apiKey = req.header('X-API-Key')
+  if (apiKey && apiKey === envValue('BLOG_API_KEY')) {
+    req.user = { email: 'publisher@agent', role: 'publisher' }
+    return next()
+  }
   // Blog write endpoints: accept API key via X-API-Key header as alternative to Firebase auth
   if (/^\/api\/blog-posts/.test(req.path) && req.method !== 'GET') {
-    const apiKey = req.header('X-API-Key')
     if (apiKey && apiKey === envValue('BLOG_API_KEY')) {
       req.user = { email: 'publisher@agent', role: 'publisher' }
       return next()
@@ -191,7 +200,6 @@ app.use(async (req, res, next) => {
   }
   // Blog pipeline + schedule endpoints: accept API key
   if ((/^\/api\/ai\/execute-blog-pipeline/.test(req.path) || /^\/api\/blog-schedule/.test(req.path)) && req.method !== 'GET') {
-    const apiKey = req.header('X-API-Key')
     if (apiKey && apiKey === envValue('BLOG_API_KEY')) {
       req.user = { email: 'publisher@agent', role: 'publisher' }
       return next()
@@ -2067,6 +2075,120 @@ function actionForExternalIssue(channel, error = '') {
   return '원인 확인'
 }
 
+function pipelineRequeuePolicy(row) {
+  const error = String(row?.last_error ?? '')
+  if (!row) return { can_requeue: false, reason: 'post not found' }
+  if (!['needs_human', 'failed'].includes(row.status)) {
+    return { can_requeue: false, reason: 'needs_human/failed 상태만 재큐잉 가능' }
+  }
+  if (row.channel === 'naver' && /404|삭제|품질/i.test(error)) {
+    return { can_requeue: false, reason: '네이버에서 삭제/품질 처리된 글은 자동 재발행 금지' }
+  }
+  if (!row.body || String(row.body).trim().length < 500) {
+    return { can_requeue: false, reason: '본문이 없거나 너무 짧아 재발행 불가' }
+  }
+  return { can_requeue: true, reason: null }
+}
+
+function plainTextFromContent(content = '') {
+  return String(content)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[#*_>`~\[\]()!-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function pipelineQuality(body = '', groundingRatio = null) {
+  const content = String(body ?? '')
+  const plain = plainTextFromContent(content)
+  return {
+    chars: plain.length,
+    images: (content.match(/<img\b/gi) || []).length + (content.match(/!\[[^\]]*]\([^)\s]+\)/g) || []).length,
+    headings: (content.match(/^#{2,3}\s+/gm) || []).length + (content.match(/<h[23]\b/gi) || []).length,
+    grounding_ratio: groundingRatio == null ? null : Number(groundingRatio),
+  }
+}
+
+function escapePreviewHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function sanitizePreviewHtml(html = '') {
+  return String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\s+on\w+="[^"]*"/gi, '')
+    .replace(/\s+on\w+='[^']*'/gi, '')
+    .replace(/javascript:/gi, '')
+}
+
+function markdownToPreviewHtml(markdown = '') {
+  const lines = String(markdown ?? '').split(/\r?\n/)
+  const out = []
+  let listOpen = false
+  let paragraph = []
+  const closeParagraph = () => {
+    if (!paragraph.length) return
+    out.push(`<p>${escapePreviewHtml(paragraph.join(' '))}</p>`)
+    paragraph = []
+  }
+  const closeList = () => {
+    if (!listOpen) return
+    out.push('</ul>')
+    listOpen = false
+  }
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      closeParagraph()
+      closeList()
+      continue
+    }
+    const image = line.match(/^!\[([^\]]*)]\(([^)\s]+)\)$/)
+    if (image) {
+      closeParagraph()
+      closeList()
+      out.push(`<figure><img src="${escapePreviewHtml(image[2])}" alt="${escapePreviewHtml(image[1])}"></figure>`)
+      continue
+    }
+    const h3 = line.match(/^###\s+(.+)$/)
+    if (h3) {
+      closeParagraph()
+      closeList()
+      out.push(`<h3>${escapePreviewHtml(h3[1])}</h3>`)
+      continue
+    }
+    const h2 = line.match(/^##\s+(.+)$/)
+    if (h2) {
+      closeParagraph()
+      closeList()
+      out.push(`<h2>${escapePreviewHtml(h2[1])}</h2>`)
+      continue
+    }
+    const bullet = line.match(/^[-*]\s+(.+)$/)
+    if (bullet) {
+      closeParagraph()
+      if (!listOpen) {
+        out.push('<ul>')
+        listOpen = true
+      }
+      out.push(`<li>${escapePreviewHtml(bullet[1])}</li>`)
+      continue
+    }
+    paragraph.push(line)
+  }
+  closeParagraph()
+  closeList()
+  return out.join('\n')
+}
+
 app.get('/api/pipeline/stats', (req, res) => {
   let db
   try {
@@ -2146,6 +2268,77 @@ app.get('/api/pipeline/stats', (req, res) => {
     ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, needs_human_posts: [], recent: [] })
   } finally {
     db.close()
+  }
+})
+
+app.get('/api/pipeline/posts/:id', (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id <= 0) return fail(res, 400, 'VALIDATION_ERROR', 'numeric pipeline post id is required', {})
+
+  let db
+  try {
+    db = openPipelineDb()
+    const row = db.prepare('SELECT * FROM posts WHERE id = ?').get(id)
+    if (!row) return fail(res, 404, 'NOT_FOUND', 'pipeline post not found', { id })
+    const policy = pipelineRequeuePolicy(row)
+    const body = String(row.body ?? '')
+    ok(res, {
+      id: row.id,
+      channel: row.channel,
+      status: row.status,
+      title: row.title || row.topic || '',
+      topic: row.topic || '',
+      content_type: row.content_type,
+      meta_desc: row.meta_desc || '',
+      tags: (() => {
+        try { return row.tags ? JSON.parse(row.tags) : [] } catch { return [] }
+      })(),
+      published_url: row.published_url || null,
+      last_error: row.last_error || null,
+      action: actionForExternalIssue(row.channel, row.last_error || ''),
+      can_requeue: policy.can_requeue,
+      requeue_block_reason: policy.reason,
+      quality: pipelineQuality(body, row.grounding_ratio),
+      body,
+      preview_html: /<(h[1-6]|p|ul|ol|li|blockquote|img|figure)\b/i.test(body)
+        ? sanitizePreviewHtml(body)
+        : markdownToPreviewHtml(body),
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    })
+  } catch (e) {
+    fail(res, 500, 'PIPELINE_DB_ERROR', e instanceof Error ? e.message : 'pipeline db error', {})
+  } finally {
+    if (db) db.close()
+  }
+})
+
+app.post('/api/pipeline/posts/:id/requeue', (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id <= 0) return fail(res, 400, 'VALIDATION_ERROR', 'numeric pipeline post id is required', {})
+
+  let db
+  try {
+    db = openPipelineDbWritable()
+    const row = db.prepare('SELECT * FROM posts WHERE id = ?').get(id)
+    if (!row) return fail(res, 404, 'NOT_FOUND', 'pipeline post not found', { id })
+    const policy = pipelineRequeuePolicy(row)
+    if (!policy.can_requeue) {
+      return fail(res, 409, 'REQUEUE_BLOCKED', policy.reason || 'requeue blocked', {
+        id,
+        channel: row.channel,
+        status: row.status,
+      })
+    }
+    db.prepare(
+      "UPDATE posts SET status='queued', attempts=0, next_run_at=datetime('now'), last_error=NULL, updated_at=datetime('now') WHERE id = ?"
+    ).run(id)
+    const next = db.prepare('SELECT id, channel, status, next_run_at, updated_at FROM posts WHERE id = ?').get(id)
+    ok(res, { ...next, requeued: true })
+  } catch (e) {
+    fail(res, 500, 'PIPELINE_DB_ERROR', e instanceof Error ? e.message : 'pipeline db error', {})
+  } finally {
+    if (db) db.close()
   }
 })
 

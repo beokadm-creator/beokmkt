@@ -48,7 +48,7 @@ class NaverPublisher:
             resp = requests.post(
                 f"{worker_url}/publish-naver",
                 json=payload,
-                timeout=300,
+                timeout=config.EXTERNAL_PUBLISH_TIMEOUT_SEC,
             )
         except requests.ConnectionError as e:
             raise RetryableError(

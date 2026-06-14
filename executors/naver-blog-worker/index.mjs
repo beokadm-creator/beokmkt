@@ -154,6 +154,14 @@ async function pasteHtmlIntoEditor(page, html, debugContext = '') {
     inIframe = true
   }
 
+  await page.evaluate(() => {
+    try {
+      if (document.queryCommandState?.('strikeThrough')) {
+        document.execCommand('strikeThrough', false, null)
+      }
+    } catch {}
+  }).catch(() => {})
+
   const plainText = html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n')
@@ -266,6 +274,32 @@ async function pasteHtmlIntoEditor(page, html, debugContext = '') {
     'PASTE_STRUCTURE_LOST',
     'SmartEditor 본문 구조 입력 실패 (리치 paste 전략 모두 실패 — 평문 발행 차단)'
   )
+}
+
+async function normalizeNaverEditorContent(page) {
+  const result = await page.evaluate(() => {
+    const root = document.querySelector('.se-main-container, .se-content, [contenteditable="true"]') || document.body
+    if (!root) return { unwrapped: 0, lineThrough: 0 }
+    let unwrapped = 0
+    for (const node of Array.from(root.querySelectorAll('strike, s, del'))) {
+      const parent = node.parentNode
+      while (node.firstChild) parent.insertBefore(node.firstChild, node)
+      parent.removeChild(node)
+      unwrapped += 1
+    }
+    let lineThrough = 0
+    for (const el of Array.from(root.querySelectorAll('[style]'))) {
+      const style = el.getAttribute('style') || ''
+      if (/text-decoration\s*:\s*line-through/i.test(style)) {
+        el.setAttribute('style', style.replace(/text-decoration\s*:\s*line-through[^;"]*;?/gi, ''))
+        lineThrough += 1
+      }
+    }
+    return { unwrapped, lineThrough }
+  }).catch(() => ({ unwrapped: 0, lineThrough: 0 }))
+  if (result.unwrapped || result.lineThrough) {
+    log('warn', `네이버 에디터 취소선 서식 제거: strike=${result.unwrapped}, style=${result.lineThrough}`)
+  }
 }
 
 async function fillNaverTitle(page, title) {
@@ -532,6 +566,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
     await fillNaverTitle(page, publishTitle)
 
     await pasteHtmlIntoEditor(page, naverHtml, post_id || publishTitle)
+    await normalizeNaverEditorContent(page)
 
     if (Array.isArray(tags) && tags.length) {
       const tagInput = page.locator('input[placeholder*="태그"], .tag_input input, input[name="tags"]').first()
