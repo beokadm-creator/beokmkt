@@ -198,6 +198,37 @@ function ChannelTable({ by_channel }: { by_channel: ByChannel }) {
   )
 }
 
+function LocalOpsPanel({ active }: { active: boolean }) {
+  const commands = [
+    { label: '대상 확인', command: 'cd blog_publisher && python3 run.py needs_human' },
+    { label: '멈춘 작업 복구', command: 'cd blog_publisher && python3 run.py recover' },
+    { label: '발행 워커 1회', command: 'cd blog_publisher && python3 run.py publish' },
+    { label: 'DB 백업', command: 'cd blog_publisher && python3 run.py backup' },
+  ]
+
+  return (
+    <div className={['rounded-xl border p-4', active ? 'border-amber-900/60 bg-amber-950/15' : 'border-zinc-900 bg-zinc-900/30'].join(' ')}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">로컬 큐 조치</div>
+          <div className="mt-1 text-xs text-zinc-500">클라우드 대시보드는 상태 확인용입니다. SQLite 큐 변경은 맥의 로컬 파이프라인에서 처리합니다.</div>
+        </div>
+        <span className={['rounded-md border px-2 py-1 text-xs', active ? 'border-amber-800 text-amber-200' : 'border-zinc-800 text-zinc-400'].join(' ')}>
+          {active ? '조치 필요' : '대기'}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {commands.map((item) => (
+          <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+            <div className="text-xs font-medium text-zinc-400">{item.label}</div>
+            <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function DetailPanel({
   detail,
   loading,
@@ -417,6 +448,8 @@ export default function DashboardPage() {
         <div className="mb-3 text-sm font-semibold">파이프라인 상태</div>
         {data ? <StageBar by_status={data.by_status} /> : <div className="text-sm text-zinc-500">로딩 중…</div>}
       </div>
+
+      <LocalOpsPanel active={totalFailures > 0} />
 
       {/* 품질 지표 */}
       {data?.quality ? (

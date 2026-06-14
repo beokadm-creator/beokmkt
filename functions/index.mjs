@@ -333,6 +333,7 @@ app.get('/blog/rss.xml', rssHandler)
 // ─── IndexNow (발행 즉시 색인 요청: Bing/네이버 등 IndexNow 참여 엔진) ────────
 
 const SITE_BASE_URL = (process.env.SPA_BASE_URL || 'https://beokmkt.web.app').replace(/\/+$/, '')
+const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'beokmktindexnow2026key'
 
 async function pingIndexNow(urls, baseUrl = SITE_BASE_URL) {
@@ -4916,7 +4917,7 @@ function renderBeoksolutionLandingSchema(schema = {}) {
   </div>
 </section>
 
-<section style="margin:46px 0;"><h2 style="margin:0 0 18px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">${escapeHtml(schema.benefits_title || '구독형 홈페이지가 맞는 이유')}</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">${benefitHtml}</div></section>
+<section style="margin:46px 0;"><h2 style="margin:0 0 18px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">${escapeHtml(schema.benefits_title || '비오케이솔루션 운영 기준')}</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">${benefitHtml}</div></section>
 <section style="margin:46px 0;padding:28px;border-radius:28px;background:rgba(2,6,23,.8);border:1px solid rgba(255,255,255,.1);"><h2 style="margin:0 0 20px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">${escapeHtml(schema.comparison_title || '일반 외주와 무엇이 다른가요?')}</h2><div style="display:grid;gap:10px;">${comparisonHtml}</div></section>
 <section style="margin:46px 0;"><h2 style="margin:0 0 18px;color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.04em;font-weight:1000;">${escapeHtml(schema.process_title || '진행 방식')}</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">${processHtml}</div></section>
 ${faqHtml}
@@ -4944,31 +4945,31 @@ function blogPostBodyHtml(post, extras = {}) {
     ? renderBeoksolutionLandingSchema(schema)
     : (post.content || '')
   const date = formatKoreanDate(post.published_at || post.created_at || '')
-  const category = escapeHtml(post.category || '홈페이지 제작')
+  const category = escapeHtml(post.category || '운영 글')
   const tags = Array.isArray(post.tags) ? post.tags : []
   const renderedContent = content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join('')
 
   return `
-<div style="min-height:100vh;background:#05070d;color:#fff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;word-break:keep-all;overflow-wrap:break-word;">
-  <div style="position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 18% 8%,rgba(59,130,246,.22),transparent 34%),radial-gradient(circle at 88% 4%,rgba(16,185,129,.14),transparent 30%),linear-gradient(180deg,rgba(255,255,255,.05),transparent 28%);"></div>
+<div style="min-height:100vh;background:#09090b;color:#fff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;word-break:keep-all;overflow-wrap:break-word;">
+  <div style="position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(250,204,21,.08),transparent 220px),linear-gradient(90deg,rgba(39,39,42,.45) 1px,transparent 1px),linear-gradient(180deg,rgba(39,39,42,.35) 1px,transparent 1px);background-size:auto,48px 48px,48px 48px;"></div>
   <main style="position:relative;max-width:1180px;margin:0 auto;padding:34px 20px 72px;">
-    <nav style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:30px;padding:12px 14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);border-radius:999px;backdrop-filter:blur(18px);">
+    <nav style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:30px;padding:12px 14px;border:1px solid #27272a;background:rgba(9,9,11,.86);border-radius:8px;backdrop-filter:blur(18px);">
       <a href="/blog/" style="color:#d4d4d8;text-decoration:none;font-size:14px;font-weight:700;">← 블로그</a>
-      <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 15px;border-radius:999px;background:#fff;color:#05070d;text-decoration:none;font-size:14px;font-weight:950;">상담 문의</a>
+      <a href="${KAKAO_CHAT_URL}" target="_blank" rel="noopener" style="display:inline-flex;padding:10px 15px;border-radius:6px;background:#fde047;color:#09090b;text-decoration:none;font-size:14px;font-weight:800;">상담 문의</a>
     </nav>
 
     <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:34px;align-items:start;">
       <article style="min-width:0;">
-        <section style="padding:42px;border:1px solid rgba(255,255,255,.11);background:linear-gradient(135deg,rgba(255,255,255,.075),rgba(255,255,255,.025));border-radius:34px;box-shadow:0 32px 90px rgba(0,0,0,.38);backdrop-filter:blur(18px);">
+        <section style="padding:42px;border:1px solid #27272a;background:rgba(24,24,27,.72);border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.28);backdrop-filter:blur(18px);">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
-            <span style="display:inline-flex;padding:7px 12px;border-radius:999px;background:rgba(16,185,129,.12);color:#a7f3d0;border:1px solid rgba(110,231,183,.24);font-size:12px;font-weight:950;">${category}</span>
+            <span style="display:inline-flex;padding:7px 12px;border-radius:6px;background:rgba(250,204,21,.12);color:#fde68a;border:1px solid rgba(250,204,21,.3);font-size:12px;font-weight:800;">${category}</span>
             ${date ? `<time style="color:#a1a1aa;font-size:13px;font-weight:700;">${escapeHtml(date)}</time>` : ''}
           </div>
-          <h1 style="margin:0;max-width:900px;color:#fff;font-size:clamp(42px,6vw,72px);line-height:1.02;letter-spacing:-.07em;font-weight:1000;">${title}</h1>
-          ${excerpt ? `<p style="margin:24px 0 0;max-width:760px;color:#cbd5e1;font-size:19px;line-height:1.85;letter-spacing:-.01em;">${excerpt}</p>` : ''}
+          <h1 style="margin:0;max-width:900px;color:#fff;font-size:clamp(38px,5vw,60px);line-height:1.08;font-weight:1000;">${title}</h1>
+          ${excerpt ? `<p style="margin:24px 0 0;max-width:760px;color:#d4d4d8;font-size:19px;line-height:1.85;">${excerpt}</p>` : ''}
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px;">
-            <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:16px;background:#fff;color:#020617;text-decoration:none;font-weight:1000;font-size:14px;box-shadow:0 18px 40px rgba(255,255,255,.14);">무료 상담 신청</a>
-            <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:16px;background:rgba(255,255,255,.07);color:#fff;text-decoration:none;font-weight:950;font-size:14px;border:1px solid rgba(255,255,255,.15);">서비스 보기</a>
+            <a href="${KAKAO_CHAT_URL}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:6px;background:#fde047;color:#09090b;text-decoration:none;font-weight:800;font-size:14px;">명찰 운영 상담</a>
+            <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:6px;background:#09090b;color:#fff;text-decoration:none;font-weight:800;font-size:14px;border:1px solid #3f3f46;">비오케이솔루션 보기</a>
           </div>
         </section>
 
@@ -4980,17 +4981,17 @@ function blogPostBodyHtml(post, extras = {}) {
       </article>
 
       <aside style="position:sticky;top:28px;display:block;">
-        <div style="padding:26px;border:1px solid rgba(255,255,255,.1);border-radius:30px;background:rgba(255,255,255,.055);box-shadow:0 24px 70px rgba(0,0,0,.32);backdrop-filter:blur(18px);">
-          <p style="margin:0;color:#a7f3d0;font-size:12px;font-weight:1000;letter-spacing:.22em;">BOK SOLUTION</p>
-          <h2 style="margin:12px 0 0;color:#fff;font-size:28px;line-height:1.12;letter-spacing:-.05em;font-weight:1000;">구독형 홈페이지 제작</h2>
-          <p style="margin:13px 0 0;color:#cbd5e1;font-size:14px;line-height:1.75;">초기 제작비 부담 없이, 제작·운영·SEO·유지관리를 한 번에 시작하세요.</p>
-          <div style="display:grid;gap:9px;margin-top:20px;color:#e5e7eb;font-size:14px;font-weight:750;">
-            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">초기 제작비 0원</div>
-            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">월 5만원부터</div>
-            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">서버·SSL·SEO 포함</div>
-            <div style="padding:13px;border-radius:16px;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.07);">예약·결제·알림톡 확장</div>
+        <div style="padding:26px;border:1px solid #27272a;border-radius:8px;background:rgba(24,24,27,.82);box-shadow:0 24px 60px rgba(0,0,0,.28);backdrop-filter:blur(18px);">
+          <p style="margin:0;color:#fde68a;font-size:12px;font-weight:800;letter-spacing:.18em;">BOK SOLUTION</p>
+          <h2 style="margin:12px 0 0;color:#fff;font-size:28px;line-height:1.16;font-weight:1000;">학회 운영 사무국 명찰 출력</h2>
+          <p style="margin:13px 0 0;color:#d4d4d8;font-size:14px;line-height:1.75;">참가자 명단, QR·바코드 확인, 현장 재발행 기준을 실제 운영 흐름에 맞춰 정리합니다.</p>
+          <div style="display:grid;gap:9px;margin-top:20px;color:#e5e7eb;font-size:14px;font-weight:700;">
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">명단 정리와 오탈자 검수</div>
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">QR·바코드 식별값 확인</div>
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">현장 재발행 승인 동선</div>
+            <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">공개 발행 URL 품질 확인</div>
           </div>
-          <a href="https://beoksolution.com" target="_blank" rel="noopener" style="margin-top:20px;display:flex;width:100%;box-sizing:border-box;justify-content:center;padding:14px 18px;border-radius:16px;background:#fff;color:#020617;text-decoration:none;font-size:14px;font-weight:1000;">상담 문의하기</a>
+          <a href="${KAKAO_CHAT_URL}" target="_blank" rel="noopener" style="margin-top:20px;display:flex;width:100%;box-sizing:border-box;justify-content:center;padding:14px 18px;border-radius:6px;background:#fde047;color:#09090b;text-decoration:none;font-size:14px;font-weight:800;">운영 상담하기</a>
         </div>
       </aside>
     </div>

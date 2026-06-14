@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { applySeo } from '../lib/seo'
 import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
 
+const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
+
 type BlogPost = {
   id: string
   title: string
@@ -130,31 +132,31 @@ export default function PublicBlogPostPage() {
   const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#05070d] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(59,130,246,0.18),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_24%)]" />
+    <div className="min-h-screen overflow-hidden bg-zinc-950 text-white">
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,rgba(250,204,21,0.08),transparent_220px),linear-gradient(90deg,rgba(39,39,42,0.45)_1px,transparent_1px),linear-gradient(180deg,rgba(39,39,42,0.35)_1px,transparent_1px)] bg-[length:auto,48px_48px,48px_48px]" />
       <main className="relative mx-auto max-w-6xl px-5 py-8 md:px-8 md:py-12">
-        <div className="mb-8 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur">
+        <div className="mb-8 flex items-center justify-between gap-4 rounded-lg border border-zinc-800 bg-zinc-950/85 px-4 py-3 backdrop-blur">
           <Link to="/blog" className="text-sm font-medium text-zinc-300 hover:text-white">
             ← 블로그
           </Link>
-          <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-full bg-white px-4 py-2 text-sm font-black text-zinc-950 hover:bg-zinc-100">상담 문의</a>
+          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="rounded-md bg-yellow-300 px-4 py-2 text-sm font-bold text-zinc-950 hover:bg-yellow-200">상담 문의</a>
         </div>
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <article className="min-w-0">
-            <section className="rounded-[32px] border border-white/10 bg-white/[0.045] p-6 shadow-2xl shadow-black/30 backdrop-blur md:p-10">
+            <section className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-6 shadow-xl shadow-black/20 backdrop-blur md:p-10">
 
               <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
-                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-bold text-emerald-200">{post.category || '일반'}</span>
+                <span className="rounded-md border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 font-bold text-yellow-200">{post.category || '운영 글'}</span>
                 <time dateTime={post.published_at ?? post.created_at} className="font-medium">{publishedLabel}</time>
               </div>
 
-              <h1 className="mt-5 max-w-4xl text-4xl font-black leading-tight tracking-[-0.055em] text-white md:text-6xl">{post.title}</h1>
+              <h1 className="mt-5 max-w-4xl text-4xl font-black leading-tight text-white md:text-5xl">{post.title}</h1>
 
               {post.excerpt ? <p className="mt-5 max-w-3xl text-lg leading-8 text-zinc-300">{post.excerpt}</p> : null}
 
               <div className="mt-7 flex flex-wrap gap-3">
-                <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-white/10 hover:bg-zinc-100">무료 상담 신청</a>
-                <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3 text-sm font-black text-white hover:bg-white/[0.1]">서비스 보기</a>
+                <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">명찰 운영 상담</a>
+                <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-md border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-bold text-white hover:border-yellow-300">비오케이솔루션 보기</a>
               </div>
             </section>
 
@@ -188,16 +190,17 @@ export default function PublicBlogPostPage() {
           </article>
 
           <aside className="hidden lg:block">
-            <div className="sticky top-8 rounded-[28px] border border-white/10 bg-white/[0.05] p-6 shadow-2xl shadow-black/30 backdrop-blur">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-200">BOK SOLUTION</p>
-              <h2 className="mt-3 text-2xl font-black leading-tight tracking-[-0.04em]">구독형 홈페이지 제작</h2>
-              <p className="mt-3 text-sm leading-7 text-zinc-300">초기 제작비 부담 없이, 제작·운영·SEO·유지관리를 한 번에 시작하세요.</p>
+            <div className="sticky top-8 rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">BOK SOLUTION</p>
+              <h2 className="mt-3 text-2xl font-black leading-tight">학회 운영 사무국 명찰 출력</h2>
+              <p className="mt-3 text-sm leading-7 text-zinc-300">참가자 명단, QR·바코드 확인, 현장 재발행 기준을 실제 운영 흐름에 맞춰 정리합니다.</p>
               <div className="mt-5 grid gap-2 text-sm text-zinc-300">
-                <div className="rounded-2xl bg-black/25 p-3">초기 제작비 0원</div>
-                <div className="rounded-2xl bg-black/25 p-3">월 5만원부터</div>
-                <div className="rounded-2xl bg-black/25 p-3">서버·SSL·SEO 포함</div>
+                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">명단 정리와 오탈자 검수</div>
+                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">QR·바코드 식별값 확인</div>
+                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">현장 재발행 승인 동선</div>
+                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">공개 발행 URL 품질 확인</div>
               </div>
-              <a href="https://beoksolution.com" target="_blank" rel="noopener" className="mt-5 flex w-full justify-center rounded-2xl bg-white px-5 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-100">상담 문의하기</a>
+              <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="mt-5 flex w-full justify-center rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">운영 상담하기</a>
             </div>
           </aside>
         </div>

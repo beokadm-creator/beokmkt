@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-14 — 공개 상세/관리자 운영 UI 보정
+
+`/blog/` 인덱스는 콘텐츠 허브로 바뀌었지만, 개별 공개 글 상세의 사이드바와 SSR HTML에 이전 "구독형 홈페이지/월 5만원" 메시지가 남아 있어 검색·공유 HTML과 실제 화면의 주제가 어긋나는 문제를 수정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `src/spa/pages/PublicBlogPostPage.tsx` | 공개 글 상세 CTA·사이드바를 학회 운영 사무국 명찰 출력/현장 재발행 기준으로 교체. 카카오 상담 링크 적용 |
+| `functions/index.mjs` | SSR 상세 HTML도 동일하게 보정. 기본 카테고리와 CTA를 운영 글/명찰 운영 상담으로 변경 |
+| `src/spa/components/BeoksolutionLandingTemplate.tsx`, `functions/index.mjs` | 랜딩 스키마 기본 benefits 제목에서 구독형 홈페이지 하드코딩 제거 |
+| `src/spa/pages/DashboardPage.tsx` | 클라우드 대시보드에서 로컬 SQLite 큐를 직접 재큐잉할 수 없다는 점을 드러내고, 로컬 큐 조치 명령을 별도 패널로 노출 |
+
+검증:
+- `npx tsc --noEmit` PASS
+- `npm run lint -- .` PASS(기존 warning만 유지)
+- `npm run build:spa` PASS, `functions/ssr-template.mjs` 갱신
+- Firebase Functions/Hosting 배포 완료
+- 실제 공개 상세 HTML: 옛 구독형 문구 0, 명찰 운영 문구 확인
+- 실제 `/dashboard` SPA 번들: 로컬 큐 조치 패널 확인
+
+---
+
 ## 2026-06-14 — 네이버 공개 품질 게이트 + beok 이미지 카드
 
 실제 자체 블로그·티스토리·네이버 발행 결과를 공개 URL 기준으로 재검증하며, "URL 생성"과 "품질 통과"를 분리했다.

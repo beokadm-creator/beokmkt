@@ -92,7 +92,7 @@ export function BeoksolutionLandingTemplate({ schema }: { schema: BeoksolutionLa
       </section>
 
       <section>
-        <h2 className="mb-5 text-3xl font-black tracking-[-0.04em] text-white">{schema.benefits_title ?? '구독형 홈페이지가 맞는 이유'}</h2>
+        <h2 className="mb-5 text-3xl font-black tracking-[-0.04em] text-white">{schema.benefits_title ?? '비오케이솔루션 운영 기준'}</h2>
         <div className="grid gap-4 md:grid-cols-3">
           {benefits.map((item, index) => (
             <div key={`${item.title}-${index}`} className="rounded-[24px] border border-white/10 bg-white/[0.055] p-6">
