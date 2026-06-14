@@ -19,6 +19,13 @@ OPERATIONAL_TERMS = (
     "포트폴리오", "레퍼런스", "행사", "접수", "등록",
 )
 
+TOPIC_AXES = (
+    ("conference", ("학회", "학술대회", "명찰", "사무국", "참가자", "접수", "출력", "발행", "재발행", "QR", "바코드")),
+    ("web", ("홈페이지", "웹사이트", "반응형", "SEO", "서치콘솔", "신청폼", "문의폼", "예약", "결제", "SSL")),
+    ("systems", ("시스템", "개발", "관리자", "자동화", "알림톡", "DB", "데이터", "솔루션", "연동", "셀프호스팅")),
+    ("mice", ("홍커뮤니케이션", "MICE", "국제회의", "컨퍼런스", "동시통역", "전시회", "세미나", "레퍼런스", "포트폴리오")),
+)
+
 
 def plain_text(value: str | None) -> str:
     text = str(value or "")
@@ -45,6 +52,33 @@ def image_count(value: str | None) -> int:
 def is_operational_post(post) -> bool:
     text = f"{post['category'] or ''} {post['title'] or ''} {post['topic'] or ''} {post['body'] or ''}"
     return (post["category"] in {"beok", "hong"}) or any(term in text for term in OPERATIONAL_TERMS)
+
+
+def field(post, key: str) -> str:
+    try:
+        value = post[key]
+    except (KeyError, IndexError):
+        value = None
+    return str(value or "")
+
+
+def topic_axis(post) -> str | None:
+    text = f"{field(post, 'category')} {field(post, 'title')} {field(post, 'topic')} {field(post, 'body')}"
+    best_axis = None
+    best_hits = 0
+    for axis, terms in TOPIC_AXES:
+        hits = sum(1 for term in terms if term and term in text)
+        if hits > best_hits:
+            best_axis = axis
+            best_hits = hits
+    return best_axis if best_hits >= 1 else None
+
+
+def title_signature(value: str | None) -> set[str]:
+    text = str(value or "")
+    words = re.findall(r"[가-힣A-Za-z0-9]{2,}", text)
+    stopwords = {"비오케이솔루션", "가이드", "방법", "기준", "정리", "체크리스트", "필수", "완벽"}
+    return {word.lower() for word in words if word not in stopwords}
 
 
 def similar_today_published(post, threshold: float = 0.82) -> tuple[bool, dict | None, float]:
@@ -83,6 +117,41 @@ def similar_today_published(post, threshold: float = 0.82) -> tuple[bool, dict |
     return best_ratio >= threshold, best_row, best_ratio
 
 
+def similar_topic_today_published(post, threshold: float = 0.58) -> tuple[bool, dict | None, float]:
+    axis = topic_axis(post)
+    current_terms = title_signature(post["title"] or post["topic"])
+    if not axis or len(current_terms) < 3:
+        return False, None, 0.0
+
+    with db.connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, channel, title, topic, body, published_url, updated_at
+            FROM posts
+            WHERE status = 'published'
+              AND id != ?
+              AND date(updated_at, '+9 hours') = date(?, '+9 hours')
+            ORDER BY updated_at DESC
+            LIMIT 80
+            """,
+            (post["id"], post["updated_at"]),
+        ).fetchall()
+
+    best_row = None
+    best_ratio = 0.0
+    for row in rows:
+        if topic_axis(row) != axis:
+            continue
+        other_terms = title_signature(row["title"] or row["topic"])
+        if len(other_terms) < 3:
+            continue
+        ratio = len(current_terms & other_terms) / max(1, len(current_terms | other_terms))
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_row = dict(row)
+    return best_ratio >= threshold, best_row, best_ratio
+
+
 def publish_blockers(post) -> list[str]:
     issues: list[str] = []
     body = post["body"] or ""
@@ -105,5 +174,11 @@ def publish_blockers(post) -> list[str]:
         issues.append(
             f"당일 공개 글과 본문 중복 위험({ratio:.2f}) "
             f"matched=#{matched['id']} {matched['channel']}"
+        )
+    is_topic_dup, topic_matched, topic_ratio = similar_topic_today_published(post)
+    if is_topic_dup and topic_matched:
+        issues.append(
+            f"당일 같은 콘텐츠 축 제목 중복 위험({topic_ratio:.2f}) "
+            f"matched=#{topic_matched['id']} {topic_matched['channel']}"
         )
     return issues

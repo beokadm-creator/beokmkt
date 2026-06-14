@@ -488,10 +488,10 @@ function buildRssXml(baseUrl, posts) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
     '  <channel>',
-    '    <title>비오케이솔루션 학회 운영 사무국 명찰 출력 발행</title>',
+    '    <title>비오케이솔루션 블로그</title>',
     `    <link>${escapeXml(baseUrl)}/blog/</link>`,
     `    <atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" />`,
-    '    <description>학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠</description>',
+    '    <description>학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그입니다.</description>',
     '    <language>ko-KR</language>',
     items,
     '  </channel>',
@@ -5093,9 +5093,9 @@ function escapeHtml(value) {
 function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonLd, bodyHtml, publishedTime, modifiedTime }) {
   const template = ssrTemplate || '<!doctype html><html lang="ko"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title></title></head><body><div id="root"></div></body></html>'
 
-  const siteName = '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'
+  const siteName = '비오케이솔루션 블로그'
   const safeTitle = escapeHtml(title || siteName)
-  const safeDesc = escapeHtml(description || '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠를 확인하세요.')
+  const safeDesc = escapeHtml(description || '학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 확인하세요.')
   const safeCanonical = escapeHtml(canonicalUrl || '')
   const safeOgImage = escapeHtml(ogImage || '')
   const safeOgType = escapeHtml(ogType || 'website')
@@ -5111,7 +5111,7 @@ function buildSsrHtml({ title, description, canonicalUrl, ogType, ogImage, jsonL
     `<meta name="theme-color" content="#09090b" />`,
     `<link rel="canonical" href="${safeCanonical}" />`,
     `<link rel="sitemap" type="application/xml" href="/sitemap.xml" />`,
-    `<link rel="alternate" type="application/rss+xml" title="비오케이솔루션 학회 운영 사무국 명찰 출력 발행 RSS" href="/blog/rss.xml" />`,
+    `<link rel="alternate" type="application/rss+xml" title="비오케이솔루션 블로그 RSS" href="/blog/rss.xml" />`,
     `<link rel="alternate" type="text/markdown" title="LLMs guide" href="/llms.txt" />`,
     process.env.NAVER_SITE_VERIFICATION
       ? `<meta name="naver-site-verification" content="${escapeHtml(process.env.NAVER_SITE_VERIFICATION)}" />`
@@ -5198,7 +5198,7 @@ function webSiteJsonLd(baseUrl) {
   return JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+    name: '비오케이솔루션 블로그',
     url: baseUrl,
     inLanguage: 'ko-KR',
     publisher: {
@@ -5327,22 +5327,39 @@ function enhanceBlogContentForReading(html = '') {
   }
 }
 
-const PUBLIC_FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
+const PUBLIC_TOPIC_AXES = [
+  ['학회운영', ['학회', '학술대회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']],
+  ['홈페이지', ['홈페이지', '웹사이트', '반응형', 'SEO', '서치콘솔', '신청폼', '문의폼', '예약', '결제', 'SSL']],
+  ['시스템개발', ['시스템', '개발', '관리자', '자동화', '알림톡', 'DB', '데이터', '솔루션', '연동', '셀프호스팅']],
+  ['MICE', ['홍커뮤니케이션', 'MICE', '국제회의', '컨퍼런스', '동시통역', '전시회', '세미나', '레퍼런스', '포트폴리오']],
+]
 
-function publicIsConferenceBadgePost(post = {}) {
+function publicTopicAxis(post = {}) {
   const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
   const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${tags}`
-  const matches = PUBLIC_FOCUS_TERMS.filter((term) => haystack.includes(term)).length
-  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
+  let best = null
+  let bestHits = 0
+  for (const [axis, terms] of PUBLIC_TOPIC_AXES) {
+    const hits = terms.filter((term) => haystack.includes(term)).length
+    if (hits > bestHits) {
+      best = axis
+      bestHits = hits
+    }
+  }
+  return bestHits >= 1 ? best : null
+}
+
+function publicIsConferenceBadgePost(post = {}) {
+  return publicTopicAxis(post) === '학회운영'
 }
 
 function publicVisibleBlogPosts(posts = []) {
-  const focused = posts.filter(publicIsConferenceBadgePost)
-  return focused.length ? focused : posts
+  return posts
 }
 
 function publicDisplayCategory(post = {}) {
-  if (publicIsConferenceBadgePost(post)) return '학회운영'
+  const axis = publicTopicAxis(post)
+  if (axis) return axis
   return post.category || '운영 글'
 }
 
@@ -5422,7 +5439,7 @@ function blogPostBodyHtml(post, extras = {}) {
           <h1 style="margin:0;max-width:900px;color:#fff;font-size:clamp(38px,5vw,60px);line-height:1.08;font-weight:1000;">${title}</h1>
           ${excerpt ? `<p style="margin:24px 0 0;max-width:760px;color:#d4d4d8;font-size:19px;line-height:1.85;">${excerpt}</p>` : ''}
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px;">
-            <a href="${KAKAO_CHAT_URL}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:6px;background:#fde047;color:#09090b;text-decoration:none;font-weight:800;font-size:14px;">명찰 운영 상담</a>
+            <a href="${KAKAO_CHAT_URL}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:6px;background:#fde047;color:#09090b;text-decoration:none;font-weight:800;font-size:14px;">상담 문의</a>
             <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:6px;background:#09090b;color:#fff;text-decoration:none;font-weight:800;font-size:14px;border:1px solid #3f3f46;">비오케이솔루션 보기</a>
           </div>
         </section>
@@ -5507,22 +5524,22 @@ function blogListBodyHtml(posts, baseUrl) {
     `<div>`,
     `<p style="font-size:0.9rem;color:#fde047;margin:0 0 12px;">학회 운영 · 사무국 데이터 · 명찰 출력</p>`,
     `<h1 style="font-size:clamp(2.25rem,5vw,3.6rem);font-weight:900;letter-spacing:-.04em;line-height:1.08;color:#fff;margin:0;max-width:820px;">학회 운영 사무국의 명찰 출력과 현장 재발행 기준을 정리합니다.</h1>`,
-    `<p style="font-size:1rem;color:#a1a1aa;line-height:1.75;margin:20px 0 0;max-width:760px;">참가자 명단 정리, QR·바코드 검수, 현장 재발행, 발행 자동화까지 실제 운영 흐름에 맞춘 콘텐츠를 모읍니다.</p>`,
+    `<p style="font-size:1rem;color:#a1a1aa;line-height:1.75;margin:20px 0 0;max-width:760px;">홈페이지 제작, 맞춤형 시스템 개발, 학회 접수·명찰 출력, 홍커뮤니케이션 MICE 레퍼런스를 서비스 축별로 분리해 기록합니다.</p>`,
     `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;">`,
     `<a href="#articles" style="display:inline-block;background:#fafafa;color:#09090b;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">최신 글 보기</a>`,
-    `<a href="#topics" style="display:inline-block;border:1px solid #fde047;color:#fde047;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">운영 주제 보기</a>`,
+    `<a href="#topics" style="display:inline-block;border:1px solid #fde047;color:#fde047;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">콘텐츠 축 보기</a>`,
     `</div>`,
     `</div>`,
     leadImage ? `<div style="border:1px solid #27272a;border-radius:18px;overflow:hidden;background:#18181b;box-shadow:0 30px 80px rgba(0,0,0,.34);"><img src="${escapeHtml(leadImage.url)}" alt="${escapeHtml(leadImage.alt)}" loading="eager" style="display:block;width:100%;height:auto;max-height:440px;object-fit:cover;"></div>` : '',
     `</section>`,
     `<section id="articles" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
     `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">최신 발행 글</h2>`,
-    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">공개 URL로 확인된 글 중 학회 명찰·사무국 운영 주제에 맞는 글을 먼저 보여줍니다.</p>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">공개 URL로 확인된 글을 홈페이지 제작, 시스템 개발, 학회 운영, MICE 레퍼런스 축으로 구분해 보여줍니다.</p>`,
     `<ul style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">${items || '<li style="color:#71717a;">발행된 글이 없습니다.</li>'}</ul>`,
     `</section>`,
     `<section id="topics" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
-    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">운영 주제</h2>`,
-    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">콘텐츠는 검색 유입보다 먼저 실제 사무국이 반복 확인하는 절차를 기준으로 분류합니다.</p>`,
+    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">콘텐츠 축</h2>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">같은 말을 반복하지 않고 서비스별 의사결정 기준을 분리해서 다룹니다.</p>`,
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">`,
     ...[
       { cat: '명단 데이터', title: '출력 전 데이터 확정', desc: '이름, 소속, 직함, 등록 구분, QR 식별값을 같은 기준으로 검수합니다.' },
@@ -5554,7 +5571,7 @@ function blogPostingJsonLd(post, baseUrl) {
     dateModified: post.updated_at || post.published_at || post.created_at || '',
     author: { '@type': 'Organization', name: '비오케이솔루션' },
     publisher: { '@type': 'Organization', name: '비오케이솔루션', url: baseUrl },
-    isPartOf: { '@type': 'Blog', name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행', url: `${baseUrl}/blog/` },
+    isPartOf: { '@type': 'Blog', name: '비오케이솔루션 블로그', url: `${baseUrl}/blog/` },
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     wordCount: articleText ? articleText.split(/\s+/).length : undefined,
   }
@@ -5582,15 +5599,15 @@ function faqJsonLd(faq) {
 
 function selectRelatedPosts(post, allPosts, limit = 3) {
   const tags = new Set((Array.isArray(post.tags) ? post.tags : []).map((t) => String(t).toLowerCase()))
-  const currentIsFocus = publicIsConferenceBadgePost(post)
+  const currentAxis = publicTopicAxis(post)
   return allPosts
     .filter((p) => p.id !== post.id && !p.deleted_at && p.status === 'published')
-    .filter((p) => !currentIsFocus || publicIsConferenceBadgePost(p))
     .map((p) => {
       const pTags = (Array.isArray(p.tags) ? p.tags : []).map((t) => String(t).toLowerCase())
       const tagOverlap = pTags.filter((t) => tags.has(t)).length
       const categoryMatch = p.category && p.category === post.category ? 1 : 0
-      return { post: p, score: tagOverlap * 2 + categoryMatch }
+      const axisMatch = currentAxis && currentAxis === publicTopicAxis(p) ? 1 : 0
+      return { post: p, score: tagOverlap * 2 + categoryMatch + axisMatch }
     })
     .filter((entry) => entry.score > 0)
     .sort((a, b) => {
@@ -5648,7 +5665,7 @@ function blogListJsonLd(posts, baseUrl) {
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Blog',
-    name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+    name: '비오케이솔루션 블로그',
     url: `${baseUrl}/blog/`,
     description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠',
     inLanguage: 'ko-KR',
@@ -5715,7 +5732,7 @@ app.get('/blog/', async (req, res) => {
     ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
-      title: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+      title: '비오케이솔루션 블로그',
       description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리와 발행 자동화 실무 콘텐츠입니다.',
       canonicalUrl: `${baseUrl}/blog/`,
       ogType: 'website',
@@ -5748,7 +5765,7 @@ app.get('/blog/:slug', async (req, res) => {
     if (snap.empty) {
       res.set('Content-Type', 'text/html; charset=utf-8')
       res.status(404).send(buildSsrHtml({
-        title: '포스트를 찾을 수 없습니다 | 비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+        title: '포스트를 찾을 수 없습니다 | 비오케이솔루션 블로그',
         description: '요청하신 블로그 포스트를 찾을 수 없습니다.',
         canonicalUrl: `${baseUrl}/blog/${slug}`,
         ogType: 'website',
@@ -5765,7 +5782,7 @@ app.get('/blog/:slug', async (req, res) => {
     if (post.status !== 'published' || post.deleted_at) {
       res.set('Content-Type', 'text/html; charset=utf-8')
       res.status(404).send(buildSsrHtml({
-        title: '포스트를 찾을 수 없습니다 | 비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
+        title: '포스트를 찾을 수 없습니다 | 비오케이솔루션 블로그',
         description: '요청하신 블로그 포스트를 찾을 수 없습니다.',
         canonicalUrl: `${baseUrl}/blog/${slug}`,
         ogType: 'website',
@@ -5806,7 +5823,7 @@ app.get('/blog/:slug', async (req, res) => {
     const jsonLd = jsonLdEntries.map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
-      title: `${seoTitle} | 비오케이솔루션 학회 운영 사무국 명찰 출력 발행`,
+      title: `${seoTitle} | 비오케이솔루션 블로그`,
       description: seoDesc,
       canonicalUrl,
       ogType: 'article',

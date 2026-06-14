@@ -316,18 +316,32 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;')
 }
 
-const PUBLIC_FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
+const PUBLIC_BLOG_SITE_NAME = '비오케이솔루션 블로그'
+const PUBLIC_BLOG_SITE_DESCRIPTION = '학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그입니다.'
+const PUBLIC_TOPIC_AXES = [
+  ['학회운영', ['학회', '학술대회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']],
+  ['홈페이지', ['홈페이지', '웹사이트', '반응형', 'SEO', '서치콘솔', '신청폼', '문의폼', '예약', '결제', 'SSL']],
+  ['시스템개발', ['시스템', '개발', '관리자', '자동화', '알림톡', 'DB', '데이터', '솔루션', '연동', '셀프호스팅']],
+  ['MICE', ['홍커뮤니케이션', 'MICE', '국제회의', '컨퍼런스', '동시통역', '전시회', '세미나', '레퍼런스', '포트폴리오']],
+]
 
-function publicIsConferenceBadgePost(post = {}) {
+function publicTopicAxis(post = {}) {
   const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
   const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${tags}`
-  const matches = PUBLIC_FOCUS_TERMS.filter((term) => haystack.includes(term)).length
-  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
+  let best = null
+  let bestHits = 0
+  for (const [axis, terms] of PUBLIC_TOPIC_AXES) {
+    const hits = terms.filter((term) => haystack.includes(term)).length
+    if (hits > bestHits) {
+      best = axis
+      bestHits = hits
+    }
+  }
+  return bestHits >= 1 ? best : null
 }
 
 function publicVisibleBlogPosts(posts = []) {
-  const focused = posts.filter(publicIsConferenceBadgePost)
-  return focused.length ? focused : posts
+  return posts
 }
 
 function buildSitemapXml(baseUrl, posts, options = {}) {
@@ -657,7 +671,7 @@ function buildRssXml(baseUrl, posts) {
     ].filter(Boolean).join('')
   }).join('\n')
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>비오케이솔루션 학회 운영 사무국 명찰 출력 발행</title><link>${escapeXml(baseUrl)}/blog/</link><atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" /><description>학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리 실무 콘텐츠</description><language>ko-KR</language>\n${items}\n</channel></rss>`
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>${escapeXml(PUBLIC_BLOG_SITE_NAME)}</title><link>${escapeXml(baseUrl)}/blog/</link><atom:link href="${escapeXml(baseUrl)}/blog/rss.xml" rel="self" type="application/rss+xml" /><description>${escapeXml(PUBLIC_BLOG_SITE_DESCRIPTION)}</description><language>ko-KR</language>\n${items}\n</channel></rss>`
 }
 
 function rssHandler(req, res) {
@@ -2457,15 +2471,18 @@ function collectQualityItems(db, limit = 12) {
 
 const PUBLIC_FORBIDDEN_TONE = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '충격', '실화', 'ㅋㅋ', 'ㅎㅎ', '[이미지:']
 
-function pipelinePublicFocusTerms() {
-  return readPipelineEnvList('AUTO_SEED_REQUIRED_TERMS', '학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드')
-}
-
-function matchesPipelinePublicFocus(row) {
-  const terms = pipelinePublicFocusTerms()
-  if (!terms.length) return true
+function pipelinePublicTopicAxis(row) {
   const text = `${row?.title || ''} ${row?.topic || ''}`
-  return terms.filter((term) => term && text.includes(term)).length >= 2
+  let best = null
+  let bestHits = 0
+  for (const [axis, terms] of PUBLIC_TOPIC_AXES) {
+    const hits = terms.filter((term) => term && text.includes(term)).length
+    if (hits > bestHits) {
+      best = axis
+      bestHits = hits
+    }
+  }
+  return bestHits >= 1 ? best : null
 }
 
 function stripPublicNonContent(html = '') {
@@ -2497,7 +2514,7 @@ function hasVisibleStrike(html = '') {
 
 function publicQualityAction(channel, issues = []) {
   const issueText = issues.join(' ')
-  if (/목표 주제 이탈/.test(issueText)) return '운영 주제와 맞지 않는 공개 글입니다. 비공개/삭제 또는 목표 주제에 맞춘 재작성 판단'
+  if (/허용 콘텐츠 축 이탈/.test(issueText)) return '블로그 허용 축과 맞지 않는 공개 글입니다. 비공개/삭제 또는 서비스 축에 맞춘 재작성 판단'
   if (/캐시|CDN|Hosting/i.test(issueText)) return '본문은 수정됨. Hosting/CDN 캐시 만료 또는 재배포 후 공개 품질 재검증'
   if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
     return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
@@ -2541,8 +2558,8 @@ async function inspectPublicPost(row) {
   const matched = PUBLIC_FORBIDDEN_TONE.filter((word) => contentHtml.includes(word) || text.includes(word))
   if (matched.length) issues.push(`금칙/마커 문구 노출(${matched.slice(0, 5).join(', ')})`)
   if (hasVisibleStrike(contentHtml)) issues.push('취소선 서식 노출')
-  if (!matchesPipelinePublicFocus(row)) {
-    issues.push(`목표 주제 이탈(${readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행')})`)
+  if (!pipelinePublicTopicAxis(row)) {
+    issues.push(`허용 콘텐츠 축 이탈(${readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그')})`)
   }
 
   if (channel === 'selfhosted') {
@@ -2560,7 +2577,7 @@ async function inspectPublicPost(row) {
 
   let cache_bust_ok = false
   let cache_bust_url = null
-  const cacheCheckNeeded = issues.some((issue) => !/목표 주제 이탈/.test(issue))
+  const cacheCheckNeeded = issues.some((issue) => !/허용 콘텐츠 축 이탈/.test(issue))
   if (channel === 'selfhosted' && issues.length > 0 && cacheCheckNeeded && url && !url.includes('?')) {
     cache_bust_url = `${url}?v=public-quality-${encodeURIComponent(String(row.id ?? Date.now()))}`
     try {
@@ -2832,7 +2849,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
         inventory,
-        focus_name: readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'),
+        focus_name: readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그'),
         focus_inventory: focusInventory,
         focus_inventory_by_channel: focusInventoryByChannel,
         external_auto_seed_enabled: pipelineExternalAutoSeedEnabled(),

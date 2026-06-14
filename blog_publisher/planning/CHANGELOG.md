@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-06-15 — 블로그 다중 콘텐츠 축 복구 및 중복 발행 차단 강화
+
+블로그를 단일 `학회 명찰` 캠페인처럼 취급하던 구조를 `홈페이지 제작`, `맞춤형 시스템 개발`, `학회 운영·명찰 출력`, `홍커뮤니케이션·MICE` 축으로 재정리했다. 개발 홍보 글은 삭제 대상이 아니라 별도 콘텐츠 축으로 유지하고, 진짜 오프토픽·중복 글만 걸러내도록 품질 기준을 바꿨다.
+
+| 대상 | 내용 |
+|---|---|
+| `src/spa/lib/blogTaxonomy.ts` | 공개 블로그 공통 콘텐츠 축/사이트명/설명 추가 |
+| `PublicBlogPage.tsx`, `PublicBlogPostPage.tsx` | 명찰 글만 우선 노출하던 필터 제거. 네 개 콘텐츠 축 허브와 축 기반 관련 글 추천으로 변경 |
+| `seo.ts`, `server/index.mjs`, `functions/index.mjs` | OG/RSS/SSR 사이트명을 `비오케이솔루션 블로그`로 확대 |
+| `verify_public_posts.py`, `sync_pipeline_snapshot.mjs`, `server/index.mjs` | 공개 품질 검증을 단일 목표 주제가 아니라 허용 콘텐츠 축 기준으로 변경 |
+| `content_quality.py` | 당일 동일 본문 차단에 더해 같은 콘텐츠 축의 제목 유사 중복도 차단 |
+| `category_map.py`, `config.py`, `auto_seed.py`, `status_report.py`, `DashboardPage.tsx` | 시스템개발 축과 허용 콘텐츠 축 문구 반영 |
+
+운영 정리:
+- 프로덕션 자체 블로그에서 중복 제목 4건 삭제. 최신 1건씩은 유지.
+- 개발/홈페이지 홍보 글은 삭제하지 않고 블로그 허용 축으로 복구.
+
+검증:
+- `npm run build:spa`, `npx tsc --noEmit`, `npm run lint -- --max-warnings=999` PASS
+- `python3 -m compileall -q blog_publisher`, `quality_selftest`, `verify_public 20`, `status` PASS
+- `node --check server/index.mjs`, `functions/index.mjs`, `sync_pipeline_snapshot.mjs` PASS
+- 프로덕션 `/api/blog-posts?status=published&limit=100` 중복 제목 없음 확인
+
+---
+
 ## 2026-06-15 — 공개 저품질/오프토픽 글 삭제 정리
 
 반복·무이미지·테스트성 공개 글과 현재 블로그명(`비오케이솔루션 학회 운영 사무국 명찰 출력 발행`)에서 벗어난 과거 주제 글을 공개 채널에서 정리했다. 자체 블로그와 티스토리는 삭제 완료 후 로컬 SQLite 상태를 `archived`로 맞췄고, 네이버는 관리자 세션 만료로 삭제가 보류되었다.

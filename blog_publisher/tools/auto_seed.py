@@ -115,7 +115,7 @@ def run_stock(channel: str = "selfhosted", target: int | None = None) -> int:
     current = _inventory_count(channel)
     missing = max(0, target - current)
     if missing == 0:
-        print(f"  목표 주제 재고 충분: channel={channel} inventory={current} / target={target}")
+        print(f"  허용 콘텐츠 축 재고 충분: channel={channel} inventory={current} / target={target}")
         return 0
-    print(f"  목표 주제 재고 보충 필요: channel={channel} inventory={current} / target={target}, seed={missing}")
+    print(f"  허용 콘텐츠 축 재고 보충 필요: channel={channel} inventory={current} / target={target}, seed={missing}")
     return run(channel=channel, max_seeds=missing)

@@ -431,9 +431,9 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
       alert: inventoryLow,
     },
     {
-      label: '목표 주제',
+      label: '허용 축 재고',
       value: `${focusInventory}/${inventoryTarget}`,
-      sub: focusInventoryLow ? (ops.focus_name ?? '주제 재고 부족') : '주제 충족',
+      sub: focusInventoryLow ? (ops.focus_name ?? '축 재고 부족') : '축 재고 충족',
       alert: focusInventoryLow,
     },
     {

@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { applySeo } from '../lib/seo'
 import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
+import { classifyBlogAxis } from '../lib/blogTaxonomy'
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const CONFERENCE_IMAGES = [
@@ -82,17 +83,8 @@ function wordCountForJsonLd(html: string) {
   return plain.split(/\s+/).filter(Boolean).length
 }
 
-const FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
-
-function isConferenceBadgePost(post: Pick<BlogPost, 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
-  const haystack = `${post.title} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${(post.tags ?? []).join(' ')}`
-  const matches = FOCUS_TERMS.filter((term) => haystack.includes(term)).length
-  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
-}
-
 function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
-  if (isConferenceBadgePost(post)) return '학회운영'
-  return post.category || '운영 글'
+  return classifyBlogAxis(post).shortLabel
 }
 
 function stableImageIndex(post: Pick<BlogPost, 'id' | 'title' | 'category'>) {
@@ -106,7 +98,8 @@ function stableImageIndex(post: Pick<BlogPost, 'id' | 'title' | 'category'>) {
 
 function displayImage(post: BlogPost) {
   if (post.featured_image) return { url: post.featured_image, alt: post.title }
-  return isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
+  const axis = classifyBlogAxis(post)
+  return axis.key === 'conference' || axis.key === 'mice' ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
 }
 
 type BlogPost = {
@@ -134,14 +127,12 @@ function relatedScore(current: BlogPost, candidate: BlogPost) {
   const candidateTags = (candidate.tags ?? []).map((tag) => tag.toLowerCase())
   const tagOverlap = candidateTags.filter((tag) => currentTags.has(tag)).length
   const categoryMatch = current.category && candidate.category === current.category ? 1 : 0
-  const conferenceMatch = isConferenceBadgePost(current) && isConferenceBadgePost(candidate) ? 1 : 0
-  return tagOverlap * 3 + categoryMatch * 2 + conferenceMatch
+  const axisMatch = classifyBlogAxis(current).key === classifyBlogAxis(candidate).key ? 1 : 0
+  return tagOverlap * 3 + categoryMatch * 2 + axisMatch
 }
 
 function pickRelatedPosts(current: BlogPost, posts: BlogPost[], limit = 3) {
-  const currentIsFocus = isConferenceBadgePost(current)
   return posts
-    .filter((candidate) => !currentIsFocus || isConferenceBadgePost(candidate))
     .map((candidate) => ({ candidate, score: relatedScore(current, candidate) }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => {
@@ -327,6 +318,7 @@ export default function PublicBlogPostPage() {
   const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
   const content = enhanceContent(normalizeRenderedContent(post.content || '<p>본문이 없습니다.</p>'))
   const categoryLabel = displayCategory(post)
+  const axis = classifyBlogAxis(post)
   const heroImage = displayImage(post)
 
   return (
@@ -355,7 +347,7 @@ export default function PublicBlogPostPage() {
               {post.excerpt ? <p className="mt-5 max-w-3xl text-lg leading-8 text-zinc-300">{post.excerpt}</p> : null}
 
               <div className="mt-7 flex flex-wrap gap-3">
-                <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">명찰 운영 상담</a>
+                <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">상담 문의</a>
                 <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-md border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-bold text-white hover:border-yellow-300">비오케이솔루션 보기</a>
               </div>
             </section>
@@ -431,13 +423,12 @@ export default function PublicBlogPostPage() {
               </div>
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">BOK SOLUTION</p>
-                <h2 className="mt-3 text-2xl font-black leading-tight">학회 운영 사무국 명찰 출력</h2>
-                <p className="mt-3 text-sm leading-7 text-zinc-300">참가자 명단, QR·바코드 확인, 현장 재발행 기준을 실제 운영 흐름에 맞춰 정리합니다.</p>
+                <h2 className="mt-3 text-2xl font-black leading-tight">{axis.label}</h2>
+                <p className="mt-3 text-sm leading-7 text-zinc-300">{axis.description}</p>
                 <div className="mt-5 grid gap-2 text-sm text-zinc-300">
-                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">명단 정리와 오탈자 검수</div>
-                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">QR·바코드 식별값 확인</div>
-                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">현장 재발행 승인 동선</div>
-                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">공개 발행 URL 품질 확인</div>
+                  {axis.terms.slice(0, 4).map((term) => (
+                    <div key={term} className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">{term}</div>
+                  ))}
                 </div>
                 <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="mt-5 flex w-full justify-center rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">운영 상담하기</a>
               </div>

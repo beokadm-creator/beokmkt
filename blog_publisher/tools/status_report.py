@@ -114,11 +114,11 @@ def report() -> dict[str, int]:
     focus_total = sum(focus_inventory.values())
     if focus_total < buffer_target:
         print(
-            f"  [경고] 목표 주제 재고 부족: focus_inventory={focus_total} < 목표 {buffer_target} "
+            f"  [경고] 허용 콘텐츠 축 재고 부족: focus_inventory={focus_total} < 목표 {buffer_target} "
             f"({config.BLOG_FOCUS_NAME})"
         )
     else:
-        print(f"  [정상] 목표 주제 재고 충분: focus_inventory={focus_total} (목표 {buffer_target})")
+        print(f"  [정상] 허용 콘텐츠 축 재고 충분: focus_inventory={focus_total} (목표 {buffer_target})")
 
     if counts["reviewed"] < buffer_target:
         print(f"  [진행] reviewed 전환 대기: reviewed={counts['reviewed']} < 목표 {buffer_target} "

@@ -30,13 +30,24 @@ FORBIDDEN_TONE = (
 )
 
 
-def _matches_focus(title: str, topic: str = "") -> bool:
-    terms = config.AUTO_SEED_REQUIRED_TERMS
-    if not terms:
-        return True
+TOPIC_AXES = (
+    ("학회운영", ("학회", "학술대회", "명찰", "사무국", "참가자", "접수", "출력", "발행", "재발행", "QR", "바코드")),
+    ("홈페이지", ("홈페이지", "웹사이트", "반응형", "SEO", "서치콘솔", "신청폼", "문의폼", "예약", "결제", "SSL")),
+    ("시스템개발", ("시스템", "개발", "관리자", "자동화", "알림톡", "DB", "데이터", "솔루션", "연동", "셀프호스팅")),
+    ("MICE", ("홍커뮤니케이션", "MICE", "국제회의", "컨퍼런스", "동시통역", "전시회", "세미나", "레퍼런스", "포트폴리오")),
+)
+
+
+def _topic_axis(title: str, topic: str = "") -> str | None:
     text = f"{title or ''} {topic or ''}"
-    hits = sum(1 for term in terms if term and term in text)
-    return hits >= 2
+    best_axis = None
+    best_hits = 0
+    for axis, terms in TOPIC_AXES:
+        hits = sum(1 for term in terms if term and term in text)
+        if hits > best_hits:
+            best_axis = axis
+            best_hits = hits
+    return best_axis if best_hits >= 1 else None
 
 
 @dataclass
@@ -137,8 +148,9 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
         issues.append(f"금칙/마커 문구 노출({', '.join(matched_words[:5])})")
     if _has_visible_strike(content_html):
         issues.append("취소선 서식 노출")
-    if not _matches_focus(title, topic):
-        issues.append(f"목표 주제 이탈({config.BLOG_FOCUS_NAME})")
+    axis = _topic_axis(title, topic)
+    if not axis:
+        issues.append(f"허용 콘텐츠 축 이탈({config.BLOG_FOCUS_NAME})")
 
     if channel == "selfhosted":
         if chars < 1000:
@@ -148,7 +160,7 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
         if re.search(r"<article\b[^>]*>\s*<header\b", html, flags=re.I):
             issues.append("저장 본문 article/header 중복 노출")
         if "학회" in title or "명찰" in title:
-            if "학회운영" not in html:
+            if axis == "학회운영" and "학회운영" not in html:
                 issues.append("학회운영 카테고리 표시 누락")
             if images < 1:
                 issues.append("학회/명찰 글 이미지 없음")
@@ -167,7 +179,7 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
 
     cache_bust_url = None
     cache_bust_ok = False
-    cache_check_needed = any("목표 주제 이탈" not in issue for issue in issues)
+    cache_check_needed = any("허용 콘텐츠 축 이탈" not in issue for issue in issues)
     if channel == "selfhosted" and issues and cache_check_needed and url and "?" not in url:
         cache_bust_url = f"{url}?v=public-quality-{post['id']}"
         bust_status, bust_html = _fetch(cache_bust_url)

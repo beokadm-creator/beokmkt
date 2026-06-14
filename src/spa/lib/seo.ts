@@ -1,3 +1,5 @@
+import { BLOG_SITE_NAME } from './blogTaxonomy'
+
 function upsertMeta(selector: string, attrs: Record<string, string>) {
   let node = document.head.querySelector(selector) as HTMLMetaElement | null
   if (!node) {
@@ -58,7 +60,7 @@ export function applySeo(options: {
   upsertMeta('meta[property="og:description"]', { property: 'og:description', content: options.description })
   upsertMeta('meta[property="og:type"]', { property: 'og:type', content: type })
   upsertMeta('meta[property="og:url"]', { property: 'og:url', content: options.canonical })
-  upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행' })
+  upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: BLOG_SITE_NAME })
   upsertMeta('meta[property="og:locale"]', { property: 'og:locale', content: 'ko_KR' })
   upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: options.image ? 'summary_large_image' : 'summary' })
   upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: options.title })
@@ -100,7 +102,7 @@ export function applySeo(options: {
   upsertLink('link[rel="alternate"][type="application/rss+xml"]', {
     rel: 'alternate',
     type: 'application/rss+xml',
-    title: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행 RSS',
+    title: `${BLOG_SITE_NAME} RSS`,
     href: '/blog/rss.xml',
   })
   upsertLink('link[rel="alternate"][type="text/markdown"]', {

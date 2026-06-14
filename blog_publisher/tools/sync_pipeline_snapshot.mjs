@@ -285,15 +285,25 @@ function pipelineRequeuePolicy(post) {
 
 const PUBLIC_FORBIDDEN_TONE = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '충격', '실화', 'ㅋㅋ', 'ㅎㅎ', '[이미지:']
 
-function publicFocusTerms() {
-  return readEnvList('AUTO_SEED_REQUIRED_TERMS', '학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드')
-}
+const PUBLIC_TOPIC_AXES = [
+  ['학회운영', ['학회', '학술대회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']],
+  ['홈페이지', ['홈페이지', '웹사이트', '반응형', 'SEO', '서치콘솔', '신청폼', '문의폼', '예약', '결제', 'SSL']],
+  ['시스템개발', ['시스템', '개발', '관리자', '자동화', '알림톡', 'DB', '데이터', '솔루션', '연동', '셀프호스팅']],
+  ['MICE', ['홍커뮤니케이션', 'MICE', '국제회의', '컨퍼런스', '동시통역', '전시회', '세미나', '레퍼런스', '포트폴리오']],
+]
 
-function matchesPublicFocus(row) {
-  const terms = publicFocusTerms()
-  if (!terms.length) return true
+function publicTopicAxis(row) {
   const text = `${row?.title || ''} ${row?.topic || ''}`
-  return terms.filter((term) => term && text.includes(term)).length >= 2
+  let best = null
+  let bestHits = 0
+  for (const [axis, terms] of PUBLIC_TOPIC_AXES) {
+    const hits = terms.filter((term) => term && text.includes(term)).length
+    if (hits > bestHits) {
+      best = axis
+      bestHits = hits
+    }
+  }
+  return bestHits >= 1 ? best : null
 }
 
 function stripPublicNonContent(html = '') {
@@ -473,7 +483,7 @@ function hasVisibleStrike(html = '') {
 
 function publicQualityAction(channel, issues = []) {
   const issueText = issues.join(' ')
-  if (/목표 주제 이탈/.test(issueText)) return '운영 주제와 맞지 않는 공개 글입니다. 비공개/삭제 또는 목표 주제에 맞춘 재작성 판단'
+  if (/허용 콘텐츠 축 이탈/.test(issueText)) return '블로그 허용 축과 맞지 않는 공개 글입니다. 비공개/삭제 또는 서비스 축에 맞춘 재작성 판단'
   if (/캐시|CDN|Hosting/i.test(issueText)) return '본문은 수정됨. Hosting/CDN 캐시 만료 또는 재배포 후 공개 품질 재검증'
   if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
     return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
@@ -514,8 +524,8 @@ async function inspectPublicPost(row) {
   const matched = PUBLIC_FORBIDDEN_TONE.filter((word) => contentHtml.includes(word) || text.includes(word))
   if (matched.length) issues.push(`금칙/마커 문구 노출(${matched.slice(0, 5).join(', ')})`)
   if (hasVisibleStrike(contentHtml)) issues.push('취소선 서식 노출')
-  if (!matchesPublicFocus(row)) {
-    issues.push(`목표 주제 이탈(${readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행')})`)
+  if (!publicTopicAxis(row)) {
+    issues.push(`허용 콘텐츠 축 이탈(${readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그')})`)
   }
   if (channel === 'selfhosted') {
     if (chars < 1000) issues.push(`본문 짧음(${chars}자)`)
@@ -531,7 +541,7 @@ async function inspectPublicPost(row) {
   }
   let cache_bust_ok = false
   let cache_bust_url = null
-  const cacheCheckNeeded = issues.some((issue) => !/목표 주제 이탈/.test(issue))
+  const cacheCheckNeeded = issues.some((issue) => !/허용 콘텐츠 축 이탈/.test(issue))
   if (channel === 'selfhosted' && issues.length > 0 && cacheCheckNeeded && url && !url.includes('?')) {
     cache_bust_url = `${url}?v=public-quality-${encodeURIComponent(String(row.id ?? Date.now()))}`
     try {
@@ -689,7 +699,7 @@ async function collectSnapshot() {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
         inventory,
-        focus_name: readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'),
+        focus_name: readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그'),
         focus_inventory,
         focus_inventory_by_channel,
         external_auto_seed_enabled: externalAutoSeedEnabled(),

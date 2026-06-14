@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { applySeo } from '../lib/seo'
+import { BLOG_AXES, BLOG_SITE_DESCRIPTION, BLOG_SITE_NAME, classifyBlogAxis } from '../lib/blogTaxonomy'
 
 type BlogPost = {
   id: string
@@ -26,18 +27,11 @@ const CONFERENCE_IMAGES = [
   { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 마스터 컨트롤러 통합 운영 시스템' },
 ]
 
-const focusTopics = [
-  { label: '명단 데이터', desc: '이름, 소속, 직함, 등록 구분, QR 식별값을 출력 전 같은 기준으로 검수합니다.' },
-  { label: '출력 운영', desc: '재단선, 용지, 케이스, 현장 프린터, 여분 자재까지 사무국 체크리스트로 정리합니다.' },
-  { label: '현장 재발행', desc: '오탈자, 당일 등록, 직함 변경을 승인 기준과 출력 로그로 관리합니다.' },
-  { label: '발행 자동화', desc: '자체 블로그, 티스토리, 네이버 발행 결과를 실제 URL과 품질 지표로 확인합니다.' },
-]
-
 const trustSignals = [
-  '등록·결제·QR 출결 운영 경험',
   '학회·기관 홈페이지와 관리자 구축',
-  '현장 접수와 명찰 출력 동선 이해',
-  '발행 후 공개 URL 품질 확인',
+  '등록·결제·QR·명찰 운영 경험',
+  '맞춤형 업무 시스템과 자동화',
+  '홍커뮤니케이션 MICE 운영 맥락',
 ]
 
 function formatDate(value: string | null) {
@@ -45,19 +39,6 @@ function formatDate(value: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleDateString('ko-KR')
-}
-
-const FOCUS_TERMS = ['학회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']
-
-function isConferenceBadgePost(post: Pick<BlogPost, 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
-  const haystack = `${post.title} ${post.excerpt ?? ''} ${post.seo_description ?? ''} ${(post.tags ?? []).join(' ')}`
-  const matches = FOCUS_TERMS.filter((term) => haystack.includes(term)).length
-  return matches >= 2 && /학회|명찰|사무국/.test(haystack)
-}
-
-function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'> & Partial<Pick<BlogPost, 'excerpt' | 'seo_description'>>) {
-  if (isConferenceBadgePost(post)) return '학회운영'
-  return post.category || '블로그'
 }
 
 function stableImageIndex(post: BlogPost) {
@@ -71,18 +52,26 @@ function stableImageIndex(post: BlogPost) {
 
 function displayImage(post: BlogPost) {
   if (post.featured_image) return { url: post.featured_image, alt: post.title }
-  return isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
+  const axis = classifyBlogAxis(post)
+  return axis.key === 'conference' || axis.key === 'mice' ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
 }
 
 export default function PublicBlogPage() {
   const [data, setData] = useState<ListResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const posts = useMemo(() => data?.items ?? [], [data])
-  const focusPosts = useMemo(() => posts.filter(isConferenceBadgePost), [posts])
-  const visiblePosts = focusPosts.length ? focusPosts : posts
+  const visiblePosts = posts
   const featured = visiblePosts[0]
   const articlePosts = featured ? visiblePosts.slice(1, 7) : visiblePosts.slice(0, 6)
   const featuredImage = featured ? displayImage(featured) : null
+  const axisCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const post of posts) {
+      const axis = classifyBlogAxis(post)
+      counts.set(axis.key, (counts.get(axis.key) ?? 0) + 1)
+    }
+    return counts
+  }, [posts])
 
   useEffect(() => {
     fetch('/api/blog-posts?status=published&limit=50')
@@ -95,17 +84,17 @@ export default function PublicBlogPage() {
   useEffect(() => {
     const canonical = `${window.location.origin}/blog/`
     applySeo({
-      title: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
-      description: '학회 운영 사무국의 명찰 출력, 현장 재발행, 참가자 데이터 정리와 발행 자동화 실무 콘텐츠입니다.',
+      title: BLOG_SITE_NAME,
+      description: BLOG_SITE_DESCRIPTION,
       canonical,
       type: 'website',
-      keywords: ['학회 운영', '사무국', '명찰 출력', '현장 재발행', '참가자 데이터', '비오케이솔루션'],
+      keywords: ['비오케이솔루션', '홈페이지 제작', '맞춤형 시스템 개발', '학회 운영', '명찰 출력', 'MICE', '홍커뮤니케이션'],
       jsonLd: [
         {
           '@context': 'https://schema.org',
           '@type': 'Blog',
-          name: '비오케이솔루션 학회 운영 사무국 명찰 출력 발행',
-          description: '학회 운영, 명찰 출력, 현장 재발행, 참가자 데이터 정리 관련 실무형 인사이트',
+          name: BLOG_SITE_NAME,
+          description: BLOG_SITE_DESCRIPTION,
           url: canonical,
           inLanguage: 'ko-KR',
           publisher: {
@@ -143,7 +132,7 @@ export default function PublicBlogPage() {
           <Link to="/blog/" className="text-sm font-semibold tracking-tight text-white">비오케이솔루션</Link>
           <nav className="hidden items-center gap-6 text-sm text-zinc-400 md:flex">
             <a href="#articles" className="hover:text-white">최신 글</a>
-            <a href="#topics" className="hover:text-white">운영 주제</a>
+            <a href="#topics" className="hover:text-white">콘텐츠 축</a>
             <a href="/blog/rss.xml" className="hover:text-white">RSS</a>
           </nav>
           <a
@@ -161,19 +150,19 @@ export default function PublicBlogPage() {
         <section className="border-b border-zinc-800">
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-18">
             <div>
-              <p className="text-sm font-medium text-yellow-300">학회 운영 · 사무국 데이터 · 명찰 출력</p>
+              <p className="text-sm font-medium text-yellow-300">홈페이지 제작 · 시스템 개발 · 학회 운영</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight text-white md:text-5xl">
-                명찰 출력과 현장 재발행을 사무국 기준으로 정리합니다.
+                비오케이솔루션의 개발과 행사 운영 경험을 검색 가능한 기록으로 남깁니다.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-                참가자 명단 검수, QR·바코드 확인, 출력 자재, 현장 재발행 승인, 공개 발행 검증까지 실제 운영에 필요한 기준만 모읍니다.
+                홈페이지 제작, 맞춤형 관리자 시스템, 학회 접수·명찰 출력, 홍커뮤니케이션 MICE 레퍼런스를 분리해 다룹니다. 같은 말을 반복하는 글은 줄이고, 실제 의사결정에 필요한 기준만 쌓습니다.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a href="#articles" className="rounded-md bg-white px-5 py-3 text-center text-sm font-semibold text-zinc-950 hover:bg-zinc-200">
                   최신 글 보기
                 </a>
                 <a href="#topics" className="rounded-md border border-yellow-300 px-5 py-3 text-center text-sm font-semibold text-yellow-200 hover:bg-yellow-300 hover:text-zinc-950">
-                  운영 주제 보기
+                  콘텐츠 축 보기
                 </a>
               </div>
             </div>
@@ -194,11 +183,11 @@ export default function PublicBlogPage() {
               <div>
                 <h2 className="text-2xl font-bold text-white">최신 발행 글</h2>
                 <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  공개 URL로 확인된 글 중 학회 명찰·사무국 운영 주제에 맞는 글만 먼저 보여줍니다.
+                  공개 URL 기준으로 살아 있는 글만 보여줍니다. 개발 홍보와 학회 운영 글을 한 목록 안에서 축별로 구분합니다.
                 </p>
               </div>
               <span className="hidden rounded-md border border-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-400 sm:block">
-                목표 주제 {focusPosts.length}/{posts.length}
+                공개 글 {posts.length}
               </span>
               <a href="/blog/rss.xml" className="hidden rounded-md border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-300 hover:border-yellow-300 hover:text-yellow-200 sm:block">
                 RSS
@@ -219,7 +208,7 @@ export default function PublicBlogPage() {
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                    <span>{displayCategory(featured)}</span>
+                    <span>{classifyBlogAxis(featured).shortLabel}</span>
                     <span>{formatDate(featured.published_at ?? featured.created_at)}</span>
                   </div>
                   <h3 className="mt-3 text-2xl font-bold leading-snug text-white group-hover:text-yellow-100">{featured.title}</h3>
@@ -238,7 +227,7 @@ export default function PublicBlogPage() {
                   className="group rounded-lg border border-zinc-800 bg-zinc-900/45 p-5 transition hover:border-yellow-300/70 hover:bg-zinc-900"
                 >
                   <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                    <span>{displayCategory(post)}</span>
+                    <span>{classifyBlogAxis(post).shortLabel}</span>
                     <span>{formatDate(post.published_at ?? post.created_at)}</span>
                   </div>
                   <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-6 text-zinc-100 group-hover:text-yellow-100">
@@ -260,15 +249,18 @@ export default function PublicBlogPage() {
 
         <section id="topics" className="border-b border-zinc-800 bg-zinc-900/25">
           <div className="mx-auto max-w-6xl px-6 py-14">
-            <h2 className="text-2xl font-bold text-white">운영 주제</h2>
+            <h2 className="text-2xl font-bold text-white">콘텐츠 축</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-              콘텐츠는 검색 유입보다 먼저 실제 사무국이 반복 확인하는 절차를 기준으로 분류합니다.
+              검색 유입을 위해 억지로 같은 글을 반복하지 않고, 서비스별로 다른 문제와 의사결정 기준을 다룹니다.
             </p>
             <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {focusTopics.map((topic) => (
-                <article key={topic.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-5">
-                  <h3 className="text-sm font-semibold text-yellow-200">{topic.label}</h3>
-                  <p className="mt-3 text-sm leading-6 text-zinc-400">{topic.desc}</p>
+              {BLOG_AXES.map((topic) => (
+                <article key={topic.key} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className={`text-sm font-semibold ${topic.accent}`}>{topic.label}</h3>
+                    <span className="text-xs font-semibold text-zinc-500">{axisCounts.get(topic.key) ?? 0}</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-zinc-400">{topic.description}</p>
                 </article>
               ))}
             </div>
@@ -278,9 +270,9 @@ export default function PublicBlogPage() {
         <section className="mx-auto max-w-6xl px-6 py-14">
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/45 p-6 md:flex md:items-center md:justify-between md:gap-8">
             <div>
-              <h2 className="text-xl font-bold text-white">현장 운영 자료가 필요하면 사무국 기준으로 먼저 정리합니다.</h2>
+              <h2 className="text-xl font-bold text-white">홈페이지, 시스템, 행사 운영 중 어디가 병목인지 먼저 정리합니다.</h2>
               <p className="mt-3 text-sm leading-6 text-zinc-400">
-                행사 규모, 명단 형식, 출력 방식, 현장 재발행 동선을 알려주시면 필요한 체크리스트와 운영 흐름을 맞춰봅니다.
+                필요한 범위가 홈페이지인지, 관리자 시스템인지, 학회 접수·명찰 운영인지 알려주시면 실제 운영 흐름에 맞춰 검토합니다.
               </p>
             </div>
             <a
@@ -289,7 +281,7 @@ export default function PublicBlogPage() {
               rel="noreferrer"
               className="mt-5 block shrink-0 rounded-md bg-yellow-300 px-5 py-3 text-center text-sm font-semibold text-zinc-950 hover:bg-yellow-200 md:mt-0"
             >
-              운영 상담
+              상담 문의
             </a>
           </div>
         </section>
