@@ -5093,14 +5093,29 @@ function publicDisplayCategory(post = {}) {
   return post.category || '운영 글'
 }
 
+const CONFERENCE_IMAGES = [
+  { url: 'https://hongcomm.kr/img/page/c1.jpg', alt: '학회 현장 지류 명찰 자동 출력 시스템' },
+  { url: 'https://hongcomm.kr/img/page/2.jpg', alt: '고속 명찰 자동 출력 장비 운영 현장' },
+  { url: 'https://hongcomm.kr/img/page/b2.png', alt: '모바일 디지털 명찰 시스템 화면' },
+  { url: 'https://hongcomm.kr/img/page/a1.png', alt: '학술대회 등록 시스템 화면' },
+  { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 마스터 컨트롤러 통합 운영 시스템' },
+]
+
+function stableIndex(value, length) {
+  if (!length) return 0
+  let hash = 0
+  const source = String(value || '')
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0
+  }
+  return Math.abs(hash) % length
+}
+
 function publicFallbackImage(post = {}) {
   const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
   const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.category ?? ''} ${tags}`
   if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) {
-    return {
-      url: 'https://hongcomm.kr/img/page/c1.jpg',
-      alt: '학회 현장 지류 명찰 자동 출력 시스템',
-    }
+    return CONFERENCE_IMAGES[stableIndex(`${post.id ?? ''} ${haystack}`, CONFERENCE_IMAGES.length)]
   }
   return null
 }
@@ -5179,6 +5194,7 @@ function blogPostBodyHtml(post, extras = {}) {
 }
 
 function blogListBodyHtml(posts, baseUrl) {
+  const leadImage = publicFallbackImage(posts[0] || {}) || (posts[0]?.featured_image ? { url: posts[0].featured_image, alt: posts[0].title || '비오케이솔루션 블로그 대표 이미지' } : null)
   const items = posts
     .slice(0, 12)
     .map((post) => {
@@ -5188,27 +5204,37 @@ function blogListBodyHtml(posts, baseUrl) {
       const date = post.published_at || post.created_at || ''
       const href = `${baseUrl}/blog/${encodeURIComponent(slug)}`
       const sub = `<span style="display:inline-block;font-size:0.75rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:999px;margin-right:6px;">${escapeHtml(post.subcategory || publicDisplayCategory(post))}</span>`
+      const fallbackImage = publicFallbackImage(post)
+      const image = fallbackImage || (post.featured_image ? { url: post.featured_image, alt: title } : null)
       return [
-        `<li style="margin-bottom:20px;">`,
+        `<li style="min-width:0;border:1px solid #27272a;border-radius:12px;background:rgba(24,24,27,.54);overflow:hidden;">`,
+        image ? `<a href="${escapeHtml(href)}" style="display:block;aspect-ratio:16/10;background:#18181b;overflow:hidden;"><img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt || title)}" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover;"></a>` : '',
+        `<div style="padding:18px;">`,
         `<a href="${escapeHtml(href)}" style="color:#fafafa;text-decoration:none;">`,
-        `<h2 style="font-size:1.15rem;font-weight:600;margin:0 0 4px;">${title}</h2>`,
+        `<h2 style="font-size:1.08rem;font-weight:800;line-height:1.45;margin:0 0 8px;">${title}</h2>`,
         `</a>`,
         `<div style="margin:4px 0 6px;">${sub}${date ? `<time style="font-size:0.8rem;color:#71717a;">${escapeHtml(date)}</time>` : ''}</div>`,
-        excerpt ? `<p style="font-size:0.9rem;color:#a1a1aa;margin:6px 0 0;line-height:1.5;">${excerpt.slice(0, 200)}${excerpt.length > 200 ? '…' : ''}</p>` : '',
+        excerpt ? `<p style="font-size:0.9rem;color:#a1a1aa;margin:10px 0 0;line-height:1.65;">${excerpt.slice(0, 180)}${excerpt.length > 180 ? '…' : ''}</p>` : '',
+        `</div>`,
         `</li>`,
       ].filter(Boolean).join('\n')
     })
     .join('\n')
 
   return [
-    `<div style="max-width:1120px;margin:0 auto;padding:56px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;">`,
+    `<div style="max-width:1120px;margin:0 auto;padding:56px 16px;font-family:system-ui,-apple-system,sans-serif;color:#e4e4e7;word-break:keep-all;overflow-wrap:break-word;">`,
+    `<section style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:34px;align-items:center;">`,
+    `<div>`,
     `<p style="font-size:0.9rem;color:#fde047;margin:0 0 12px;">학회 운영 · 사무국 데이터 · 명찰 출력</p>`,
-    `<h1 style="font-size:2.6rem;font-weight:800;line-height:1.2;color:#fff;margin:0;max-width:820px;">학회 운영 사무국의 명찰 출력과 현장 재발행 기준을 정리합니다.</h1>`,
-    `<p style="font-size:1rem;color:#a1a1aa;line-height:1.7;margin:20px 0 0;max-width:760px;">참가자 명단 정리, QR·바코드 검수, 현장 재발행, 발행 자동화까지 실제 운영 흐름에 맞춘 콘텐츠를 모읍니다.</p>`,
+    `<h1 style="font-size:clamp(2.25rem,5vw,3.6rem);font-weight:900;letter-spacing:-.04em;line-height:1.08;color:#fff;margin:0;max-width:820px;">학회 운영 사무국의 명찰 출력과 현장 재발행 기준을 정리합니다.</h1>`,
+    `<p style="font-size:1rem;color:#a1a1aa;line-height:1.75;margin:20px 0 0;max-width:760px;">참가자 명단 정리, QR·바코드 검수, 현장 재발행, 발행 자동화까지 실제 운영 흐름에 맞춘 콘텐츠를 모읍니다.</p>`,
     `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;">`,
     `<a href="#articles" style="display:inline-block;background:#fafafa;color:#09090b;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">최신 글 보기</a>`,
     `<a href="#topics" style="display:inline-block;border:1px solid #fde047;color:#fde047;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">운영 주제 보기</a>`,
     `</div>`,
+    `</div>`,
+    leadImage ? `<div style="border:1px solid #27272a;border-radius:18px;overflow:hidden;background:#18181b;box-shadow:0 30px 80px rgba(0,0,0,.34);"><img src="${escapeHtml(leadImage.url)}" alt="${escapeHtml(leadImage.alt)}" loading="eager" style="display:block;width:100%;height:auto;max-height:440px;object-fit:cover;"></div>` : '',
+    `</section>`,
     `<section id="articles" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
     `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">최신 발행 글</h2>`,
     `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">공개 URL로 확인된 글을 기준으로 명찰 출력과 현장 운영 기준을 추적합니다.</p>`,
@@ -5226,6 +5252,7 @@ function blogListBodyHtml(posts, baseUrl) {
     ].map((item) => `<div style="border:1px solid #27272a;border-radius:8px;padding:16px;background:rgba(24,24,27,0.4);"><span style="display:inline-block;background:#27272a;border-radius:4px;padding:2px 8px;font-size:0.75rem;color:#a1a1aa;">${item.cat}</span><h3 style="margin:10px 0 0;font-size:0.95rem;color:#f4f4f5;">${item.title}</h3><p style="margin:8px 0 0;font-size:0.82rem;color:#a1a1aa;line-height:1.6;">${item.desc}</p></div>`),
     `</div>`,
     `</section>`,
+    `<style>@media (max-width: 760px) { section[style*="grid-template-columns:minmax"] { grid-template-columns:1fr !important; } }</style>`,
     `</div>`,
   ].join('\n')
 }
@@ -5343,11 +5370,11 @@ function blogListJsonLd(posts, baseUrl) {
     inLanguage: 'ko-KR',
     publisher: { '@type': 'Organization', name: '비오케이솔루션', url: baseUrl },
     about: [
-      { '@type': 'Thing', name: 'MICE' },
-      { '@type': 'Thing', name: '행사기획' },
-      { '@type': 'Thing', name: '학술대회 등록 시스템' },
-      { '@type': 'Thing', name: '동시통역' },
-      { '@type': 'Thing', name: '행사 IT 솔루션' },
+      { '@type': 'Thing', name: '학회 운영' },
+      { '@type': 'Thing', name: '사무국 데이터' },
+      { '@type': 'Thing', name: '명찰 출력' },
+      { '@type': 'Thing', name: '현장 재발행' },
+      { '@type': 'Thing', name: '참가자 QR·바코드' },
     ],
     blogPost: posts.slice(0, 20).map((post) => ({
       '@type': 'BlogPosting',

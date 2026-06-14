@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.beok.blog-quality-selftest</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>run.py</string>
+    <string>quality_selftest</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/aaron/Developer/personal/beokmkt/blog_publisher</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>0</integer><key>Minute</key><integer>23</integer></dict>
+    <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>23</integer></dict>
+    <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>23</integer></dict>
+    <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>23</integer></dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/blog-quality.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/blog-quality.err.log</string>
+</dict>
+</plist>

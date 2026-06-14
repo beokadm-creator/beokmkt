@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-15 — 운영 품질 점검 LaunchAgent와 공개 블로그 인덱스 이미지 보강
+
+macOS에서 `crontab <file>` 적용이 반환되지 않는 상태를 확인했다. 공개 URL 검증, Phase B 품질 셀프테스트, 이미지 자산 감사는 crontab에만 의존하지 않도록 LaunchAgent로 분리해 실제 로드·강제 실행까지 확인했다. 또한 배포된 `/blog/`는 SPA가 아니라 Cloud Functions SSR 템플릿이 먼저 응답하므로, 사용자 블로그 인덱스의 이미지 0개 문제를 SSR 템플릿에서 직접 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/ops/com.beok.blog-verify-public.plist` | 매시 17분 `python3 run.py verify_public 20` 실행 |
+| `blog_publisher/ops/com.beok.blog-quality-selftest.plist` | 0/6/12/18시 23분 `quality_selftest` 실행 |
+| `blog_publisher/ops/com.beok.blog-image-audit.plist` | 매일 05:41 `image_audit` 실행 |
+| `blog_publisher/ops/install-ops.sh` | 품질 점검 LaunchAgent 설치/로드 단계 추가 |
+| `functions/index.mjs` | SSR `/blog/` 인덱스에 대표 이미지와 카드 썸네일 추가, Blog 구조화 데이터 주제를 학회 명찰 운영으로 정리. 학회/명찰 글 이미지는 검증된 행사·명찰 자산 풀에서 제목 기반으로 분산 |
+| `src/spa/pages/PublicBlogPage.tsx`, `src/spa/pages/PublicBlogPostPage.tsx` | 클라이언트 라우팅에서도 같은 대표 이미지 분산 규칙 적용 |
+
+검증:
+- 3개 plist `plutil -lint` OK, 실제 `launchctl load` 후 `kickstart` 실행
+- `quality_selftest` PASS, `image_audit` 20/20 PASS, `verify_public 20` 20/20 PASS
+- Playwright 렌더 기준 `/blog/` desktop/mobile overflow 없음. 기존 배포본은 이미지 0개였고, 이번 보강은 SSR 템플릿에서 직접 처리
+
+---
+
 ## 2026-06-14 — 운영 큐 보관과 외부 발행 최종 제목 추적
 
 과거 검증/삭제가 끝난 네이버·티스토리 실패 항목이 계속 `needs_human/failed`로 남아 운영 화면을 오염시키던 문제를 정리했다. 삭제하지 않고 `archived` 상태로 분리해 audit trail을 유지한다. 또한 티스토리/네이버 워커가 채널용 재작성 후 공개 제목을 바꾸는 경우, Python 파이프라인 DB와 클라우드 외부 발행 결과가 최종 공개 제목을 보존하도록 했다.

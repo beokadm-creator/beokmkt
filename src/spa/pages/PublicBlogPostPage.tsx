@@ -4,7 +4,13 @@ import { applySeo } from '../lib/seo'
 import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
-const CONFERENCE_BADGE_IMAGE = 'https://hongcomm.kr/img/page/c1.jpg'
+const CONFERENCE_IMAGES = [
+  'https://hongcomm.kr/img/page/c1.jpg',
+  'https://hongcomm.kr/img/page/2.jpg',
+  'https://hongcomm.kr/img/page/b2.png',
+  'https://hongcomm.kr/img/page/a1.png',
+  'https://hongcomm.kr/img/page/6.jpg',
+]
 
 function normalizeRenderedContent(html: string) {
   return String(html || '')
@@ -23,6 +29,15 @@ function isConferenceBadgePost(post: Pick<BlogPost, 'category' | 'title' | 'tags
 function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
   if (isConferenceBadgePost(post)) return '학회운영'
   return post.category || '운영 글'
+}
+
+function stableImageIndex(post: Pick<BlogPost, 'id' | 'title' | 'category'>) {
+  const source = `${post.id} ${post.title} ${post.category}`
+  let hash = 0
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0
+  }
+  return Math.abs(hash) % CONFERENCE_IMAGES.length
 }
 
 type BlogPost = {
@@ -153,7 +168,7 @@ export default function PublicBlogPostPage() {
   const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
   const contentHtml = normalizeRenderedContent(post.content || '<p>본문이 없습니다.</p>')
   const categoryLabel = displayCategory(post)
-  const heroImage = isConferenceBadgePost(post) ? CONFERENCE_BADGE_IMAGE : post.featured_image
+  const heroImage = isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : post.featured_image
 
   return (
     <div className="min-h-screen overflow-hidden bg-zinc-950 text-white">

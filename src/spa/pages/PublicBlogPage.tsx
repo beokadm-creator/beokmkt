@@ -18,7 +18,13 @@ type BlogPost = {
 type ListResponse = { items: BlogPost[]; total: number }
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
-const CONFERENCE_BADGE_IMAGE = 'https://hongcomm.kr/img/page/c1.jpg'
+const CONFERENCE_IMAGES = [
+  'https://hongcomm.kr/img/page/c1.jpg',
+  'https://hongcomm.kr/img/page/2.jpg',
+  'https://hongcomm.kr/img/page/b2.png',
+  'https://hongcomm.kr/img/page/a1.png',
+  'https://hongcomm.kr/img/page/6.jpg',
+]
 
 const focusTopics = [
   { label: '명단 데이터', desc: '이름, 소속, 직함, 등록 구분, QR 식별값을 출력 전 같은 기준으로 검수합니다.' },
@@ -51,8 +57,17 @@ function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
   return post.category || '블로그'
 }
 
+function stableImageIndex(post: BlogPost) {
+  const source = `${post.id} ${post.title} ${post.category}`
+  let hash = 0
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0
+  }
+  return Math.abs(hash) % CONFERENCE_IMAGES.length
+}
+
 function displayImage(post: BlogPost) {
-  return isConferenceBadgePost(post) ? CONFERENCE_BADGE_IMAGE : post.featured_image
+  return isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : post.featured_image
 }
 
 export default function PublicBlogPage() {
