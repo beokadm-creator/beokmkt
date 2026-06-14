@@ -5040,7 +5040,7 @@ if (process.env.NODE_ENV === 'production') {
   const distDir = path.resolve(__dirname, '..', 'dist')
 
   app.use(express.static(distDir))
-  app.get('*', (req, res) => {
+  app.use((req, res) => {
     res.sendFile(path.join(distDir, 'index.html'))
   })
 }

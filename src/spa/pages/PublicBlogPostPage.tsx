@@ -12,6 +12,12 @@ const CONFERENCE_IMAGES = [
   'https://hongcomm.kr/img/page/6.jpg',
 ]
 
+type TocItem = {
+  id: string
+  text: string
+  level: 2 | 3
+}
+
 function normalizeRenderedContent(html: string) {
   return String(html || '')
     .replace(/<article\b[^>]*>\s*<header\b[\s\S]*?<\/header>/i, '')
@@ -19,6 +25,55 @@ function normalizeRenderedContent(html: string) {
     .replace(/<h1\b([^>]*)>/gi, '<h2$1>')
     .replace(/<\/h1>/gi, '</h2>')
     .trim()
+}
+
+function stripHtml(html: string) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function headingId(text: string, index: number) {
+  const normalized = text
+    .replace(/<[^>]+>/g, '')
+    .replace(/&[^;]+;/g, '')
+    .replace(/[^\w가-힣\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 46)
+  return normalized ? `section-${normalized}-${index}` : `section-${index}`
+}
+
+function enhanceContent(html: string) {
+  const toc: TocItem[] = []
+  let index = 0
+  const body = html.replace(/<h([23])\b([^>]*)>([\s\S]*?)<\/h\1>/gi, (match, levelRaw, attrs, inner) => {
+    const level = Number(levelRaw) as 2 | 3
+    const text = stripHtml(inner)
+    if (!text) return match
+    index += 1
+    const existingId = String(attrs || '').match(/\sid=["']([^"']+)["']/i)?.[1]
+    const id = existingId || headingId(text, index)
+    toc.push({ id, text, level })
+    if (existingId) return match
+    return `<h${level}${attrs} id="${id}">${inner}</h${level}>`
+  })
+  const plain = stripHtml(body)
+  return {
+    html: body,
+    toc,
+    chars: plain.length,
+    readingMinutes: Math.max(1, Math.ceil(plain.length / 650)),
+    images: (body.match(/<img\b/gi) || []).length,
+    tables: (body.match(/<table\b/gi) || []).length,
+  }
 }
 
 function isConferenceBadgePost(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
@@ -166,7 +221,7 @@ export default function PublicBlogPostPage() {
   }
 
   const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
-  const contentHtml = normalizeRenderedContent(post.content || '<p>본문이 없습니다.</p>')
+  const content = enhanceContent(normalizeRenderedContent(post.content || '<p>본문이 없습니다.</p>'))
   const categoryLabel = displayCategory(post)
   const heroImage = isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : post.featured_image
 
@@ -187,6 +242,8 @@ export default function PublicBlogPostPage() {
               <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
                 <span className="rounded-md border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 font-bold text-yellow-200">{categoryLabel}</span>
                 <time dateTime={post.published_at ?? post.created_at} className="font-medium">{publishedLabel}</time>
+                <span className="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300">읽기 {content.readingMinutes}분</span>
+                <span className="rounded-md border border-zinc-700 px-3 py-1 text-zinc-300">소제목 {content.toc.length}</span>
               </div>
 
               <h1 className="mt-5 max-w-4xl text-4xl font-black leading-tight text-white md:text-5xl">{post.title}</h1>
@@ -222,24 +279,62 @@ export default function PublicBlogPostPage() {
               <BeoksolutionLandingTemplate schema={post.content_schema} />
             ) : (
               <div
-                className="mt-10 max-w-none prose prose-invert prose-zinc prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:no-underline prose-a:text-blue-300 prose-strong:text-white prose-li:text-zinc-300 prose-img:rounded-xl prose-table:block prose-table:overflow-x-auto prose-th:border prose-th:border-white/10 prose-th:bg-white/10 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-white/10 prose-td:px-3 prose-td:py-2 [&_.summary-card]:not-prose [&_.summary-card]:mb-8 [&_.summary-card]:rounded-2xl [&_.summary-card]:border [&_.summary-card]:border-white/10 [&_.summary-card]:bg-white/[0.06] [&_.summary-card]:p-5 [&_.summary-kicker]:text-xs [&_.summary-kicker]:font-black [&_.summary-kicker]:uppercase [&_.summary-kicker]:tracking-[0.18em] [&_.summary-kicker]:text-emerald-200 [&_.summary-card_p]:mt-3 [&_.summary-card_p]:text-sm [&_.summary-card_p]:leading-7 [&_.summary-card_p]:text-zinc-300 [&_.summary-card_ul]:mt-4 [&_.summary-card_ul]:grid [&_.summary-card_ul]:gap-2 [&_.summary-card_li]:rounded-xl [&_.summary-card_li]:bg-black/20 [&_.summary-card_li]:px-3 [&_.summary-card_li]:py-2 [&_.summary-card_li]:text-sm [&_.summary-card_li]:text-zinc-200 [&_.summary-meta]:mt-4 [&_.summary-meta]:text-xs [&_.summary-meta]:text-zinc-500 [&_.soft-cta]:not-prose [&_.soft-cta]:mt-10 [&_.soft-cta]:rounded-2xl [&_.soft-cta]:border [&_.soft-cta]:border-emerald-300/20 [&_.soft-cta]:bg-emerald-300/10 [&_.soft-cta]:p-5 [&_.soft-cta_strong]:block [&_.soft-cta_strong]:text-lg [&_.soft-cta_strong]:font-black [&_.soft-cta_p]:mt-2 [&_.soft-cta_p]:text-sm [&_.soft-cta_p]:leading-7 [&_.soft-cta_p]:text-zinc-300 [&_.soft-cta_a]:mt-4 [&_.soft-cta_a]:inline-flex [&_.soft-cta_a]:rounded-xl [&_.soft-cta_a]:bg-white [&_.soft-cta_a]:px-4 [&_.soft-cta_a]:py-2 [&_.soft-cta_a]:text-sm [&_.soft-cta_a]:font-black [&_.soft-cta_a]:text-zinc-950"
-                dangerouslySetInnerHTML={{ __html: contentHtml }}
+                className="mt-10 max-w-none scroll-mt-6 prose prose-invert prose-zinc prose-headings:scroll-mt-24 prose-headings:text-zinc-100 prose-h2:mt-12 prose-h2:border-t prose-h2:border-zinc-800 prose-h2:pt-8 prose-p:text-zinc-300 prose-a:no-underline prose-a:text-blue-300 prose-strong:text-white prose-li:text-zinc-300 prose-img:rounded-xl prose-table:block prose-table:overflow-x-auto prose-th:border prose-th:border-white/10 prose-th:bg-white/10 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-white/10 prose-td:px-3 prose-td:py-2 [&_.summary-card]:not-prose [&_.summary-card]:mb-8 [&_.summary-card]:rounded-2xl [&_.summary-card]:border [&_.summary-card]:border-white/10 [&_.summary-card]:bg-white/[0.06] [&_.summary-card]:p-5 [&_.summary-kicker]:text-xs [&_.summary-kicker]:font-black [&_.summary-kicker]:uppercase [&_.summary-kicker]:tracking-[0.18em] [&_.summary-kicker]:text-emerald-200 [&_.summary-card_p]:mt-3 [&_.summary-card_p]:text-sm [&_.summary-card_p]:leading-7 [&_.summary-card_p]:text-zinc-300 [&_.summary-card_ul]:mt-4 [&_.summary-card_ul]:grid [&_.summary-card_ul]:gap-2 [&_.summary-card_li]:rounded-xl [&_.summary-card_li]:bg-black/20 [&_.summary-card_li]:px-3 [&_.summary-card_li]:py-2 [&_.summary-card_li]:text-sm [&_.summary-card_li]:text-zinc-200 [&_.summary-meta]:mt-4 [&_.summary-meta]:text-xs [&_.summary-meta]:text-zinc-500 [&_.soft-cta]:not-prose [&_.soft-cta]:mt-10 [&_.soft-cta]:rounded-2xl [&_.soft-cta]:border [&_.soft-cta]:border-emerald-300/20 [&_.soft-cta]:bg-emerald-300/10 [&_.soft-cta]:p-5 [&_.soft-cta_strong]:block [&_.soft-cta_strong]:text-lg [&_.soft-cta_strong]:font-black [&_.soft-cta_p]:mt-2 [&_.soft-cta_p]:text-sm [&_.soft-cta_p]:leading-7 [&_.soft-cta_p]:text-zinc-300 [&_.soft-cta_a]:mt-4 [&_.soft-cta_a]:inline-flex [&_.soft-cta_a]:rounded-xl [&_.soft-cta_a]:bg-white [&_.soft-cta_a]:px-4 [&_.soft-cta_a]:py-2 [&_.soft-cta_a]:text-sm [&_.soft-cta_a]:font-black [&_.soft-cta_a]:text-zinc-950"
+                dangerouslySetInnerHTML={{ __html: content.html }}
               />
             )}
           </article>
 
           <aside className="hidden lg:block">
-            <div className="sticky top-8 rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">BOK SOLUTION</p>
-              <h2 className="mt-3 text-2xl font-black leading-tight">학회 운영 사무국 명찰 출력</h2>
-              <p className="mt-3 text-sm leading-7 text-zinc-300">참가자 명단, QR·바코드 확인, 현장 재발행 기준을 실제 운영 흐름에 맞춰 정리합니다.</p>
-              <div className="mt-5 grid gap-2 text-sm text-zinc-300">
-                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">명단 정리와 오탈자 검수</div>
-                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">QR·바코드 식별값 확인</div>
-                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">현장 재발행 승인 동선</div>
-                <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">공개 발행 URL 품질 확인</div>
+            <div className="sticky top-8 space-y-4">
+              <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">ARTICLE MAP</p>
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-2">
+                    <div className="text-base font-black tabular-nums text-white">{content.readingMinutes}</div>
+                    <div className="text-[11px] text-zinc-500">분</div>
+                  </div>
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-2">
+                    <div className="text-base font-black tabular-nums text-white">{content.images}</div>
+                    <div className="text-[11px] text-zinc-500">이미지</div>
+                  </div>
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-2">
+                    <div className="text-base font-black tabular-nums text-white">{content.tables}</div>
+                    <div className="text-[11px] text-zinc-500">표</div>
+                  </div>
+                </div>
+                {content.toc.length ? (
+                  <nav className="mt-5 border-t border-zinc-800 pt-4">
+                    <div className="text-xs font-semibold text-zinc-500">본문 목차</div>
+                    <div className="mt-3 max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                      {content.toc.slice(0, 12).map((item) => (
+                        <a
+                          key={item.id}
+                          href={`#${item.id}`}
+                          className={[
+                            'block rounded-md px-2 py-1.5 text-xs leading-5 text-zinc-400 hover:bg-zinc-800 hover:text-white',
+                            item.level === 3 ? 'ml-3' : '',
+                          ].join(' ')}
+                        >
+                          {item.text}
+                        </a>
+                      ))}
+                    </div>
+                  </nav>
+                ) : null}
               </div>
-              <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="mt-5 flex w-full justify-center rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">운영 상담하기</a>
+              <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">BOK SOLUTION</p>
+                <h2 className="mt-3 text-2xl font-black leading-tight">학회 운영 사무국 명찰 출력</h2>
+                <p className="mt-3 text-sm leading-7 text-zinc-300">참가자 명단, QR·바코드 확인, 현장 재발행 기준을 실제 운영 흐름에 맞춰 정리합니다.</p>
+                <div className="mt-5 grid gap-2 text-sm text-zinc-300">
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">명단 정리와 오탈자 검수</div>
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">QR·바코드 식별값 확인</div>
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">현장 재발행 승인 동선</div>
+                  <div className="rounded-md border border-zinc-800 bg-zinc-950/70 p-3">공개 발행 URL 품질 확인</div>
+                </div>
+                <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="mt-5 flex w-full justify-center rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">운영 상담하기</a>
+              </div>
             </div>
           </aside>
         </div>

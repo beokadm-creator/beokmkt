@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-15 — 공개 블로그 글 읽기 경험 보강
+
+사용자 화면 품질 목표에 맞춰 공개 글 상세 화면에 긴 글을 읽기 위한 구조 신호를 추가했다. 글 본문에서 h2/h3를 읽어 목차 anchor를 자동 생성하고, 읽기 시간·이미지·표 개수를 사이드바에 노출해 실제 산출물의 밀도와 구조를 사용자가 바로 판단할 수 있게 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `src/spa/pages/PublicBlogPostPage.tsx` | 본문 h2/h3 자동 anchor 및 목차 생성, 읽기 시간/소제목/이미지/표 신호 추가 |
+| `src/spa/pages/PublicBlogPostPage.tsx` | 데스크톱 사이드바를 `ARTICLE MAP` + 비오케이솔루션 운영 신뢰 패널로 분리 |
+| `server/index.mjs` | Express 5에서 production SPA fallback의 `app.get('*')`가 서버 시작을 깨뜨리는 문제를 `app.use` fallback으로 수정 |
+| `functions/ssr-template.mjs` | SPA 빌드 산출 템플릿 갱신 |
+
+검증:
+- `npx tsc --noEmit` PASS
+- `npm run build:spa` PASS
+- `node --check server/index.mjs` PASS
+- `npm run lint -- .` 0 errors / 기존 warnings 유지
+- 로컬 production 서버에서 실제 공개 글 렌더링 확인: desktop/mobile 모두 H1, 읽기 시간, ARTICLE MAP, 목차 8개 렌더, 수평 overflow 없음
+
+---
+
 ## 2026-06-15 — 관리자 needs_human 보관 액션 보강
 
 네이버 id 67처럼 자동 재시도 금지로 격리된 글은 대시보드에서 "왜 막혔는지"뿐 아니라 검토 완료 후 운영 경고에서 제거할 수 있어야 한다. 로컬 관리자 API에 보관 액션을 추가하고, 대시보드가 로컬 SQLite 항목과 외부 발행 결과 로그를 구분해 보관하도록 보강했다.
