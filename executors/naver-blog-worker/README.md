@@ -115,3 +115,15 @@ macOS launchd로 매일 새벽 자동 실행 권장 (예: `~/Library/LaunchAgent
 npm run login          # 네이버
 npm run tistory-auth   # 티스토리
 ```
+
+## 티스토리 재작성 게이트
+
+티스토리는 자체 블로그와 같은 원문을 그대로 올리면 중복 문서로 평가될 수 있으므로, 기본값에서는 채널 재작성이 성공한 경우에만 발행합니다.
+
+```bash
+AI_API_KEY="..."              # 필수
+CHANNEL_REWRITE="true"        # 기본값
+TISTORY_REWRITE_REQUIRED=true # 기본값
+```
+
+재작성 AI가 없거나 품질 기준을 통과하지 못하면 `TISTORY_REWRITE_REQUIRED` 오류로 발행을 중단합니다. 운영자가 의도적으로 원문 발행을 허용하려면 `TISTORY_REWRITE_REQUIRED=false`를 명시하세요.

@@ -6,7 +6,7 @@ import http from 'http'
 import { chromium } from 'playwright'
 import { convertForNaver } from './naver-html-adapter.mjs'
 import { convertForTistory, validateTistoryHtml } from './tistory-html-adapter.mjs'
-import { rewriteForChannel } from './channel-rewriter.mjs'
+import { channelRewriteEnabled, rewriteForChannel } from './channel-rewriter.mjs'
 import { writePostWithBrowser as tistoryWritePost, assertTistoryAuthenticated, TistoryError } from './tistory-client.mjs'
 import { postTweet, TwitterError } from './twitter-client.mjs'
 import { generateTweetSummary } from './twitter-summary.mjs'
@@ -32,6 +32,7 @@ const WRITE_URL = process.env.NAVER_BLOG_WRITE_URL || (
 )
 const LOGIN_URL = 'https://nid.naver.com/nidlogin.login'
 const DEBUG_DIR = path.resolve(process.env.BLOG_WORKER_DEBUG_DIR || './.session/debug')
+const TISTORY_REWRITE_REQUIRED = process.env.TISTORY_REWRITE_REQUIRED !== 'false'
 
 // 멱등성: 발행 성공 기록(post_id+platform). 재시도 시 중복 발행 방지.
 const PUBLISHED_LOG = path.resolve('./.session/published-log.json')
@@ -804,6 +805,12 @@ async function publishToTistory({ title, content_html, tags, link, canonical_url
       canonicalUrl: canonical_url || link || '',
     })
     log('info', `티스토리용 재작성 ${rewritten.rewritten ? '완료' : '건너뜀(원문 사용)'} — 제목: ${rewritten.title}`)
+    if (TISTORY_REWRITE_REQUIRED && channelRewriteEnabled() && !rewritten.rewritten) {
+      throw new WorkerError(
+        'TISTORY_REWRITE_REQUIRED',
+        `티스토리 재작성 실패로 원문 발행을 중단합니다: ${rewritten.rewrite_error || 'unknown'}`
+      )
+    }
 
     log('info', '티스토리 HTML 변환 시작…')
     const convertedHtml = await convertForTistory(rewritten.html)

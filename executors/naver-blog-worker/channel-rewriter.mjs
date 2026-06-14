@@ -18,6 +18,10 @@ const AI_REWRITE_MAX_TOKENS = Number(process.env.AI_REWRITE_MAX_TOKENS || '4096'
 const AI_REWRITE_THINKING = process.env.AI_REWRITE_THINKING === 'true'
 const HANZI_RE = /[\u3400-\u4dbf\u4e00-\u9fff]/
 
+function channelRewriteEnabled() {
+  return REWRITE_ENABLED
+}
+
 const CHANNEL_GUIDES = {
   naver: `네이버 블로그 독자 특성에 맞게 재작성:
 - 검색자가 편하게 읽을 수 있는 자연스러운 존댓말. 단, 전문성과 신뢰감을 최우선으로 유지
@@ -238,14 +242,16 @@ async function rewriteForChannel({ title, html, channel, canonicalUrl = '' }) {
     // 폴백(재작성 미수행)에서도 마크다운 이미지는 <img>로 복원해 소실 방지
     html: `${markdownImagesToHtml(html)}${buildSourceFooter(canonicalUrl)}`,
     rewritten: false,
+    rewrite_error: null,
   }
 
-  if (!REWRITE_ENABLED || !AI_API_KEY) return fallback
+  if (!REWRITE_ENABLED) return { ...fallback, rewrite_error: 'CHANNEL_REWRITE=false' }
+  if (!AI_API_KEY) return { ...fallback, rewrite_error: 'AI_API_KEY 미설정' }
   const guide = CHANNEL_GUIDES[channel]
-  if (!guide) return fallback
+  if (!guide) return { ...fallback, rewrite_error: `지원하지 않는 채널: ${channel}` }
 
   const plainText = stripToPlainText(html)
-  if (plainText.length < 200) return fallback
+  if (plainText.length < 200) return { ...fallback, rewrite_error: `원문이 너무 짧음(${plainText.length}자)` }
 
   const systemPrompt = `당신은 한국어 블로그 콘텐츠 재작성 전문가입니다.
 주어진 글과 같은 주제·같은 사실관계를 유지하되, 완전히 다른 글처럼 보이도록 재작성합니다.
@@ -331,14 +337,15 @@ ${guide}`
         title: newTitle,
         html: `${newHtml}${buildSourceFooter(canonicalUrl)}`,
         rewritten: true,
+        rewrite_error: null,
       }
     }
     console.warn(`[channel-rewriter] ${channel} 재작성 품질 기준 미달, 원문 사용: ${lastFailure}`)
-    return fallback
+    return { ...fallback, rewrite_error: lastFailure || '재작성 품질 기준 미달' }
   } catch (e) {
     console.warn(`[channel-rewriter] ${channel} 재작성 실패, 원문 사용: ${e.message}`)
-    return fallback
+    return { ...fallback, rewrite_error: e.message || '재작성 실패' }
   }
 }
 
-export { rewriteForChannel, validateTistoryRewrite }
+export { rewriteForChannel, validateTistoryRewrite, channelRewriteEnabled }

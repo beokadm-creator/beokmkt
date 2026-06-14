@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-15 — 티스토리 재작성 실패 시 원문 발행 차단
+
+Phase B 품질 목표에서 티스토리는 리치 HTML 품질뿐 아니라 자체 블로그와 다른 독립 문서로 재작성되는 것이 중요하다. 기존에는 재작성 AI가 없거나 품질 기준을 통과하지 못하면 원문 폴백을 티스토리 어댑터가 예쁘게 변환해 발행할 수 있었다. 이 경우 보기에는 괜찮아도 중복 문서 회피 목적이 깨지므로 기본값에서 발행을 중단하도록 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `executors/naver-blog-worker/channel-rewriter.mjs` | 재작성 실패 사유 `rewrite_error` 반환, `channelRewriteEnabled()` export |
+| `executors/naver-blog-worker/index.mjs` | `TISTORY_REWRITE_REQUIRED !== false`이고 재작성 실패 시 `TISTORY_REWRITE_REQUIRED` 오류로 발행 중단 |
+| `blog_publisher/tools/quality_selftest.py` | AI key 없음/재작성 실패 상태에서 티스토리 원문 발행이 차단되는지 회귀 테스트 추가 |
+| `executors/naver-blog-worker/README.md` | 티스토리 재작성 게이트 운영 방법 문서화 |
+
+검증:
+- `node --check executors/naver-blog-worker/channel-rewriter.mjs`, `node --check executors/naver-blog-worker/index.mjs` PASS
+- `python3 blog_publisher/run.py quality_selftest` PASS (`티스토리 재작성 실패 시 원문 발행 차단` 확인)
+- `python3 -m compileall -q blog_publisher`, `selftest`, `verify_public 10`, `needs_human`, `status` PASS
+- `com.beok.blog-worker` LaunchAgent 재시작 및 `/health` 응답 확인
+
+---
+
 ## 2026-06-15 — 검색 미설정 시 생성 워커 반복 실패 방지
 
 검색 공급자 미설정 상태에서는 근거 기반 신규 원고를 만들 수 없으므로, 생성 워커가 draft를 claim한 뒤 실패·재시도 카운트를 올리는 대신 주기 자체를 조용히 건너뛰도록 했다.

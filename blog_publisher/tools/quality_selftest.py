@@ -189,8 +189,51 @@ process.exit(failures.length ? 1 : 0)
     return [f"rewriter: tistory quality gate selftest failed\n{output}"]
 
 
+def _test_tistory_rewrite_required_gate() -> list[str]:
+    script = f"""
+import {{ channelRewriteEnabled, rewriteForChannel }} from './channel-rewriter.mjs'
+const source = {SAMPLE_MD!r}
+const result = await rewriteForChannel({{
+  title: '학회 운영 사무국 명찰 출력 품질 셀프테스트',
+  html: source,
+  channel: 'tistory',
+  canonicalUrl: 'https://beokmkt.web.app/blog/sample',
+}})
+const required = process.env.TISTORY_REWRITE_REQUIRED !== 'false'
+const shouldBlock = required && channelRewriteEnabled() && !result.rewritten
+const issues = []
+if (!shouldBlock) issues.push(`티스토리 재작성 필수 게이트 미작동: rewritten=${{result.rewritten}}, error=${{result.rewrite_error || ''}}`)
+if (!result.rewrite_error) issues.push('티스토리 재작성 실패 사유 누락')
+console.log(JSON.stringify({{ ok: issues.length === 0, rewritten: result.rewritten, rewrite_error: result.rewrite_error, shouldBlock, issues }}))
+process.exit(issues.length ? 1 : 0)
+"""
+    proc = subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        cwd=WORKER_DIR,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+        env={
+            "PATH": __import__("os").environ.get("PATH", ""),
+            "CHANNEL_REWRITE": "true",
+            "TISTORY_REWRITE_REQUIRED": "true",
+            "AI_API_KEY": "",
+        },
+    )
+    if proc.returncode == 0:
+        return []
+    output = "\n".join(part for part in [proc.stdout.strip(), proc.stderr.strip()] if part)
+    return [f"rewriter: tistory rewrite-required selftest failed\n{output}"]
+
+
 def run() -> bool:
-    issues = _test_selfhosted_renderer() + _test_tistory_adapter() + _test_channel_rewriter_gate()
+    issues = (
+        _test_selfhosted_renderer()
+        + _test_tistory_adapter()
+        + _test_channel_rewriter_gate()
+        + _test_tistory_rewrite_required_gate()
+    )
     print("=== Phase B 품질 셀프테스트 ===")
     if issues:
         for issue in issues:
@@ -200,6 +243,7 @@ def run() -> bool:
     print("[OK] selfhosted renderer: summary/toc/cta/table/image/callout 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/CTA 유지")
     print("[OK] channel rewriter: 티스토리 얇은 글/한자/금칙톤/의미위험 차단")
+    print("[OK] channel rewriter: 티스토리 재작성 실패 시 원문 발행 차단")
     print("\n결과: PASS")
     return True
 
