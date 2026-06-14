@@ -8,6 +8,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DB_PATH = path.resolve(__dirname, '../db/blog.db')
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'beokmkt'
 const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
 const CHANNELS = ['naver', 'tistory', 'selfhosted']
 
@@ -128,7 +129,7 @@ function collectSnapshot() {
   }
 }
 
-initializeApp()
+initializeApp({ projectId: FIREBASE_PROJECT_ID })
 const firestore = getFirestore()
 const snapshot = collectSnapshot()
 await firestore.collection('pipeline_snapshots').doc('local').set({
@@ -138,6 +139,7 @@ await firestore.collection('pipeline_snapshots').doc('local').set({
 
 console.log(JSON.stringify({
   ok: true,
+  project_id: FIREBASE_PROJECT_ID,
   generated_at: snapshot.generated_at,
   by_status: snapshot.by_status,
   ops: snapshot.ops,
