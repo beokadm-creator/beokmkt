@@ -14,6 +14,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py verify_public  # published 공개 URL 실제 HTML 품질 검증
   python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
   python run.py image_audit    # 이미지 뱅크 공개 URL 도달성 검증
+  python run.py sync_snapshot   # 로컬 SQLite 상태를 관리자 대시보드용 Firestore 스냅샷으로 동기화
   python run.py archive_local [ids...] [--all-reviewed] # 검토 완료 실패/보류 보관
   python run.py loop           # 데모용: 한 번에 전체 흐름
 
@@ -30,9 +31,13 @@ cron 예시(독립 실행)
 """
 from __future__ import annotations
 
+import subprocess
 import sys
+from pathlib import Path
 
 from db import db
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
@@ -142,6 +147,10 @@ def main() -> None:
     elif cmd == "backup":               # SQLite 백업(감사 J3)
         from tools import backup_db
         print(f"백업 완료: {backup_db.run()}")
+
+    elif cmd == "sync_snapshot":
+        script = ROOT_DIR / "blog_publisher" / "tools" / "sync_pipeline_snapshot.mjs"
+        subprocess.run(["node", str(script)], cwd=ROOT_DIR, check=True)
 
     elif cmd == "archive_local":
         from tools import archive_local_posts

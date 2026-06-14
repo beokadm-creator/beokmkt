@@ -17,6 +17,7 @@ WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 */30 * * * * cd $PUBDIR && $PYTHON run.py review      >> /tmp/blog-generate.log 2>&1
 */30 * * * * cd $PUBDIR && $PYTHON run.py schedule    >> /tmp/blog-publish.log  2>&1
 */5  * * * * cd $PUBDIR && $PYTHON run.py publish     >> /tmp/blog-publish.log  2>&1
+*/5  * * * * cd $PUBDIR && $PYTHON run.py sync_snapshot >> /tmp/blog-publish.log 2>&1
 17  * * * * cd $PUBDIR && $PYTHON run.py verify_public 20 >> /tmp/blog-verify.log 2>&1
 23  */6 * * * cd $PUBDIR && $PYTHON run.py quality_selftest >> /tmp/blog-quality.log 2>&1
 41  5 * * * cd $PUBDIR && $PYTHON run.py image_audit >> /tmp/blog-quality.log 2>&1

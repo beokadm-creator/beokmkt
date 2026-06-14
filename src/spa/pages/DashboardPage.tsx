@@ -46,6 +46,11 @@ type OpsStats = {
   publishing: number
   stale: Record<string, number>
   stuck_threshold_min: number
+  snapshot_source?: string
+  snapshot_generated_at?: string | null
+  snapshot_synced_at?: string | null
+  snapshot_age_sec?: number | null
+  snapshot_stale?: boolean
 }
 
 type PipelinePostDetail = {
@@ -107,6 +112,12 @@ type PipelineStats = {
     avg_grounding: number | null
   }
   ops?: OpsStats | null
+  local_snapshot?: {
+    generated_at: string | null
+    synced_at: string | null
+    age_sec: number | null
+    stale: boolean
+  } | null
   needs_human_posts: NeedsHumanPost[]
   recent: RecentPost[]
 }
@@ -236,8 +247,16 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
   const staleTotal = Object.values(ops.stale ?? {}).reduce((sum, n) => sum + n, 0)
   const stockLow = ops.reviewed < ops.reviewed_target
   const dueBlocked = ops.queued_due > 0 && ops.publishing === 0
-  const active = stockLow || dueBlocked || staleTotal > 0
+  const snapshotStale = ops.snapshot_stale === true
+  const active = stockLow || dueBlocked || staleTotal > 0 || snapshotStale
+  const snapshotAgeMin = typeof ops.snapshot_age_sec === 'number' ? Math.round(ops.snapshot_age_sec / 60) : null
   const cells = [
+    {
+      label: '로컬 동기화',
+      value: snapshotStale ? '지연' : '정상',
+      sub: ops.snapshot_generated_at ? `${formatDate(ops.snapshot_generated_at)}${snapshotAgeMin == null ? '' : ` · ${snapshotAgeMin}분 전`}` : '스냅샷 없음',
+      alert: snapshotStale,
+    },
     {
       label: '검토 재고',
       value: `${ops.reviewed}/${ops.reviewed_target}`,
@@ -275,7 +294,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
           {active ? '확인 필요' : '정상'}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {cells.map((cell) => (
           <div
             key={cell.label}
@@ -306,6 +325,7 @@ function LocalOpsPanel({ active }: { active: boolean }) {
     { label: '공개 품질 검증', command: 'cd blog_publisher && python3 run.py verify_public 20' },
     { label: '멈춘 작업 복구', command: 'cd blog_publisher && python3 run.py recover' },
     { label: '발행 워커 1회', command: 'cd blog_publisher && python3 run.py publish' },
+    { label: '대시보드 동기화', command: 'cd blog_publisher && python3 run.py sync_snapshot' },
     { label: '로컬 실패 보관', command: 'cd blog_publisher && python3 run.py archive_local --all-reviewed --reason operator_reviewed' },
     { label: 'DB 백업', command: 'cd blog_publisher && python3 run.py backup' },
   ]

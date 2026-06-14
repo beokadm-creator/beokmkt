@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-15 — 로컬 SQLite 운영 상태를 클라우드 관리자 화면에 동기화
+
+배포된 관리자 화면은 Firestore를 읽고, 실제 블로그 자동화 큐는 맥의 로컬 SQLite를 읽는 구조라 `published:0` 같은 상태가 실패인지 예약 대기인지 구분되지 않았다. 로컬 SQLite 상태를 Firestore 스냅샷으로 올리고, 클라우드 `/api/pipeline/stats`가 이 스냅샷을 우선 반영하도록 연결했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | 로컬 `blog.db`의 상태별/채널별 카운트, 품질 지표, 재고 목표, due 큐, stuck 작업, 최근 글을 `pipeline_snapshots/local`에 업로드 |
+| `blog_publisher/run.py` | `python3 run.py sync_snapshot` 명령 추가 |
+| `blog_publisher/ops/crontab.example` | 5분마다 스냅샷 동기화 추가 |
+| `functions/index.mjs` | Firestore 스냅샷이 있으면 클라우드 대시보드의 `by_status`, `by_channel`, `quality`, `ops`, `recent`에 로컬 상태를 우선 사용. 스냅샷 생성/동기화 시각과 stale 여부 노출 |
+| `server/index.mjs` | 로컬 API도 동일한 `ops.snapshot_*` 필드 노출 |
+| `src/spa/pages/DashboardPage.tsx` | 운영 준비도에 로컬 동기화 상태, 검토 재고, 예약 대기, 즉시 발행 대상, stuck 작업을 함께 표시 |
+| `blog_publisher/tools/status_report.py` | `queued`가 실패인지 예약 대기인지 구분되도록 due 큐와 다음 예약 UTC 표시 |
+
+검증:
+- `python3 blog_publisher/run.py sync_snapshot` 실제 Firestore 업로드 성공
+- `npx tsc --noEmit`, `npm run build:spa`, `npm run lint -- .`(0 errors), `python3 blog_publisher/run.py quality_selftest` PASS
+- 현재 로컬 상태: `reviewed=0`, `queued=3`, `queued_due=0`, 다음 예약 UTC `2026-06-15 00:02:00`
+
+---
+
 ## 2026-06-15 — 자체 블로그 CTA/태그 렌더링 품질 보정
 
 queued/reviewed 글을 실제 렌더링해 읽어본 결과, 홈페이지 제작 글에도 학회 명찰 CTA가 붙고 로컬 DB의 JSON 태그 문자열이 글자 단위 태그로 풀릴 수 있는 문제가 있었다. 발행 직전 렌더러가 글의 주제에 맞는 CTA와 태그를 안정적으로 만들도록 보정했다.

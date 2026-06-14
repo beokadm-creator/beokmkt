@@ -2323,17 +2323,54 @@ app.get('/api/pipeline/stats', async (req, res) => {
     publicQualityCandidates
       .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())
   )
+  const localSnapshotDoc = await db.collection('pipeline_snapshots').doc('local').get().catch(() => null)
+  const localSnapshot = localSnapshotDoc?.exists ? localSnapshotDoc.data() : null
+  const snapshotGeneratedAt = serializeValue(localSnapshot?.generated_at ?? null)
+  const snapshotSyncedAt = serializeValue(localSnapshot?.synced_at ?? null)
+  const snapshotTime = snapshotGeneratedAt || snapshotSyncedAt
+  const snapshotDate = snapshotTime ? new Date(snapshotTime) : null
+  const snapshotAgeSec = snapshotDate && !Number.isNaN(snapshotDate.getTime())
+    ? Math.max(0, Math.round((Date.now() - snapshotDate.getTime()) / 1000))
+    : null
+  const snapshotStale = snapshotAgeSec == null || snapshotAgeSec > 15 * 60
+  const snapshotOps = localSnapshot?.ops && typeof localSnapshot.ops === 'object'
+    ? {
+        ...localSnapshot.ops,
+        snapshot_source: 'local_sqlite',
+        snapshot_generated_at: snapshotGeneratedAt,
+        snapshot_synced_at: snapshotSyncedAt,
+        snapshot_age_sec: snapshotAgeSec,
+        snapshot_stale: snapshotStale,
+      }
+    : null
+  const responseByStatus = localSnapshot?.by_status && typeof localSnapshot.by_status === 'object'
+    ? localSnapshot.by_status
+    : by_status
+  const responseByChannel = localSnapshot?.by_channel && typeof localSnapshot.by_channel === 'object'
+    ? localSnapshot.by_channel
+    : by_channel
+  const responseQuality = localSnapshot?.quality && typeof localSnapshot.quality === 'object'
+    ? localSnapshot.quality
+    : quality
+  const responseRecent = Array.isArray(localSnapshot?.recent) ? localSnapshot.recent : recent
+  const responseNeedsHuman = Array.isArray(localSnapshot?.needs_human_posts) ? localSnapshot.needs_human_posts : needs_human_posts
 
   ok(res, {
-    by_status,
-    by_channel,
-    published_today,
-    published_this_week,
-    quality,
-    ops,
+    by_status: responseByStatus,
+    by_channel: responseByChannel,
+    published_today: Number.isFinite(Number(localSnapshot?.published_today)) ? Number(localSnapshot.published_today) : published_today,
+    published_this_week: Number.isFinite(Number(localSnapshot?.published_this_week)) ? Number(localSnapshot.published_this_week) : published_this_week,
+    quality: responseQuality,
+    ops: snapshotOps ?? ops,
     public_quality,
-    needs_human_posts,
-    recent: recent
+    needs_human_posts: responseNeedsHuman,
+    local_snapshot: localSnapshot ? {
+      generated_at: snapshotGeneratedAt,
+      synced_at: snapshotSyncedAt,
+      age_sec: snapshotAgeSec,
+      stale: snapshotStale,
+    } : null,
+    recent: responseRecent
       .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())
       .slice(0, 10),
   })
