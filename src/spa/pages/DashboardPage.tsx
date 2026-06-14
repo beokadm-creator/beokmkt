@@ -405,8 +405,8 @@ function QualityActionPanel({ quality }: { quality?: PipelineStats['quality'] })
       active: weak,
     },
     {
-      label: '검색 연결 후 품질 게이트 원복',
-      command: 'MIN_GROUNDING_RATIO=0.9 MIN_REVIEW_SCORE=80',
+      label: '품질 게이트 설정 확인',
+      command: 'cd blog_publisher && grep -E "^(MIN_GROUNDING_RATIO|MIN_REVIEW_SCORE)=" .env',
       active: lowGrounding,
     },
     {
