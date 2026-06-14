@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-15 — 관리자 세션 복구 UX 분리
+
+네이버 세션 만료가 운영 준비도 한 줄과 `needs_human` 목록에만 보여, 운영자가 어떤 명령을 어떤 순서로 실행해야 하는지 바로 알기 어려웠다. 외부 채널 세션 문제를 별도 패널로 분리하고, 채널별 재로그인·워커 재시작·스냅샷 갱신·대상 확인 명령을 한 화면에 노출했다.
+
+| 대상 | 내용 |
+|---|---|
+| `src/spa/pages/DashboardPage.tsx` | `SessionRecoveryPanel` 추가. 세션 비정상 채널, 차단 post id, 실패 사유, 재로그인 명령, 워커 재시작/스냅샷 갱신 명령 표시 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+검증:
+- `/api/pipeline/stats` 로컬 응답에서 `naver ok=false`, `error_post_id=114`, `action="npm run login 후 워커 재시작"` 확인
+- 실제 공개 URL 검증: 자체 블로그 #112 summary/service/flow/comparison/toc/table/img/CTA 유지, 티스토리 #113 h2 12 / h3 11 / table 3 / blockquote 2 / img 2 / strong 10 / 한자 0 확인
+- `npx tsc --noEmit`, `npm run build:spa`, `npm run lint -- --max-warnings=999`, `python3 blog_publisher/run.py quality_selftest` PASS
+
+---
+
 ## 2026-06-15 — 공개 품질 검증에 목표 주제 이탈 감지 추가
 
 공개 URL 검증이 HTML 구조와 길이만 확인해, 현재 블로그 운영명(`비오케이솔루션 학회 운영 사무국 명찰 출력 발행`)과 맞지 않는 공개 글도 `OK`로 통과하던 문제를 보완했다. 기존 공개 글은 임의 삭제하지 않고, 공개 품질 검증과 관리자 대시보드에서 비공개/삭제 또는 목표 주제 재작성 판단 대상으로 드러나게 했다.

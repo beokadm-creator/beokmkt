@@ -551,6 +551,75 @@ function SearchRecoveryPanel({ search }: { search?: OpsStats['search_health'] })
   )
 }
 
+function SessionRecoveryPanel({ sessions }: { sessions?: OpsStats['session_health'] }) {
+  const failed = (sessions ?? []).filter((session) => !session.ok)
+  if (!failed.length) return null
+
+  const commandFor = (channel: string) => {
+    if (channel === 'tistory') return 'cd executors/naver-blog-worker && npm run tistory-auth'
+    if (channel === 'naver') return 'cd executors/naver-blog-worker && npm run login'
+    return 'cd executors/naver-blog-worker && npm run login'
+  }
+
+  return (
+    <div className="rounded-xl border border-rose-900/60 bg-rose-950/15 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-rose-200">외부 채널 세션 조치 필요</div>
+          <div className="mt-1 text-xs leading-5 text-zinc-500">
+            네이버·티스토리 발행은 브라우저 세션이 살아 있어야 합니다. 세션 만료 글은 자동 재시도하지 않고 재로그인 후 수동으로 재큐잉합니다.
+          </div>
+        </div>
+        <span className="rounded-md border border-rose-800 px-2 py-1 text-xs text-rose-200">
+          {failed.length}채널 확인
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {failed.map((session) => (
+          <div key={session.channel} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-zinc-300">{session.channel}</div>
+                <div className="mt-1 text-[11px] text-zinc-500">
+                  {session.exists ? `세션 파일 ${session.age_hours ?? '?'}h 전` : '세션 파일 없음'}
+                  {session.error_post_id ? ` · 차단 글 #${session.error_post_id}` : ''}
+                </div>
+              </div>
+              <span className="rounded-md border border-rose-900/60 bg-rose-950/20 px-2 py-0.5 text-[11px] text-rose-200">
+                재인증
+              </span>
+            </div>
+            {session.reason ? (
+              <div className="mt-2 line-clamp-2 text-xs leading-5 text-rose-300">{session.reason}</div>
+            ) : null}
+            <div className="mt-3 space-y-2">
+              <div>
+                <div className="text-[11px] font-medium text-zinc-500">1. 브라우저 재로그인</div>
+                <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-200">
+                  {commandFor(session.channel)}
+                </code>
+              </div>
+              <div>
+                <div className="text-[11px] font-medium text-zinc-500">2. 워커·대시보드 반영</div>
+                <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-200">
+                  launchctl kickstart -k gui/$(id -u)/com.beok.blog-worker && cd blog_publisher && python3 run.py sync_snapshot
+                </code>
+              </div>
+              <div>
+                <div className="text-[11px] font-medium text-zinc-500">3. 대상 확인</div>
+                <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-200">
+                  cd blog_publisher && python3 run.py needs_human
+                </code>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function QualityActionPanel({ quality }: { quality?: PipelineStats['quality'] }) {
   if (!quality) return null
   const weak = quality.weak_posts > 0
@@ -1064,6 +1133,8 @@ export default function DashboardPage() {
       </div>
 
       <OpsReadinessPanel ops={data?.ops} />
+
+      <SessionRecoveryPanel sessions={data?.ops?.session_health} />
 
       <SearchRecoveryPanel search={data?.ops?.search_health} />
 
