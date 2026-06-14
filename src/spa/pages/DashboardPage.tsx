@@ -461,7 +461,11 @@ export default function DashboardPage() {
     return () => clearInterval(timer)
   }, [fetchStats])
 
-  const totalFailures = (data?.by_status?.needs_human ?? 0) + (data?.by_status?.failed ?? 0)
+  const queueFailures = (data?.by_status?.needs_human ?? 0) + (data?.by_status?.failed ?? 0)
+  const listedFailures = data?.needs_human_posts?.length ?? 0
+  const publicFailures = data?.public_quality?.failed ?? 0
+  const operationalFailures = Math.max(queueFailures, listedFailures)
+  const totalFailures = operationalFailures + publicFailures
 
   return (
     <div className="flex flex-col gap-5">
@@ -505,9 +509,9 @@ export default function DashboardPage() {
           sub="최근 7일"
         />
         <KpiCard
-          label="수동 처리 필요"
+          label="운영 확인 필요"
           value={totalFailures}
-          sub={totalFailures > 0 ? '즉시 확인 필요' : '이상 없음'}
+          sub={totalFailures > 0 ? `처리목록 ${operationalFailures} · 공개 ${publicFailures}` : '이상 없음'}
           alert={totalFailures > 0}
         />
       </div>

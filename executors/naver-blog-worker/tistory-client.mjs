@@ -60,8 +60,21 @@ async function assertTistoryAuthenticated() {
   }
 }
 
+function decodeXmlText(text) {
+  return String(text || '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&amp;([a-zA-Z]+);/g, '&$1;')
+    .replace(/&middot;/g, '·')
+    .replace(/&#183;/g, '·')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+}
+
 function normalizeText(text) {
-  return String(text || '').replace(/\s+/g, ' ').trim()
+  return decodeXmlText(text).replace(/\s+/g, ' ').trim()
 }
 
 function isPublicPostUrl(url) {
