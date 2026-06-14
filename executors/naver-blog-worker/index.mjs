@@ -755,6 +755,8 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
     return {
       status: 'success',
       url: publishedUrl,
+      title: publishTitle,
+      rewritten: rewritten.rewritten,
       published_at: new Date().toISOString(),
     }
   } finally {
@@ -788,7 +790,12 @@ async function publishToTistory({ title, content_html, tags, link, canonical_url
       )
     }
     const result = await tistoryWritePost({ title: rewritten.title, content_html: convertedHtml, tags })
-    return result
+    return {
+      ...result,
+      title: rewritten.title,
+      rewritten: rewritten.rewritten,
+      quality: quality.quality,
+    }
   } catch (e) {
     if (e instanceof TistoryError) {
       throw new WorkerError(e.code, e.message, e.details)
@@ -896,7 +903,17 @@ async function handlePublish(req, res, platform) {
 
       log('info', `✅ 발행 성공 [${platform}] → ${result.url || '(URL 없음)'}`)
       if (dedupKey) await recordPublished(dedupKey, result.url)
-      if (postId) await reportResultToMain(postId, platform, { status: 'success', title: body.title, url: result.url, published_at: result.published_at })
+      if (postId) {
+        await reportResultToMain(postId, platform, {
+          status: 'success',
+          title: result.title || body.title,
+          original_title: body.title,
+          rewritten: result.rewritten ?? false,
+          quality: result.quality ?? null,
+          url: result.url,
+          published_at: result.published_at,
+        })
+      }
       return sendJson(res, 200, { ok: true, platform, ...result })
     } catch (e) {
       const code = e instanceof WorkerError ? e.code : (e instanceof TistoryError ? e.code : 'UNKNOWN')
@@ -937,7 +954,17 @@ async function handlePublishAll(req, res) {
         else { results[platform] = { ok: false, error: 'unsupported' }; return }
         results[platform] = { ok: true, ...r }
         if (postId) await recordPublished(`${platform}:${postId}`, r.url)
-        if (postId) await reportResultToMain(postId, platform, { status: 'success', url: r.url, published_at: r.published_at })
+        if (postId) {
+          await reportResultToMain(postId, platform, {
+            status: 'success',
+            title: r.title || body.title,
+            original_title: body.title,
+            rewritten: r.rewritten ?? false,
+            quality: r.quality ?? null,
+            url: r.url,
+            published_at: r.published_at,
+          })
+        }
       })
     } catch (e) {
       const code = e instanceof WorkerError ? e.code : (e instanceof TistoryError ? e.code : 'UNKNOWN')

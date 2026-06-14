@@ -227,6 +227,7 @@ function LocalOpsPanel({ active }: { active: boolean }) {
     { label: '공개 품질 검증', command: 'cd blog_publisher && python3 run.py verify_public 20' },
     { label: '멈춘 작업 복구', command: 'cd blog_publisher && python3 run.py recover' },
     { label: '발행 워커 1회', command: 'cd blog_publisher && python3 run.py publish' },
+    { label: '로컬 실패 보관', command: 'cd blog_publisher && python3 run.py archive_local --all-reviewed --reason operator_reviewed' },
     { label: 'DB 백업', command: 'cd blog_publisher && python3 run.py backup' },
   ]
 

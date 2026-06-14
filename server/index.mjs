@@ -67,6 +67,10 @@ function applyExternalPublishResult(post, platform, payload) {
     status: payload.status === 'success' ? 'success' : 'failed',
     platform,
     url: payload.url ?? null,
+    title: payload.title ?? null,
+    original_title: payload.original_title ?? null,
+    rewritten: payload.rewritten === true,
+    quality: payload.quality && typeof payload.quality === 'object' ? payload.quality : null,
     published_at: payload.published_at ?? nowIso(),
     error: payload.error ?? null,
     updated_at: nowIso(),
@@ -2200,7 +2204,7 @@ app.get('/api/pipeline/stats', (req, res) => {
     return ok(res, { error: 'pipeline_db_unavailable', by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, needs_human_posts: [], recent: [] })
   }
   try {
-    const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed']
+    const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
     const CHANNELS = ['naver', 'tistory', 'selfhosted']
 
     const statusRows = db.prepare('SELECT status, COUNT(*) AS n FROM posts GROUP BY status').all()

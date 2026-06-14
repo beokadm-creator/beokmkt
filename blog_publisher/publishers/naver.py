@@ -60,7 +60,11 @@ class NaverPublisher:
 
         data = resp.json()
         if resp.status_code == 200 and data.get("ok"):
-            return data.get("url") or ""
+            return {
+                "url": data.get("url") or "",
+                "title": data.get("title") or post["title"],
+                "rewritten": bool(data.get("rewritten")),
+            }
         code = data.get("code", "")
         msg = data.get("error", f"HTTP {resp.status_code}")
         if code == "LOGIN_REQUIRED":

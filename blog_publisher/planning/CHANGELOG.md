@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-14 — 운영 큐 보관과 외부 발행 최종 제목 추적
+
+과거 검증/삭제가 끝난 네이버·티스토리 실패 항목이 계속 `needs_human/failed`로 남아 운영 화면을 오염시키던 문제를 정리했다. 삭제하지 않고 `archived` 상태로 분리해 audit trail을 유지한다. 또한 티스토리/네이버 워커가 채널용 재작성 후 공개 제목을 바꾸는 경우, Python 파이프라인 DB와 클라우드 외부 발행 결과가 최종 공개 제목을 보존하도록 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/db/db.py` | `archive_posts()` 추가. 기존 `last_error`를 `previous:`로 보존하며 `archived` 상태로 전환 |
+| `blog_publisher/tools/archive_local_posts.py` | `needs_human/failed` 로컬 항목을 검토 완료 사유와 함께 보관하는 CLI 추가 |
+| `blog_publisher/run.py` | `python3 run.py archive_local [ids...] [--all-reviewed]` 명령 추가 |
+| `blog_publisher/tools/status_report.py` | `archived` 상태 카운트 노출 |
+| `executors/naver-blog-worker/index.mjs` | 네이버/티스토리 발행 응답에 최종 제목, 재작성 여부, 티스토리 품질 지표 포함 |
+| `blog_publisher/publishers/naver.py`, `blog_publisher/publishers/tistory.py`, `blog_publisher/pipeline/publish.py` | 외부 워커 결과가 dict이면 최종 제목으로 DB `title`을 맞춰 published 처리 |
+| `server/index.mjs`, `functions/index.mjs` | 외부 발행 결과에 `title`, `original_title`, `rewritten`, `quality` 저장 |
+| `src/spa/pages/DashboardPage.tsx` | 로컬 조치 패널에 `archive_local` 명령 추가 |
+
+운영 처리:
+- 로컬 실DB의 오래된 `needs_human/failed` 13건을 `archived` 처리. 현재 `needs_human=0`, `failed=0`, `archived=13`.
+- `crontab.example`은 세션 keepalive를 매일 실행으로 조정. 실제 `crontab /tmp/beok-crontab.new` 적용은 macOS에서 명령이 반환되지 않아 중단했고, 기존 crontab은 유지됨.
+
+---
+
 ## 2026-06-14 — Phase C 이미지 자산 도달성 감사
 
 beoksolution.com 공개 페이지를 확인한 결과 현재 직접 노출된 이미지 자산은 `https://beoksolution.com/img/logo.png`뿐이었다. 학회/명찰 실사 이미지는 beoksolution.com에 공개되어 있지 않아 기존 검증된 카드/홍커뮤니케이션 명찰 이미지를 유지하되, 깨진 이미지 URL을 발행 전에 잡기 위한 감사 명령을 추가했다.

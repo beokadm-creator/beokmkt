@@ -13,7 +13,7 @@ from db import db
 
 STATUSES = [
     "draft", "generating", "reviewing", "reviewed",
-    "queued", "publishing", "published", "needs_human", "failed",
+    "queued", "publishing", "published", "needs_human", "failed", "archived",
 ]
 
 

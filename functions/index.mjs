@@ -2100,7 +2100,7 @@ app.get('/api/dashboard', (req, res) => {
 })
 
 app.get('/api/pipeline/stats', async (req, res) => {
-  const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed']
+  const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
   const CHANNELS = ['naver', 'tistory', 'selfhosted']
   const by_status = Object.fromEntries(ALL_STATUSES.map((status) => [status, 0]))
   const by_channel = Object.fromEntries(
@@ -4616,6 +4616,10 @@ app.post('/api/blog-posts/:id/external-publish-result', async (req, res) => {
     status: body.status === 'success' ? 'success' : 'failed',
     platform,
     url: body.url ?? null,
+    title: body.title ?? null,
+    original_title: body.original_title ?? null,
+    rewritten: body.rewritten === true,
+    quality: body.quality && typeof body.quality === 'object' ? body.quality : null,
     published_at: body.published_at ?? nowIso(),
     error: body.error ?? null,
     updated_at: nowIso(),
@@ -4626,7 +4630,6 @@ app.post('/api/blog-posts/:id/external-publish-result', async (req, res) => {
     const externalResult = {
       ...result,
       source_id: req.params.id,
-      title: typeof body.title === 'string' ? body.title : '',
       created_at: nowIso(),
     }
     await externalRef.set(externalResult, { merge: true })

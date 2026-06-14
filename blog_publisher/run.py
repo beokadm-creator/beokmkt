@@ -14,6 +14,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py verify_public  # published 공개 URL 실제 HTML 품질 검증
   python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
   python run.py image_audit    # 이미지 뱅크 공개 URL 도달성 검증
+  python run.py archive_local [ids...] [--all-reviewed] # 검토 완료 실패/보류 보관
   python run.py loop           # 데모용: 한 번에 전체 흐름
 
   # 도구(직접 실행)
@@ -141,6 +142,10 @@ def main() -> None:
     elif cmd == "backup":               # SQLite 백업(감사 J3)
         from tools import backup_db
         print(f"백업 완료: {backup_db.run()}")
+
+    elif cmd == "archive_local":
+        from tools import archive_local_posts
+        raise SystemExit(0 if archive_local_posts.run(sys.argv[2:]) else 1)
 
     else:
         print(__doc__)

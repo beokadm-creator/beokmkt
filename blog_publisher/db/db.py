@@ -245,12 +245,13 @@ def enqueue(post_id: int, idem_key: str, run_at: datetime | None = None) -> None
         )
 
 
-def mark_published(post_id: int, url: str) -> None:
+def mark_published(post_id: int, url: str, title=None) -> None:
+    title = (title or "").strip() or None
     with connect() as conn:
         conn.execute(
             "UPDATE posts SET status = 'published', published_url = ?, "
-            "last_error = NULL, updated_at = ? WHERE id = ?",
-            (url, _iso(_utcnow()), post_id),
+            "title = COALESCE(?, title), last_error = NULL, updated_at = ? WHERE id = ?",
+            (url, title, _iso(_utcnow()), post_id),
         )
 
 
@@ -344,3 +345,23 @@ def mark_failed(post_id: int, error: str) -> None:
             "WHERE id = ?",
             (error, _iso(_utcnow()), post_id),
         )
+
+
+def archive_posts(post_ids: list[int], reason: str = "operator_reviewed") -> int:
+    """수동 검토가 끝난 실패/보류 글을 삭제하지 않고 운영 큐에서 분리한다."""
+    if not post_ids:
+        return 0
+    now = _iso(_utcnow())
+    placeholders = ",".join("?" for _ in post_ids)
+    archived_msg = f"ARCHIVED: {reason}"
+    with connect() as conn:
+        cur = conn.execute(
+            f"UPDATE posts SET status = 'archived', "
+            f"last_error = CASE "
+            f"  WHEN last_error IS NULL OR last_error = '' THEN ? "
+            f"  ELSE ? || ' | previous: ' || substr(last_error, 1, 800) "
+            f"END, updated_at = ? "
+            f"WHERE id IN ({placeholders}) AND status IN ('needs_human', 'failed')",
+            (archived_msg, archived_msg, now, *post_ids),
+        )
+        return cur.rowcount

@@ -29,8 +29,8 @@ WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 # 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed tistory 2    >> /tmp/blog-generate.log 2>&1
 0    4 * * * cd $PUBDIR && $PYTHON run.py backup      >> /tmp/blog-publish.log  2>&1
 
-# ── 세션 keepalive (월·목 10시 + 지터) ─────────────────────────────
-0   10 * * 1,4 $PYTHON -c "import random,time; time.sleep(random.randint(0,1800))" && cd $WORKERDIR && /opt/homebrew/bin/npm run keepalive >> /tmp/blog-keepalive.log 2>&1
+# ── 세션 keepalive (매일 10시 + 지터) ─────────────────────────────
+0   10 * * * $PYTHON -c "import random,time; time.sleep(random.randint(0,1800))" && cd $WORKERDIR && /opt/homebrew/bin/npm run keepalive >> /tmp/blog-keepalive.log 2>&1
 
 # ── 워커는 LaunchAgent(com.beok.blog-worker.plist)가 상시 구동/재기동 ──
 # (@reboot 백업: LaunchAgent 미설치 시에만 사용)

@@ -57,8 +57,14 @@ def run_once(batch: int = 5) -> dict:
                 continue
 
             try:
-                url = publisher.publish(dict(post))
-                db.mark_published(post["id"], url)
+                result = publisher.publish(dict(post))
+                if isinstance(result, dict):
+                    url = result.get("url") or ""
+                    published_title = result.get("title") or None
+                else:
+                    url = result
+                    published_title = None
+                db.mark_published(post["id"], url, title=published_title)
                 stats["published"] += 1
 
             except RetryableError as e:
