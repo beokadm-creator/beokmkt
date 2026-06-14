@@ -81,7 +81,33 @@ function isPublicPostUrl(url) {
   return typeof url === 'string' && new RegExp(`^https://${BLOG_NAME}\\.tistory\\.com/\\d+(?:[/?#].*)?$`).test(url)
 }
 
-async function resolvePublishedUrl(page, title) {
+function parseRssItems(rss) {
+  const itemPattern = /<item\b[\s\S]*?<\/item>/gi
+  return (String(rss || '').match(itemPattern) || []).map((item) => {
+    const titleMatch = item.match(/<title>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/title>/i)
+    const linkMatch = item.match(/<link>\s*([^<]+)\s*<\/link>/i)
+    const pubDateMatch = item.match(/<pubDate>\s*([^<]+)\s*<\/pubDate>/i)
+    const itemTitle = normalizeText(titleMatch?.[1] || '')
+    const itemLink = (linkMatch?.[1] || '').trim()
+    const publishedAt = pubDateMatch?.[1] ? Date.parse(decodeXmlText(pubDateMatch[1])) : NaN
+    return { title: itemTitle, link: itemLink, publishedAt }
+  })
+}
+
+function titleLooksRelated(expectedTitle, candidateTitle) {
+  const expected = normalizeText(expectedTitle)
+  const candidate = normalizeText(candidateTitle)
+  if (!expected || !candidate) return false
+  if (candidate === expected) return true
+  if (candidate.includes(expected.slice(0, 12)) || expected.includes(candidate.slice(0, 12))) return true
+
+  const expectedTokens = new Set(expected.split(/\s+/).filter((token) => token.length >= 2))
+  const candidateTokens = candidate.split(/\s+/).filter((token) => token.length >= 2)
+  const overlap = candidateTokens.filter((token) => expectedTokens.has(token)).length
+  return overlap >= Math.min(3, Math.max(1, expectedTokens.size))
+}
+
+async function resolvePublishedUrl(page, title, startedAt = Date.now()) {
   await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {})
   await page.waitForTimeout(2000)
 
@@ -98,25 +124,20 @@ async function resolvePublishedUrl(page, title) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const rss = await fetch(rssUrl, { cache: 'no-store' }).then((res) => res.text()).catch(() => '')
     if (rss) {
-      const itemPattern = /<item\b[\s\S]*?<\/item>/gi
-      const items = rss.match(itemPattern) || []
+      const items = parseRssItems(rss)
       for (const item of items) {
-        const titleMatch = item.match(/<title>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/title>/i)
-        const linkMatch = item.match(/<link>\s*([^<]+)\s*<\/link>/i)
-        const itemTitle = normalizeText(titleMatch?.[1] || '')
-        const itemLink = (linkMatch?.[1] || '').trim()
-        if (itemTitle && expectedTitle && itemTitle === expectedTitle && isPublicPostUrl(itemLink)) {
-          return itemLink.split(/[?#]/)[0]
+        if (item.title && expectedTitle && item.title === expectedTitle && isPublicPostUrl(item.link)) {
+          return item.link.split(/[?#]/)[0]
         }
       }
 
       // 티스토리 에디터가 제목을 보정하는 경우가 있어 최신 공개글을 후보로 한 번 더 본다.
-      const latestLink = items[0]?.match(/<link>\s*([^<]+)\s*<\/link>/i)?.[1]?.trim()
-      const latestTitle = normalizeText(items[0]?.match(/<title>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/title>/i)?.[1] || '')
-      if (isPublicPostUrl(latestLink) && latestTitle && (
-        latestTitle.includes(expectedTitle.slice(0, 12)) || expectedTitle.includes(latestTitle.slice(0, 12))
+      const latest = items[0]
+      const latestIsFresh = Number.isFinite(latest?.publishedAt) && latest.publishedAt >= startedAt - 120000
+      if (isPublicPostUrl(latest?.link) && latest?.title && (
+        titleLooksRelated(expectedTitle, latest.title) || latestIsFresh
       )) {
-        return latestLink.split(/[?#]/)[0]
+        return latest.link.split(/[?#]/)[0]
       }
     }
     await page.waitForTimeout(1500)
@@ -131,6 +152,7 @@ async function resolvePublishedUrl(page, title) {
 async function writePostWithBrowser({ title, content_html, tags }) {
   const { browser, context, page } = await openTistoryEditorPage()
   try {
+    const publishStartedAt = Date.now()
     await page.waitForTimeout(2000)
 
     const titleInput = page.locator('#post-title-inp')
@@ -176,7 +198,7 @@ async function writePostWithBrowser({ title, content_html, tags }) {
     await saveBtn.click()
 
     await page.waitForURL(url => !url.toString().includes('newpost'), { timeout: 30000 }).catch(() => {})
-    const publishedUrl = await resolvePublishedUrl(page, title)
+    const publishedUrl = await resolvePublishedUrl(page, title, publishStartedAt)
 
     await persistSession(context, STORAGE_PATH)
 
