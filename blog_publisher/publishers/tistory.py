@@ -43,7 +43,7 @@ class TistoryPublisher:
             resp = requests.post(
                 f"{worker_url}/publish-tistory",
                 json=payload,
-                timeout=120,
+                timeout=300,
             )
         except requests.ConnectionError as e:
             raise RetryableError(

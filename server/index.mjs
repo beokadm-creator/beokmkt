@@ -5,10 +5,20 @@ import { getAuth } from 'firebase-admin/auth'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
+import Database from 'better-sqlite3'
 import { getIdempotency, loadStore, newId, nowIso, saveStore, setIdempotency } from './store.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 import { getBlogPromptTemplate, resolveLengthGuide } from './blog-pipeline/prompts.mjs'
 import { researchKeywords, KeywordResearchError } from './blog-pipeline/keyword-research.mjs'
+
+const PIPELINE_DB_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../blog_publisher/db/blog.db'
+)
+
+function openPipelineDb() {
+  return new Database(PIPELINE_DB_PATH, { readonly: true, fileMustExist: true })
+}
 
 initializeApp()
 
@@ -165,6 +175,7 @@ app.get('/api/freqtrade/status', async (req, res) => {
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next()
   if (req.path === '/api/health') return next()
+  if (req.path === '/api/pipeline/stats') return next()
   // Public blog read endpoints
   if (req.path === '/api/blog-posts' && req.method === 'GET') return next()
   if (/^\/api\/blog-posts\/[^/]+$/.test(req.path) && req.method === 'GET') return next()
@@ -2044,25 +2055,66 @@ app.get('/api/health', (req, res) => {
 })
 
 app.get('/api/dashboard', (req, res) => {
-  const sourceTotal = store.source_items.length
-  const sourceEligible = store.source_items.filter((s) => s.status === 'eligible').length
-  const sourceIneligible = store.source_items.filter((s) => s.status === 'ineligible').length
+  res.redirect('/api/pipeline/stats')
+})
 
-  const ideaTotal = store.short_ideas.length
-  const ideaAwaiting = store.short_ideas.filter((s) => s.status === 'awaiting_review').length
-  const ideaApproved = store.short_ideas.filter((s) => s.status === 'approved').length
-  const ideaRejected = store.short_ideas.filter((s) => s.status === 'rejected').length
+app.get('/api/pipeline/stats', (req, res) => {
+  let db
+  try {
+    db = openPipelineDb()
+  } catch {
+    return ok(res, { error: 'pipeline_db_unavailable', by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, needs_human_posts: [], recent: [] })
+  }
+  try {
+    const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed']
+    const CHANNELS = ['naver', 'tistory', 'selfhosted']
 
-  const scriptTotal = store.scripts.length
-  const scriptAwaiting = store.scripts.filter((s) => s.status === 'awaiting_review').length
-  const scriptApproved = store.scripts.filter((s) => s.status === 'approved').length
-  const scriptRevision = store.scripts.filter((s) => s.status === 'revision_required').length
+    const statusRows = db.prepare('SELECT status, COUNT(*) AS n FROM posts GROUP BY status').all()
+    const by_status = Object.fromEntries(ALL_STATUSES.map((s) => [s, 0]))
+    for (const row of statusRows) {
+      if (row.status in by_status) by_status[row.status] = row.n
+    }
 
-  ok(res, {
-    source_items: { total: sourceTotal, eligible: sourceEligible, ineligible: sourceIneligible },
-    short_ideas: { total: ideaTotal, awaiting_review: ideaAwaiting, approved: ideaApproved, rejected: ideaRejected },
-    scripts: { total: scriptTotal, awaiting_review: scriptAwaiting, approved: scriptApproved, revision_required: scriptRevision },
-  })
+    const channelRows = db.prepare(
+      "SELECT channel, status, COUNT(*) AS n FROM posts WHERE status IN ('published','queued','needs_human') GROUP BY channel, status"
+    ).all()
+    const by_channel = Object.fromEntries(
+      CHANNELS.map((ch) => [ch, { published: 0, queued: 0, needs_human: 0 }])
+    )
+    for (const row of channelRows) {
+      if (row.channel in by_channel && row.status in by_channel[row.channel]) {
+        by_channel[row.channel][row.status] = row.n
+      }
+    }
+
+    const todayRow = db.prepare(
+      "SELECT COUNT(*) AS n FROM posts WHERE status='published' AND updated_at >= datetime('now','start of day')"
+    ).get()
+    const weekRow = db.prepare(
+      "SELECT COUNT(*) AS n FROM posts WHERE status='published' AND updated_at >= datetime('now','-6 days','start of day')"
+    ).get()
+
+    const needs_human_posts = db.prepare(
+      "SELECT id, topic, channel, last_error, updated_at FROM posts WHERE status='needs_human' ORDER BY updated_at DESC LIMIT 10"
+    ).all()
+
+    const recent = db.prepare(
+      'SELECT id, topic, channel, status, published_url, updated_at FROM posts ORDER BY updated_at DESC LIMIT 10'
+    ).all()
+
+    ok(res, {
+      by_status,
+      by_channel,
+      published_today: todayRow?.n ?? 0,
+      published_this_week: weekRow?.n ?? 0,
+      needs_human_posts,
+      recent,
+    })
+  } catch (e) {
+    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, needs_human_posts: [], recent: [] })
+  } finally {
+    db.close()
+  }
 })
 
 app.get('/api/test-ai-key', async (req, res) => {

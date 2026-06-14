@@ -70,6 +70,7 @@ function stripHtmlToStructured(html) {
 async function callAi(messages) {
   const res = await fetch(AI_ENDPOINT, {
     method: 'POST',
+    signal: AbortSignal.timeout(90000),
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${AI_API_KEY}`,

@@ -21,29 +21,47 @@ async function loadSession() {
   return data
 }
 
-async function writePostWithBrowser({ title, content_html, tags }) {
+async function openTistoryEditorPage() {
   const storageState = await loadSession()
   const browser = await chromium.launch({ headless: true })
+  const context = await browser.newContext({
+    storageState,
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    viewport: { width: 1366, height: 900 },
+    locale: 'ko-KR',
+    permissions: ['clipboard-read', 'clipboard-write'],
+  })
+  const page = await context.newPage()
+  page.setDefaultTimeout(NAV_TIMEOUT)
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: `https://${BLOG_NAME}.tistory.com` })
+
+  const writeUrl = `https://${BLOG_NAME}.tistory.com/manage/newpost/`
+  await page.goto(writeUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT }).catch(() => {})
+
+  const needsLogin = page.url().includes('/auth/login') ||
+    await page.locator(
+      'input[name="loginKey"], input[name="password"], form[action*="login"], a.link_kakao_id:has-text("카카오계정으로 로그인")'
+    ).first().isVisible().catch(() => false)
+  if (needsLogin) {
+    await browser.close().catch(() => {})
+    throw new TistoryError('TISTORY_LOGIN_REQUIRED', '티스토리 세션이 만료되었습니다. `npm run tistory-auth` 로 다시 로그인하세요.')
+  }
+
+  return { browser, context, page }
+}
+
+async function assertTistoryAuthenticated() {
+  const { browser, context } = await openTistoryEditorPage()
   try {
-    const context = await browser.newContext({
-      storageState,
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1366, height: 900 },
-      locale: 'ko-KR',
-      permissions: ['clipboard-read', 'clipboard-write'],
-    })
-    const page = await context.newPage()
-    page.setDefaultTimeout(NAV_TIMEOUT)
-    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'https://beoksolution.tistory.com' })
+    await persistSession(context, STORAGE_PATH)
+  } finally {
+    await browser.close().catch(() => {})
+  }
+}
 
-    const writeUrl = `https://${BLOG_NAME}.tistory.com/manage/newpost/`
-    await page.goto(writeUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT }).catch(() => {})
-
-    const needsLogin = await page.locator('input[name="loginKey"], input[name="password"], form[action*="login"]').first().isVisible().catch(() => false)
-    if (needsLogin) {
-      throw new TistoryError('TISTORY_LOGIN_REQUIRED', '티스토리 세션이 만료되었습니다. `npm run tistory-auth` 로 다시 로그인하세요.')
-    }
-
+async function writePostWithBrowser({ title, content_html, tags }) {
+  const { browser, context, page } = await openTistoryEditorPage()
+  try {
     await page.waitForTimeout(2000)
 
     const titleInput = page.locator('#post-title-inp')
@@ -109,4 +127,4 @@ async function writePostWithBrowser({ title, content_html, tags }) {
   }
 }
 
-export { writePostWithBrowser, TistoryError }
+export { writePostWithBrowser, assertTistoryAuthenticated, TistoryError }

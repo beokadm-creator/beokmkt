@@ -15,12 +15,15 @@ WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 */30 * * * * cd $PUBDIR && $PYTHON run.py generate   >> /tmp/blog-generate.log 2>&1
 */15 * * * * cd $PUBDIR && $PYTHON run.py factcheck   >> /tmp/blog-generate.log 2>&1
 */30 * * * * cd $PUBDIR && $PYTHON run.py review      >> /tmp/blog-generate.log 2>&1
-0    9 * * * cd $PUBDIR && $PYTHON run.py schedule    >> /tmp/blog-publish.log  2>&1
+*/30 * * * * cd $PUBDIR && $PYTHON run.py schedule    >> /tmp/blog-publish.log  2>&1
 */5  * * * * cd $PUBDIR && $PYTHON run.py publish     >> /tmp/blog-publish.log  2>&1
 
 # ── 복구 / 재고 / 백업 ─────────────────────────────────────────────
 */35 * * * * cd $PUBDIR && $PYTHON run.py recover     >> /tmp/blog-generate.log 2>&1
 0  */6 * * * cd $PUBDIR && $PYTHON run.py auto_seed selfhosted 3 >> /tmp/blog-generate.log 2>&1
+# naver/tistory는 콘텐츠 품질 기준과 티스토리 인증을 정비한 뒤 수동 재개
+# 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed naver 2      >> /tmp/blog-generate.log 2>&1
+# 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed tistory 2    >> /tmp/blog-generate.log 2>&1
 0    4 * * * cd $PUBDIR && $PYTHON run.py backup      >> /tmp/blog-publish.log  2>&1
 
 # ── 세션 keepalive (월·목 10시 + 지터) ─────────────────────────────

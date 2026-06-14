@@ -7,7 +7,7 @@ import { chromium } from 'playwright'
 import { convertForNaver } from './naver-html-adapter.mjs'
 import { convertForTistory } from './tistory-html-adapter.mjs'
 import { rewriteForChannel } from './channel-rewriter.mjs'
-import { writePostWithBrowser as tistoryWritePost, TistoryError } from './tistory-client.mjs'
+import { writePostWithBrowser as tistoryWritePost, assertTistoryAuthenticated, TistoryError } from './tistory-client.mjs'
 import { postTweet, TwitterError } from './twitter-client.mjs'
 import { generateTweetSummary } from './twitter-summary.mjs'
 import { persistSession, readJsonIfExists } from './session-helpers.mjs'
@@ -48,6 +48,14 @@ async function recordPublished(key, url) {
     await fs.writeFile(tmp, JSON.stringify(logData, null, 2))
     await fs.rename(tmp, PUBLISHED_LOG)   // 원자적 교체
   } catch (e) { log('warn', `발행 로그 기록 실패(무시): ${e.message}`) }
+}
+
+function isValidPublishedUrl(platform, url) {
+  if (!url || typeof url !== 'string') return false
+  if (platform === 'naver') {
+    return /PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(url)
+  }
+  return /^https?:\/\//.test(url)
 }
 
 class WorkerError extends Error {
@@ -98,22 +106,105 @@ async function pasteHtmlIntoEditor(page, html) {
   const smartEditorBody = page.locator(
     '.se-section-text .se-text-paragraph, .se-component.se-text .se-text-paragraph, .se-module.se-module-text:not(.se-title-text) .se-text-paragraph'
   ).first()
+  let inIframe = false
   if ((await smartEditorBody.count()) > 0 && (await smartEditorBody.isVisible().catch(() => false))) {
     await smartEditorBody.click({ delay: 100 })
   } else {
     const editorFrame = page.frameLocator('iframe[id*="se2_editor"], iframe[title*="스마트에디터"], iframe#se2_editor').first()
     await editorFrame.locator('body').click({ delay: 100 }).catch(() => {})
+    inIframe = true
   }
 
-  await page.evaluate(async (htmlPayload) => {
-    const blob = new Blob([htmlPayload], { type: 'text/html' })
-    const item = new ClipboardItem({ 'text/html': blob })
-    await navigator.clipboard.write([item])
+  const plainText = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  const probe = plainText.replace(/\s+/g, ' ').slice(0, 80)
+  const editorHasProbe = async () => {
+    if (!probe) return true
+    const text = await page.locator('body').innerText().catch(() => '')
+    return text.replace(/\s+/g, ' ').includes(probe)
+  }
+
+  // Strategy 1: Clipboard API + Ctrl/Cmd+V
+  // newContext에 clipboard-write 권한 부여 후 사용. headless에서도 동작.
+  const clipOk = await page.evaluate(async (htmlPayload) => {
+    try {
+      const blob = new Blob([htmlPayload], { type: 'text/html' })
+      const item = new ClipboardItem({ 'text/html': blob })
+      await navigator.clipboard.write([item])
+      return true
+    } catch {
+      return false
+    }
   }, html)
 
-  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
-  await page.keyboard.press(`${modifier}+KeyV`)
+  if (clipOk) {
+    const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
+    await page.keyboard.press(`${modifier}+KeyV`)
+    await page.waitForTimeout(800)
+    if (await editorHasProbe()) return
+    log('warn', 'clipboard paste 후 본문 검증 실패 — 폴백 시도')
+  }
+
+  // Strategy 2: 합성 ClipboardEvent (clipboard-write 권한 불필요, SE3 paste 핸들러 직접 호출)
+  // isTrusted=false를 에디터가 거부하면 조용히 실패할 수 있음 — 에러로 escalate
+  log('warn', 'clipboard.write 실패 — 합성 ClipboardEvent 폴백 시도')
+  const IFRAME_SELECTOR = 'iframe[id*="se2_editor"], iframe[title*="스마트에디터"], iframe#se2_editor'
+  const syntheticOk = inIframe
+    ? await page.frameLocator(IFRAME_SELECTOR).first().locator('body').evaluate((el, htmlPayload) => {
+        try {
+          const dt = new DataTransfer()
+          dt.setData('text/html', htmlPayload)
+          dt.setData('text/plain', htmlPayload.replace(/<[^>]+>/g, ''))
+          el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+          return true
+        } catch { return false }
+      }, html).catch(() => false)
+    : await page.evaluate((htmlPayload) => {
+        try {
+          const dt = new DataTransfer()
+          dt.setData('text/html', htmlPayload)
+          dt.setData('text/plain', htmlPayload.replace(/<[^>]+>/g, ''))
+          const el = document.activeElement || document.body
+          el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+          return true
+        } catch { return false }
+      }, html).catch(() => false)
+
+  if (!syntheticOk) {
+    log('warn', '합성 ClipboardEvent 실패 — 직접 입력 폴백 시도')
+  } else {
+    await page.waitForTimeout(800)
+    if (await editorHasProbe()) return
+    log('warn', '합성 ClipboardEvent 후 본문 검증 실패 — 직접 입력 폴백 시도')
+  }
+
+  const execOk = await page.evaluate((htmlPayload) => {
+    try {
+      return document.execCommand('insertHTML', false, htmlPayload)
+    } catch {
+      return false
+    }
+  }, html).catch(() => false)
+  if (execOk) {
+    await page.waitForTimeout(800)
+    if (await editorHasProbe()) return
+    log('warn', 'execCommand 후 본문 검증 실패 — plain text 입력 폴백 시도')
+  }
+
+  await smartEditorBody.click({ delay: 100 }).catch(() => {})
+  await page.keyboard.insertText(plainText || html.replace(/<[^>]+>/g, ''))
   await page.waitForTimeout(800)
+  if (await editorHasProbe()) return
+
+  throw new WorkerError('PASTE_FAILED', 'SmartEditor 본문 입력 실패 (모든 입력 전략 후 본문 검증 실패)')
 }
 
 async function fillNaverTitle(page, title) {
@@ -140,28 +231,89 @@ async function fillNaverTitle(page, title) {
 }
 
 async function clickPublishButton(page) {
-  const selectors = [
-    'button:has-text("발행")',
-    'a:has-text("발행")',
-    'button:has-text("등록")',
+  await dismissEditorOverlays(page)
+
+  const clickFirstVisible = async (selectors, label) => {
+    for (const sel of selectors) {
+      const handles = page.locator(sel)
+      const count = await handles.count().catch(() => 0)
+      for (let i = 0; i < count; i += 1) {
+        const handle = handles.nth(i)
+        if (!(await handle.isVisible().catch(() => false))) continue
+        await handle.click({ timeout: 5000, force: true })
+        log('info', `${label} 클릭: ${sel}`)
+        return true
+      }
+    }
+    return false
+  }
+
+  const opened = await clickFirstVisible([
+    'button[class^="publish_btn"]',
+    'button[class*=" publish_btn"]',
+    'button:visible:has-text("발행")',
+    'a:visible:has-text("발행")',
     '.se_publish_btn',
     '[data-action="publish"]',
+  ], '네이버 1차 발행 버튼')
+  if (!opened) {
+    throw new WorkerError('PUBLISH_BUTTON_NOT_FOUND', '발행 버튼을 찾지 못했습니다.')
+  }
+
+  await page.waitForTimeout(1500)
+  await page.locator('.se-help-panel-close-button').first()
+    .click({ timeout: 1000, force: true })
+    .catch(() => {})
+
+  const confirmSelectors = [
+    'button[class^="confirm_btn"]',
+    'button[class*=" confirm_btn"]',
+    '[data-action="confirm"]',
+  ]
+  let confirmed = false
+  for (const sel of confirmSelectors) {
+    const handle = page.locator(sel).first()
+    if ((await handle.count()) > 0 && (await handle.isVisible().catch(() => false))) {
+      await handle.click({ timeout: 5000, force: true })
+      log('info', `네이버 최종 발행 버튼 클릭: ${sel}`)
+      confirmed = true
+      break
+    }
+  }
+  if (!confirmed) {
+    throw new WorkerError('PUBLISH_CONFIRM_NOT_FOUND', '최종 발행 버튼을 찾지 못했습니다.')
+  }
+}
+
+async function dismissEditorOverlays(page) {
+  const selectors = [
+    '.se-help-panel-close-button',
+    'button.se-popup-button-cancel',
+    'button:has-text("아니오")',
+    'button:has-text("취소")',
   ]
   for (const sel of selectors) {
     const handle = page.locator(sel).first()
     if ((await handle.count()) > 0 && (await handle.isVisible().catch(() => false))) {
-      await handle.click({ timeout: 5000 }).catch(() => {})
-      return true
+      await handle.click({ timeout: 2000, force: true }).catch(() => {})
+      await page.waitForTimeout(300)
     }
   }
-  throw new WorkerError('PUBLISH_BUTTON_NOT_FOUND', '발행 버튼을 찾지 못했습니다.')
 }
 
 async function capturePublishedUrl(page) {
   await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {})
+  await page.waitForTimeout(2500)
   const url = page.url()
-  if (/PostView\.naver|blog\.naver\.com\/[^/]+\/\d+/.test(url)) return url
-  const candidate = await page.locator('a[href*="/PostView.naver"], a[href*="blog.naver.com"][href*="/"][href*="/"]').first().getAttribute('href').catch(() => null)
+  if (/PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(url)) return url
+  const candidate = await page.locator(
+    'a[href*="/PostView.naver"], a[href*="blog.naver.com"][href*="/"][href*="/"]'
+  ).evaluateAll((links) => {
+    const hrefs = links
+      .map((a) => a.href || a.getAttribute('href') || '')
+      .filter((href) => /PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(href))
+    return hrefs[0] || null
+  }).catch(() => null)
   if (candidate) {
     if (candidate.startsWith('http')) return candidate
     return `https://blog.naver.com${candidate.startsWith('/') ? '' : '/'}${candidate}`
@@ -213,6 +365,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       viewport: { width: 1366, height: 900 },
       locale: 'ko-KR',
+      permissions: ['clipboard-read', 'clipboard-write'],
     })
     const page = await context.newPage()
     page.setDefaultTimeout(NAV_TIMEOUT)
@@ -241,9 +394,10 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
     }
 
     await clickPublishButton(page)
-    // 멱등성: 발행 버튼 클릭 직후 즉시 기록 → URL 캡처 단계에서 크래시해도 재발행 방지
-    if (post_id) await recordPublished(`naver:${post_id}`, '')
     const publishedUrl = await capturePublishedUrl(page)
+    if (!publishedUrl) {
+      throw new WorkerError('PUBLISH_URL_NOT_FOUND', '네이버 발행 후 공개 글 URL을 확인하지 못했습니다.')
+    }
     await saveStorageState(context)
 
     return {
@@ -258,6 +412,8 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
 
 async function publishToTistory({ title, content_html, tags, link, canonical_url }) {
   try {
+    await assertTistoryAuthenticated()
+
     // 유사문서/중복콘텐츠 방지: 티스토리용 재작성 후 스타일 변환
     log('info', '티스토리용 콘텐츠 재작성 (AI) 시작…')
     const rewritten = await rewriteForChannel({
@@ -301,7 +457,10 @@ async function reportResultToMain(postId, platform, payload) {
   if (!MAIN_API_URL || MAIN_API_TOKEN === '__skip__') return
   try {
     const headers = { 'content-type': 'application/json' }
-    if (MAIN_API_TOKEN) headers.authorization = `Bearer ${MAIN_API_TOKEN}`
+    if (MAIN_API_TOKEN) {
+      headers['x-api-key'] = MAIN_API_TOKEN
+      headers.authorization = `Bearer ${MAIN_API_TOKEN}`
+    }
     await fetch(`${MAIN_API_URL}/api/blog-posts/${encodeURIComponent(postId)}/external-publish-result`, {
       method: 'POST',
       headers,
@@ -351,9 +510,11 @@ async function handlePublish(req, res, platform) {
   const dedupKey = postId ? `${platform}:${postId}` : ''
   if (dedupKey) {
     const logData = await loadPublishedLog()
-    if (logData[dedupKey]) {
+    if (logData[dedupKey] && isValidPublishedUrl(platform, logData[dedupKey].url)) {
       log('warn', `중복 발행 차단 [${dedupKey}] → 기존 URL 반환: ${logData[dedupKey].url}`)
       return sendJson(res, 200, { ok: true, platform, url: logData[dedupKey].url, deduped: true })
+    } else if (logData[dedupKey]) {
+      log('warn', `무효 발행 로그 무시 [${dedupKey}] → ${logData[dedupKey].url || '(URL 없음)'}`)
     }
   }
 
@@ -374,12 +535,12 @@ async function handlePublish(req, res, platform) {
 
     log('info', `✅ 발행 성공 [${platform}] → ${result.url || '(URL 없음)'}`)
     if (dedupKey) await recordPublished(dedupKey, result.url)
-    if (postId) await reportResultToMain(postId, platform, { status: 'success', url: result.url, published_at: result.published_at })
+    if (postId) await reportResultToMain(postId, platform, { status: 'success', title: body.title, url: result.url, published_at: result.published_at })
     return sendJson(res, 200, { ok: true, platform, ...result })
   } catch (e) {
     const code = e instanceof WorkerError ? e.code : (e instanceof TistoryError ? e.code : 'UNKNOWN')
     log('error', `❌ 발행 실패 [${code}]: ${e.message}`)
-    if (postId) await reportResultToMain(postId, platform, { status: 'failed', error: e.message, code })
+    if (postId) await reportResultToMain(postId, platform, { status: 'failed', title: body.title, error: e.message, code })
     return sendJson(res, 500, { ok: false, error: e.message, code })
   }
 }
@@ -398,7 +559,7 @@ async function handlePublishAll(req, res) {
   const results = {}
   const pubLog = postId ? await loadPublishedLog() : {}
   for (const platform of platforms) {
-    if (postId && pubLog[`${platform}:${postId}`]) {
+    if (postId && pubLog[`${platform}:${postId}`] && isValidPublishedUrl(platform, pubLog[`${platform}:${postId}`].url)) {
       results[platform] = { ok: true, url: pubLog[`${platform}:${postId}`].url, deduped: true }
       continue
     }

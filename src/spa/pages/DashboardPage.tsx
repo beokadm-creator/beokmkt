@@ -1,124 +1,288 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiJson } from '../lib/api'
 import StatusBadge from '../components/StatusBadge'
 
-type DashboardData = {
-  source_items: { total: number; eligible: number; ineligible: number }
-  short_ideas: { total: number; awaiting_review: number; approved: number; rejected: number }
-  scripts: { total: number; awaiting_review: number; approved: number; revision_required: number }
+type ByStatus = Record<string, number>
+type ChannelStats = { published: number; queued: number; needs_human: number }
+type ByChannel = Record<string, ChannelStats>
+
+type NeedsHumanPost = {
+  id: number
+  topic: string
+  channel: string
+  last_error: string | null
+  updated_at: string
 }
 
-function KpiCard(props: { label: string; value: number; hint?: string }) {
+type RecentPost = {
+  id: number
+  topic: string
+  channel: string
+  status: string
+  published_url: string | null
+  updated_at: string
+}
+
+type PipelineStats = {
+  error?: string
+  by_status: ByStatus
+  by_channel: ByChannel
+  published_today: number
+  published_this_week: number
+  needs_human_posts: NeedsHumanPost[]
+  recent: RecentPost[]
+}
+
+const PIPELINE_STAGES: { key: string; label: string }[] = [
+  { key: 'draft', label: '초안' },
+  { key: 'generating', label: '생성중' },
+  { key: 'factchecking', label: '팩트체크' },
+  { key: 'reviewing', label: '검토중' },
+  { key: 'reviewed', label: '검토완료' },
+  { key: 'queued', label: '발행예약' },
+  { key: 'publishing', label: '발행중' },
+  { key: 'published', label: '발행됨' },
+]
+
+const CHANNELS: { key: string; label: string }[] = [
+  { key: 'naver', label: 'Naver' },
+  { key: 'tistory', label: 'Tistory' },
+  { key: 'selfhosted', label: '자체 블로그' },
+]
+
+function KpiCard({ label, value, sub, alert }: { label: string; value: number; sub?: string; alert?: boolean }) {
   return (
-    <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
-      <div className="text-xs text-zinc-400">{props.label}</div>
-      <div className="mt-2 text-2xl font-semibold">{props.value}</div>
-      {props.hint ? <div className="mt-1 text-xs text-zinc-500">{props.hint}</div> : null}
+    <div className={['rounded-xl border p-4', alert && value > 0 ? 'border-rose-800 bg-rose-950/20' : 'border-zinc-900 bg-zinc-900/30'].join(' ')}>
+      <div className="text-xs text-zinc-400">{label}</div>
+      <div className={['mt-2 text-2xl font-semibold tabular-nums', alert && value > 0 ? 'text-rose-300' : ''].join(' ')}>{value}</div>
+      {sub ? <div className="mt-1 text-xs text-zinc-500">{sub}</div> : null}
     </div>
   )
 }
 
-export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [error, setError] = useState<string | null>(null)
+function StageBar({ by_status }: { by_status: ByStatus }) {
+  const total = Object.values(by_status).reduce((a, b) => a + b, 0)
+  if (total === 0) return <div className="text-sm text-zinc-500">데이터 없음</div>
 
-  useEffect(() => {
-    let alive = true
-    apiJson<DashboardData>('/api/dashboard')
-      .then((d) => {
-        if (!alive) return
-        setData(d)
-        setError(null)
-      })
-      .catch((e) => {
-        if (!alive) return
-        setError(e instanceof Error ? e.message : '불러오기 실패')
-      })
-    return () => {
-      alive = false
+  return (
+    <div className="flex flex-wrap gap-2">
+      {PIPELINE_STAGES.map(({ key, label }) => {
+        const n = by_status[key] ?? 0
+        const active = n > 0
+        return (
+          <div
+            key={key}
+            className={[
+              'flex flex-col items-center rounded-lg border px-3 py-2 min-w-[72px]',
+              active ? 'border-zinc-700 bg-zinc-900/60' : 'border-zinc-900 bg-zinc-950/40 opacity-50',
+            ].join(' ')}
+          >
+            <span className={['text-lg font-semibold tabular-nums', active ? 'text-zinc-100' : 'text-zinc-500'].join(' ')}>{n}</span>
+            <span className="mt-0.5 text-xs text-zinc-400">{label}</span>
+          </div>
+        )
+      })}
+
+      {/* 격리 상태 */}
+      {(['needs_human', 'failed'] as const).map((key) => {
+        const n = by_status[key] ?? 0
+        return (
+          <div
+            key={key}
+            className={[
+              'flex flex-col items-center rounded-lg border px-3 py-2 min-w-[72px]',
+              n > 0 ? 'border-rose-800 bg-rose-950/20' : 'border-zinc-900 bg-zinc-950/40 opacity-40',
+            ].join(' ')}
+          >
+            <span className={['text-lg font-semibold tabular-nums', n > 0 ? 'text-rose-300' : 'text-zinc-500'].join(' ')}>{n}</span>
+            <span className={['mt-0.5 text-xs', n > 0 ? 'text-rose-400' : 'text-zinc-500'].join(' ')}>
+              {key === 'needs_human' ? '수동처리' : '실패'}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ChannelTable({ by_channel }: { by_channel: ByChannel }) {
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-zinc-800 text-left">
+          <th className="pb-2 text-xs font-medium text-zinc-400">채널</th>
+          <th className="pb-2 text-xs font-medium text-zinc-400 text-right">발행됨</th>
+          <th className="pb-2 text-xs font-medium text-zinc-400 text-right">예약</th>
+          <th className="pb-2 text-xs font-medium text-zinc-400 text-right">수동처리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {CHANNELS.map(({ key, label }) => {
+          const ch = by_channel[key] ?? { published: 0, queued: 0, needs_human: 0 }
+          return (
+            <tr key={key} className="border-b border-zinc-900/60">
+              <td className="py-2 text-zinc-200">{label}</td>
+              <td className="py-2 text-right tabular-nums text-emerald-300">{ch.published}</td>
+              <td className="py-2 text-right tabular-nums text-amber-300">{ch.queued}</td>
+              <td className={['py-2 text-right tabular-nums', ch.needs_human > 0 ? 'text-rose-300 font-medium' : 'text-zinc-500'].join(' ')}>
+                {ch.needs_human}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
+export default function DashboardPage() {
+  const [data, setData] = useState<PipelineStats | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const d = await apiJson<PipelineStats>('/api/pipeline/stats')
+      setData(d)
+      setLastUpdated(new Date())
+      if (d.error) setError(`DB 오류: ${d.error}`)
+      else setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오기 실패')
     }
   }, [])
 
-  const kpis = useMemo(() => {
-    if (!data) return null
-    return [
-      { label: '원천 콘텐츠', value: data.source_items.total, hint: `eligible ${data.source_items.eligible}` },
-      { label: '아이디어 검수 대기', value: data.short_ideas.awaiting_review },
-      { label: '대본 검수 대기', value: data.scripts.awaiting_review },
-      { label: '리젝', value: data.short_ideas.rejected },
-    ]
-  }, [data])
+  useEffect(() => {
+    fetchStats()
+    const timer = setInterval(fetchStats, 30_000)
+    return () => clearInterval(timer)
+  }, [fetchStats])
+
+  const totalFailures = (data?.by_status?.needs_human ?? 0) + (data?.by_status?.failed ?? 0)
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        {kpis ? kpis.map((k) => <KpiCard key={k.label} {...k} />) : <div className="text-sm text-zinc-500">로딩 중…</div>}
-      </div>
-
-      <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">파이프라인 요약</div>
-          {error ? <StatusBadge value="failed" /> : null}
-        </div>
-        {error ? <div className="mt-2 text-sm text-rose-200">{error}</div> : null}
-        {data ? (
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
-              <div className="text-xs text-zinc-400">source_items</div>
-              <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                <span className="text-zinc-300">total {data.source_items.total}</span>
-                <StatusBadge value="eligible" />
-                <span className="text-zinc-300">{data.source_items.eligible}</span>
-                <StatusBadge value="ineligible" />
-                <span className="text-zinc-300">{data.source_items.ineligible}</span>
-              </div>
-            </div>
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
-              <div className="text-xs text-zinc-400">short_ideas</div>
-              <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                <StatusBadge value="awaiting_review" />
-                <span className="text-zinc-300">{data.short_ideas.awaiting_review}</span>
-                <StatusBadge value="approved" />
-                <span className="text-zinc-300">{data.short_ideas.approved}</span>
-                <StatusBadge value="rejected" />
-                <span className="text-zinc-300">{data.short_ideas.rejected}</span>
-              </div>
-            </div>
-            <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
-              <div className="text-xs text-zinc-400">scripts</div>
-              <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                <StatusBadge value="awaiting_review" />
-                <span className="text-zinc-300">{data.scripts.awaiting_review}</span>
-                <StatusBadge value="approved" />
-                <span className="text-zinc-300">{data.scripts.approved}</span>
-                <StatusBadge value="revision_required" />
-                <span className="text-zinc-300">{data.scripts.revision_required}</span>
-              </div>
-            </div>
+    <div className="flex flex-col gap-5">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-base font-semibold">파이프라인 모니터링</div>
+          <div className="text-xs text-zinc-500">
+            {lastUpdated ? `마지막 갱신: ${lastUpdated.toLocaleTimeString('ko-KR')}` : '로딩 중…'}
+            {' · '}30초 자동 갱신
           </div>
-        ) : (
-          <div className="mt-3 text-sm text-zinc-500">데이터 준비 중…</div>
-        )}
+        </div>
+        <button
+          type="button"
+          onClick={fetchStats}
+          className="h-8 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-xs text-zinc-300 hover:bg-zinc-800"
+        >
+          새로고침
+        </button>
       </div>
 
-      <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
-        <div className="text-sm font-semibold">운영 바로가기</div>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-4">
-          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/short-ideas?status=awaiting_review">
-            아이디어 검수 대기
-          </Link>
-          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/scripts?status=awaiting_review">
-            대본 검수 대기
-          </Link>
-          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/render-jobs">
-            렌더 운영 보기
-          </Link>
-          <Link className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 text-sm text-zinc-200 hover:border-zinc-700" to="/publish-jobs?status=awaiting_approval">
-            업로드 승인 대기
-          </Link>
-        </div>
+      {error ? (
+        <div className="rounded-lg border border-rose-900/50 bg-rose-950/20 px-4 py-3 text-sm text-rose-300">{error}</div>
+      ) : null}
+
+      {/* KPI 카드 */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <KpiCard
+          label="전체 글"
+          value={data ? Object.values(data.by_status).reduce((a, b) => a + b, 0) : 0}
+          sub="파이프라인 전체"
+        />
+        <KpiCard
+          label="오늘 발행"
+          value={data?.published_today ?? 0}
+          sub="KST 자정 기준"
+        />
+        <KpiCard
+          label="이번 주 발행"
+          value={data?.published_this_week ?? 0}
+          sub="최근 7일"
+        />
+        <KpiCard
+          label="수동 처리 필요"
+          value={totalFailures}
+          sub={totalFailures > 0 ? '즉시 확인 필요' : '이상 없음'}
+          alert
+        />
       </div>
+
+      {/* 파이프라인 퍼널 */}
+      <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+        <div className="mb-3 text-sm font-semibold">파이프라인 상태</div>
+        {data ? <StageBar by_status={data.by_status} /> : <div className="text-sm text-zinc-500">로딩 중…</div>}
+      </div>
+
+      {/* 채널별 현황 */}
+      <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+        <div className="mb-3 text-sm font-semibold">채널별 현황</div>
+        {data ? <ChannelTable by_channel={data.by_channel} /> : <div className="text-sm text-zinc-500">로딩 중…</div>}
+      </div>
+
+      {/* 수동 처리 필요 */}
+      {data && data.needs_human_posts.length > 0 ? (
+        <div className="rounded-xl border border-rose-900/50 bg-zinc-900/30 p-4">
+          <div className="mb-3 text-sm font-semibold text-rose-300">수동 처리 필요 ({data.needs_human_posts.length})</div>
+          <div className="flex flex-col gap-2">
+            {data.needs_human_posts.map((post) => (
+              <div key={post.id} className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-zinc-500">#{post.id}</span>
+                    <StatusBadge value={post.channel} />
+                  </div>
+                  <div className="mt-1 truncate text-sm text-zinc-200">{post.topic}</div>
+                  {post.last_error ? (
+                    <div className="mt-1 truncate text-xs text-rose-400">{post.last_error}</div>
+                  ) : null}
+                  <div className="mt-1 text-xs text-zinc-600">
+                    {new Date(post.updated_at + 'Z').toLocaleString('ko-KR')}
+                  </div>
+                </div>
+                <Link
+                  to={`/blog-posts?pipeline_id=${post.id}`}
+                  className="shrink-0 self-center text-xs text-zinc-400 hover:text-zinc-200"
+                >
+                  글 목록 →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* 최근 업데이트 */}
+      {data && data.recent.length > 0 ? (
+        <div className="rounded-xl border border-zinc-900 bg-zinc-900/30">
+          <div className="border-b border-zinc-900 px-4 py-3 text-sm font-semibold">최근 업데이트</div>
+          {data.recent.map((post) => (
+            <div key={post.id} className="flex items-center gap-3 border-b border-zinc-900/60 px-4 py-3">
+              <span className="text-xs font-mono text-zinc-600 w-8 shrink-0">#{post.id}</span>
+              <div className="flex-1 min-w-0">
+                <div className="truncate text-sm text-zinc-200">{post.topic || '(제목 없음)'}</div>
+                <div className="mt-0.5 text-xs text-zinc-500">
+                  {new Date(post.updated_at + 'Z').toLocaleString('ko-KR')}
+                </div>
+              </div>
+              <StatusBadge value={post.channel} />
+              <StatusBadge value={post.status} />
+              {post.published_url ? (
+                <a
+                  href={post.published_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-xs text-zinc-400 hover:text-zinc-200"
+                >
+                  링크 ↗
+                </a>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

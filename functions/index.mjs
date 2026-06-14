@@ -41,6 +41,7 @@ app.use(express.json({ limit: '1mb' }))
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next()
   if (req.path === '/api/health') return next()
+  if (req.path === '/api/pipeline/stats') return next()
 
   // Blog API: GET public, POST/PATCH/DELETE via X-API-Key or Firebase Auth
   if (req.path.startsWith('/api/blog-posts') && req.method === 'GET') return next()
@@ -1960,35 +1961,140 @@ app.put('/api/ai-provider-defaults', async (req, res) => {
   })
 })
 
-app.get('/api/dashboard', async (req, res) => {
-  const [sourceSnap, ideaSnap, scriptSnap] = await Promise.all([
-    db.collection('source_items').get(),
-    db.collection('short_ideas').get(),
-    db.collection('scripts').get(),
-  ])
+app.get('/api/dashboard', (req, res) => {
+  res.redirect('/api/pipeline/stats')
+})
 
-  const source_items = sourceSnap.docs.map((d) => d.data())
-  const short_ideas = ideaSnap.docs.map((d) => d.data())
-  const scripts = scriptSnap.docs.map((d) => d.data())
+app.get('/api/pipeline/stats', async (req, res) => {
+  const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed']
+  const CHANNELS = ['naver', 'tistory', 'selfhosted']
+  const by_status = Object.fromEntries(ALL_STATUSES.map((status) => [status, 0]))
+  const by_channel = Object.fromEntries(
+    CHANNELS.map((channel) => [channel, { published: 0, queued: 0, needs_human: 0 }])
+  )
+  const now = new Date()
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
+  const weekStart = new Date(todayStart)
+  weekStart.setDate(weekStart.getDate() - 6)
+
+  const snap = await db.collection('blog_posts').orderBy('updated_at', 'desc').limit(300).get()
+  const posts = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((post) => !post.deleted_at)
+
+  let published_today = 0
+  let published_this_week = 0
+  const needs_human_posts = []
+  const recent = []
+
+  for (const post of posts) {
+    const status = typeof post.status === 'string' ? post.status : 'draft'
+    const channel = typeof post.channel === 'string' ? post.channel : 'selfhosted'
+    if (status in by_status) by_status[status] += 1
+    if (channel in by_channel && status in by_channel[channel]) {
+      by_channel[channel][status] += 1
+    }
+
+    const updatedAt = serializeValue(post.updated_at ?? post.published_at ?? post.created_at) ?? null
+    const publishedAt = serializeValue(post.published_at ?? post.updated_at) ?? null
+    const publishedDate = publishedAt ? new Date(publishedAt) : null
+    if (status === 'published' && publishedDate && !Number.isNaN(publishedDate.getTime())) {
+      if (publishedDate >= todayStart) published_today += 1
+      if (publishedDate >= weekStart) published_this_week += 1
+    }
+
+    const external = post.external_publish && typeof post.external_publish === 'object'
+      ? post.external_publish
+      : {}
+    for (const [platform, result] of Object.entries(external)) {
+      if (!result || typeof result !== 'object') continue
+      if (!(platform in by_channel)) continue
+      if (result.status === 'success') by_channel[platform].published += 1
+      if (result.status === 'failed') {
+        by_channel[platform].needs_human += 1
+        if (needs_human_posts.length < 10) {
+          needs_human_posts.push({
+            id: post.pipeline_id ?? post.id,
+            topic: post.title ?? post.topic ?? '',
+            channel: platform,
+            last_error: result.error ?? null,
+            updated_at: serializeValue(result.updated_at ?? post.updated_at ?? post.created_at) ?? '',
+          })
+        }
+      }
+    }
+
+    if (status === 'needs_human' && needs_human_posts.length < 10) {
+      needs_human_posts.push({
+        id: post.pipeline_id ?? post.id,
+        topic: post.title ?? post.topic ?? '',
+        channel,
+        last_error: post.last_error ?? null,
+        updated_at: updatedAt ?? '',
+      })
+    }
+
+    recent.push({
+      id: post.pipeline_id ?? post.id,
+      topic: post.title ?? post.topic ?? '',
+      channel,
+      status,
+      published_url: post.public_url ?? post.url ?? (status === 'published' ? blogPostAbsoluteUrl(post, spaBaseUrl(req)) : null),
+      updated_at: updatedAt ?? '',
+    })
+  }
+
+  const externalSnap = await db.collection('external_publish_results')
+    .orderBy('updated_at', 'desc')
+    .limit(100)
+    .get()
+    .catch(() => null)
+  const externalResults = externalSnap
+    ? externalSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    : []
+  for (const result of externalResults) {
+    const platform = result.platform
+    if (!(platform in by_channel)) continue
+    const status = result.status === 'success' ? 'published' : result.status === 'failed' ? 'needs_human' : null
+    if (status && status in by_channel[platform]) by_channel[platform][status] += 1
+
+    const updatedAt = serializeValue(result.updated_at ?? result.published_at ?? result.created_at) ?? ''
+    const publishedAt = serializeValue(result.published_at ?? result.updated_at) ?? null
+    const publishedDate = publishedAt ? new Date(publishedAt) : null
+    if (result.status === 'success' && publishedDate && !Number.isNaN(publishedDate.getTime())) {
+      if (publishedDate >= todayStart) published_today += 1
+      if (publishedDate >= weekStart) published_this_week += 1
+    }
+
+    if (result.status === 'failed' && needs_human_posts.length < 10) {
+      needs_human_posts.push({
+        id: result.source_id ?? result.id,
+        topic: result.title ?? result.topic ?? '',
+        channel: platform,
+        last_error: result.error ?? null,
+        updated_at: updatedAt,
+      })
+    }
+    recent.push({
+      id: result.source_id ?? result.id,
+      topic: result.title ?? result.topic ?? '',
+      channel: platform,
+      status: result.status === 'success' ? 'published' : result.status ?? 'failed',
+      published_url: result.url ?? null,
+      updated_at: updatedAt,
+    })
+  }
 
   ok(res, {
-    source_items: {
-      total: source_items.length,
-      eligible: source_items.filter((x) => x.status === 'eligible').length,
-      ineligible: source_items.filter((x) => x.status === 'ineligible').length,
-    },
-    short_ideas: {
-      total: short_ideas.length,
-      awaiting_review: short_ideas.filter((x) => x.status === 'awaiting_review').length,
-      approved: short_ideas.filter((x) => x.status === 'approved').length,
-      rejected: short_ideas.filter((x) => x.status === 'rejected').length,
-    },
-    scripts: {
-      total: scripts.length,
-      awaiting_review: scripts.filter((x) => x.status === 'awaiting_review').length,
-      approved: scripts.filter((x) => x.status === 'approved').length,
-      revision_required: scripts.filter((x) => x.status === 'revision_required').length,
-    },
+    by_status,
+    by_channel,
+    published_today,
+    published_this_week,
+    needs_human_posts,
+    recent: recent
+      .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())
+      .slice(0, 10),
   })
 })
 
@@ -4206,7 +4312,6 @@ app.post('/api/blog-posts/:id/publish', async (req, res) => {
 app.post('/api/blog-posts/:id/external-publish-result', async (req, res) => {
   const ref = db.collection('blog_posts').doc(req.params.id)
   const snap = await ref.get()
-  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'blog post not found', {})
 
   const body = req.body ?? {}
   const platform = body.platform === 'tistory' ? 'tistory' : body.platform === 'naver' ? 'naver' : null
@@ -4219,6 +4324,25 @@ app.post('/api/blog-posts/:id/external-publish-result', async (req, res) => {
     published_at: body.published_at ?? nowIso(),
     error: body.error ?? null,
     updated_at: nowIso(),
+  }
+
+  if (!snap.exists) {
+    const externalRef = db.collection('external_publish_results').doc(`${platform}:${req.params.id}`)
+    const externalResult = {
+      ...result,
+      source_id: req.params.id,
+      title: typeof body.title === 'string' ? body.title : '',
+      created_at: nowIso(),
+    }
+    await externalRef.set(externalResult, { merge: true })
+    await addAuditLog(
+      `external_publish.${result.status}`,
+      'external_publish_result',
+      externalRef.id,
+      'worker',
+      { platform, source_id: req.params.id, url: result.url, error: result.error }
+    )
+    return ok(res, externalResult)
   }
 
   await ref.set(

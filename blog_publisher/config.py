@@ -116,6 +116,7 @@ BANNED_WORDS = [w for w in os.getenv("BANNED_WORDS", "").split(",") if w]
 DAILY_PUBLISH_TARGET = int(os.getenv("DAILY_PUBLISH_TARGET", "5"))   # 하루 발행 목표
 PUBLISH_SPACING_MIN = int(os.getenv("PUBLISH_SPACING_MIN", "90"))    # 글 간 분산 간격(분)
 STOCK_BUFFER_DAYS = int(os.getenv("STOCK_BUFFER_DAYS", "3"))         # 유지할 재고 일수
+ALLOW_EXTERNAL_AUTO_SEED = os.getenv("ALLOW_EXTERNAL_AUTO_SEED", "false").lower() == "true"
 
 # 발행 허용 시간대(현지시각 기준, 기획 03 §3.2). 이 시간 밖이면 다음 윈도우로 이월.
 PUBLISH_TZ_OFFSET = int(os.getenv("PUBLISH_TZ_OFFSET", "9"))         # KST=+9

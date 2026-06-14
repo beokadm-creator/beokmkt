@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 
+import config
 from db import db
 from tools.keyword_bank import KEYWORDS
 
@@ -32,6 +33,10 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
     아직 다루지 않은 키워드에서 최대 max_seeds개의 draft를 생성.
     반환: 생성된 시드 수.
     """
+    if channel in {"naver", "tistory"} and not config.ALLOW_EXTERNAL_AUTO_SEED:
+        print(f"  {channel} auto_seed 보류 — ALLOW_EXTERNAL_AUTO_SEED=true 설정 후 재개")
+        return 0
+
     existing = _existing_topics()
     created = 0
 

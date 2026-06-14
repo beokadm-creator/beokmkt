@@ -21,14 +21,9 @@ function Item(props: NavItem) {
 
 export default function Sidebar() {
   const main: NavItem[] = [
-    { to: '/dashboard', label: '대시보드' },
-    { to: '/source-items', label: '원천 콘텐츠' },
+    { to: '/dashboard', label: '모니터링' },
     { to: '/blog-posts', label: '블로그 글' },
-    { to: '/short-ideas', label: '숏폼 아이디어' },
-    { to: '/scripts', label: '대본 검수' },
-    { to: '/render-jobs', label: '영상 검수' },
-    { to: '/publish-jobs', label: '업로드' },
-    { to: '/kaid-insight', label: 'KAID Insight 생성기' },
+    { to: '/kaid-insight', label: 'KAID Insight' },
   ]
 
   const settings: NavItem[] = [
@@ -37,7 +32,7 @@ export default function Sidebar() {
   ]
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-zinc-900 bg-zinc-950 px-4 py-5">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-zinc-900 bg-zinc-950 px-4 py-5">
       <div className="mb-5">
         <div className="text-sm font-semibold">beokmkt</div>
         <div className="text-xs text-zinc-500">운영 콘솔</div>
@@ -55,7 +50,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-4 text-xs text-zinc-600">API: /api/*</div>
+      <div className="mt-4 text-xs text-zinc-600">blog_publisher pipeline</div>
     </aside>
   )
 }
