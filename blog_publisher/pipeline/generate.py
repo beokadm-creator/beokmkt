@@ -8,6 +8,11 @@
 """
 from __future__ import annotations
 
+import fcntl
+import multiprocessing as mp
+from contextlib import contextmanager
+from pathlib import Path
+
 import config
 from db import db
 from llm import prompts
@@ -25,6 +30,65 @@ import re as _re
 _HANZI_RE = _re.compile(r"[一-鿿㐀-䶿]")
 
 
+def _lock_path() -> Path:
+    return db.DB_PATH.with_name("generate.lock")
+
+
+@contextmanager
+def _generate_lock():
+    """cron 겹침으로 동일 재고를 여러 생성 워커가 잡는 것을 막는다."""
+    lock_path = _lock_path()
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("w") as fh:
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
+def _generate_one_child(post: dict, result_queue: mp.Queue) -> None:
+    """글 1건 생성 자식 프로세스. 부모가 하드 타임아웃으로 종료할 수 있다."""
+    try:
+        _generate_one(LLMClient(), post)
+        result_queue.put(("ok", ""))
+    except Exception as e:  # noqa: BLE001
+        result_queue.put(("error", str(e)))
+
+
+def _generate_one_with_timeout(post: dict) -> None:
+    """SDK/SSL 레벨 timeout이 멈춰도 글 1건을 무한 점유하지 않게 한다."""
+    if not config.GENERATE_PROCESS_ISOLATION:
+        _generate_one(LLMClient(), post)
+        return
+
+    seconds = max(1, int(config.GENERATE_POST_TIMEOUT_SEC))
+    ctx = mp.get_context("spawn")
+    queue: mp.Queue = ctx.Queue(maxsize=1)
+    proc = ctx.Process(target=_generate_one_child, args=(post, queue))
+    proc.start()
+    proc.join(seconds)
+    if proc.is_alive():
+        proc.terminate()
+        proc.join(5)
+        if proc.is_alive():
+            proc.kill()
+            proc.join(5)
+        raise TimeoutError(f"id={post['id']} 생성 하드 타임아웃({seconds}s)")
+    if proc.exitcode not in (0, None):
+        raise RuntimeError(f"id={post['id']} 생성 자식 프로세스 종료 코드 {proc.exitcode}")
+    try:
+        status, message = queue.get_nowait()
+    except Exception as e:  # noqa: BLE001
+        raise RuntimeError(f"id={post['id']} 생성 결과 수신 실패: {e}") from e
+    if status != "ok":
+        raise RuntimeError(message)
+
+
 def _count_hanzi(text: str) -> int:
     return len(_HANZI_RE.findall(text or ""))
 
@@ -37,6 +101,10 @@ def _strip_hanzi(text: str) -> str:
     out = _re.sub(r"\(\s*\)", "", out)      # 빈 괄호 제거
     out = _re.sub(r"[ \t]{2,}", " ", out)
     return out
+
+
+def _log_stage(topic: str, stage: str) -> None:
+    print(f"[generate] topic={topic!r} 단계={stage}", flush=True)
 
 
 def _facts_summary(evidence: dict, limit: int = 40) -> str:
@@ -83,6 +151,7 @@ def _brand_hint(brand_key: str) -> str:
 def _build_outline(llm: LLMClient, post: dict, evidence: dict) -> dict:
     content_type = post.get("content_type", "howto")
     system = prompts.OUTLINE_TEMPLATES.get(content_type, prompts.OUTLINE_TEMPLATES["howto"])
+    _log_stage(post["topic"], "outline")
     outline = chat_json(
         llm,
         system,
@@ -95,10 +164,32 @@ def _build_outline(llm: LLMClient, post: dict, evidence: dict) -> dict:
             brand_hint=_brand_hint(post.get("category") or post.get("brand_key", "")),
         ),
         model=config.MODEL_OUTLINE,
-        max_tokens=config.MAX_TOKENS_OUTLINE,
-        thinking=True,
+        max_tokens=config.MAX_TOKENS_OUTLINE_JSON,
+        thinking=False,
     )
     return _validate_outline(outline)
+
+
+def _ensure_summary_table(body_text: str, outline: dict) -> str:
+    """리치 HTML 품질 기준: 글 전체에 비교/점검용 표가 1개 이상 있게 한다."""
+    if "|---" in body_text:
+        return body_text
+    sections = [
+        s for s in outline.get("sections", [])
+        if isinstance(s, dict) and s.get("h2") and s.get("point")
+    ][:5]
+    if not sections:
+        return body_text
+    rows = [
+        "| 점검 항목 | 확인 질문 | 우선순위 |",
+        "|---|---|---|",
+    ]
+    for idx, sec in enumerate(sections, start=1):
+        priority = "높음" if idx <= 2 else "보통"
+        h2 = str(sec["h2"]).replace("|", "/")
+        point = str(sec["point"]).replace("|", "/")
+        rows.append(f"| {h2} | {point}을 실제 운영 기준으로 확인했는가 | {priority} |")
+    return body_text + "\n\n## 실행 전 점검표\n\n" + "\n".join(rows)
 
 
 def generate_article(
@@ -112,11 +203,15 @@ def generate_article(
     engine = config.target_engine(channel)   # 기획 07: 채널별 타깃 엔진
 
     # ① 의도/키워드/하위질문
+    _log_stage(topic, "query_plan")
     plan = ev.derive_query_plan(llm, topic, content_type)
     # ②a 타깃 엔진 SERP 분석(노출용) / ②b 사실 수집(근거용, 일반 웹)
+    _log_stage(topic, f"serp:{engine}")
     serp = collect.analyze_serp(engine, plan["primary_keyword"])
+    _log_stage(topic, "source_collect")
     sources = collect.collect(ev.search_queries(plan))
     # ③ 근거팩(커버리지는 타깃 SERP 반영)
+    _log_stage(topic, "evidence_pack")
     evidence = ev.build_evidence_pack(llm, topic, content_type, plan, sources, serp=serp)
 
     # ④~⑥ 개요·섹션·SEO 합성(재작성 파이프라인과 공유)
@@ -141,9 +236,11 @@ def compose_article(
 
     # ⑤ 근거기반 섹션 작성 (빈 응답/한자 혼입 시 재시도)
     parts: list[str] = []
-    for sec in outline["sections"]:
+    total_sections = len(outline["sections"])
+    for idx, sec in enumerate(outline["sections"], start=1):
         body = ""
         for _sec_try in range(3):
+            _log_stage(topic, f"section {idx}/{total_sections}: {sec['h2']} try {_sec_try + 1}")
             body = llm.chat(
                 prompts.SECTION_SYSTEM,
                 prompts.SECTION_USER.format(
@@ -163,14 +260,16 @@ def compose_article(
             if not too_short and not has_hanzi:
                 break
             reason = "너무 짧음" if too_short else f"한자 {_count_hanzi(body)}자 혼입"
-            print(f"[generate] 섹션 '{sec['h2']}' {reason}({len(body)}자), 재시도")
+            print(f"[generate] 섹션 '{sec['h2']}' {reason}({len(body)}자), 재시도", flush=True)
         # 최종 시도에도 한자가 남으면 제거(최후의 안전망)
         body = _strip_hanzi(body)
         parts.append(f"## {sec['h2']}\n\n{body}")
     body_text = "\n\n".join(parts)
+    body_text = _ensure_summary_table(body_text, outline)
 
     # ⑥ SEO 최적화(엔진별). 실패해도 원고는 살린다.
     try:
+        _log_stage(topic, "seo")
         seo_data = seo.optimize(llm, engine, topic, title, body_text, evidence, serp)
         final_title = seo_data.get("seo_title") or title
         meta = seo_data.get("meta_description") or outline.get("meta_description", "")
@@ -181,7 +280,7 @@ def compose_article(
         elif engine == "naver":
             body_text = seo.apply_image_markers(body_text, seo_data.get("image_markers", []))
     except Exception as e:  # noqa: BLE001
-        print(f"[seo] 최적화 실패(원고 유지): {e}")
+        print(f"[seo] 최적화 실패(원고 유지): {e}", flush=True)
         seo_data, final_title, meta, tags = {}, title, outline.get("meta_description", ""), []
 
     return {
@@ -239,26 +338,32 @@ def _validate_outline(outline: dict) -> dict:
     return outline
 
 
-def run_once(batch: int = 5) -> int:
+def run_once(batch: int = 1) -> int:
     """본문이 없는 draft(next_run_at 지난 것)를 근거기반 생성. 처리 건수 반환."""
-    llm = LLMClient()
     processed = 0
-    for post in db.fetch_generate_ready(limit=batch):
-        if not db.claim(post["id"], "draft", "generating"):
-            continue
-        try:
-            _generate_one(llm, dict(post))
-            processed += 1
-        except Exception as e:  # noqa: BLE001
-            attempts = (post["attempts"] or 0) + 1
-            new_status = db.requeue_draft(
-                post["id"], attempts, str(e)[:500],
-                max_attempts=config.GENERATE_MAX_ATTEMPTS,
-            )
-            print(f"[generate] id={post['id']} 시도{attempts}/{config.GENERATE_MAX_ATTEMPTS} "
-                  f"실패→{new_status}: {e}")
-            if new_status == "needs_human":
-                notify(f"생성 실패 격리: id={post['id']} topic={post['topic']!r} — {e}", "error")
+    with _generate_lock() as acquired:
+        if not acquired:
+            print("[generate] 다른 생성 프로세스가 실행 중이라 이번 주기는 건너뜀", flush=True)
+            return processed
+
+        for post in db.fetch_generate_ready(limit=batch):
+            if not db.claim(post["id"], "draft", "generating"):
+                continue
+            try:
+                print(f"[generate] id={post['id']} 시작 topic={post['topic']!r}", flush=True)
+                _generate_one_with_timeout(dict(post))
+                processed += 1
+                print(f"[generate] id={post['id']} 완료", flush=True)
+            except Exception as e:  # noqa: BLE001
+                attempts = (post["attempts"] or 0) + 1
+                new_status = db.requeue_draft(
+                    post["id"], attempts, str(e)[:500],
+                    max_attempts=config.GENERATE_MAX_ATTEMPTS,
+                )
+                print(f"[generate] id={post['id']} 시도{attempts}/{config.GENERATE_MAX_ATTEMPTS} "
+                      f"실패→{new_status}: {e}", flush=True)
+                if new_status == "needs_human":
+                    notify(f"생성 실패 격리: id={post['id']} topic={post['topic']!r} — {e}", "error")
     return processed
 
 

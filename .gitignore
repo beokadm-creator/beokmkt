@@ -65,6 +65,7 @@ blog_publisher/**/*.pyc
 blog_publisher/db/blog.db
 blog_publisher/db/blog.db-shm
 blog_publisher/db/blog.db-wal
+blog_publisher/db/generate.lock
 blog_publisher/db/publish.lock
 blog_publisher/db/.fuse_hidden*
 blog_publisher/db/backups/

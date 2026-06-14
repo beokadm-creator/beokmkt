@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-06-15 — 채널별 실발행 검증과 생성 워커 하드 타임아웃
+
+자체 블로그·티스토리·네이버 블로그를 각각 1건씩 실제 발행 경로로 실행해 공개 URL까지 확인했다. 발행기는 세 채널 모두 동작했지만, 운영 재고가 쌓이지 않는 직접 원인은 `generate` 단계였다. 기존 생성 워커는 외부 LLM/SSL 대기에서 멈추면 cron 주기 전체를 붙잡고 `generating` 상태도 남길 수 있었다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/pipeline/generate.py` | 생성 워커에 단일 실행 락 추가. 글 1건 생성을 자식 프로세스로 격리하고, 하드 타임아웃 초과 시 자식 프로세스를 종료한 뒤 `draft`로 재큐잉. 고품질 섹션 생성 시간이 길어 cron 1주기가 과도해지지 않도록 기본 배치를 1건으로 축소 |
+| `blog_publisher/pipeline/generate.py` | 생성 단계별 진행 로그(`query_plan`, `outline`, `section n/m`, `seo`) 추가. 표가 하나도 없는 원고는 H2 기반 실행 점검표를 자동 추가 |
+| `blog_publisher/research/evidence.py` | 의도/키워드 JSON 단계는 `thinking=false`, `MAX_TOKENS_INTENT`로 분리해 `.env`의 큰 outline 토큰 설정이 첫 단계까지 느리게 만들지 않게 함 |
+| `blog_publisher/config.py` | `GENERATE_POST_TIMEOUT_SEC`, `GENERATE_PROCESS_ISOLATION`, `MAX_TOKENS_INTENT`, `MAX_TOKENS_OUTLINE_JSON` 추가 |
+| `blog_publisher/tools/image_bank.py` | beok 홈페이지 제작 글에 학회/명찰 이미지가 잘못 들어가지 않도록 학회 이미지 선택 조건을 강한 키워드(`학회`, `명찰`, `사무국`, `참가자`)로 제한 |
+
+검증:
+- 자체 블로그 id 44 → `https://beokmkt.web.app/blog/비오케이솔루션-학회-운영-사무국-명찰-출력-안내-selfhosted-점검-20260615-001712` HTTP 200
+- 티스토리 id 45 → `https://beoksolution.tistory.com/22` HTTP 200
+- 네이버 id 46 → `https://blog.naver.com/PostView.naver?blogId=beoksolution&Redirect=View&logNo=224315889399&categoryNo=1&isAfterWrite=true&isMrblogPost=false&isHappyBeanLeverage=true&contentLength=13886` HTTP 200
+- `GENERATE_POST_TIMEOUT_SEC=1 python3 blog_publisher/run.py generate`에서 1초 후 자식 프로세스 종료, `generating=0` 유지 확인
+- `python3 blog_publisher/run.py selftest` PASS
+- 실제 생성 id 42: 6,310자 생성 후 보정 7,107자, 표 3개, beok 이미지 3개, 한자 0개, `reviewed`
+- 실제 생성 id 43: 9,922자, H2 9개, H3 19개, 표 3개, beok 이미지 2개, 한자 0개, `reviewed`
+- 현재 남은 문제는 `reviewed=2 < 목표 15` 재고 부족
+
+---
+
 ## 2026-06-15 — 운영 품질 점검 LaunchAgent와 공개 블로그 인덱스 이미지 보강
 
 macOS에서 `crontab <file>` 적용이 반환되지 않는 상태를 확인했다. 공개 URL 검증, Phase B 품질 셀프테스트, 이미지 자산 감사는 crontab에만 의존하지 않도록 LaunchAgent로 분리해 실제 로드·강제 실행까지 확인했다. 또한 배포된 `/blog/`는 SPA가 아니라 Cloud Functions SSR 템플릿이 먼저 응답하므로, 사용자 블로그 인덱스의 이미지 0개 문제를 SSR 템플릿에서 직접 보강했다.

@@ -33,6 +33,7 @@ def _install_mocks():
     config.MIN_BODY_LEN = 50
     config.MIN_SOURCE_TEXT_LEN = 30
     config.MAX_DUP_RATIO = 0.95
+    config.GENERATE_PROCESS_ISOLATION = False
     # 즉시 발행되도록 스케줄 분산/윈도우 무력화(테스트 결정성)
     config.PUBLISH_SPACING_MIN = 0
     config.PUBLISH_WINDOW_START = 0

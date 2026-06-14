@@ -167,7 +167,12 @@ def pick_image(pool: list[dict], context_text: str = "") -> dict:
 
 
 def _is_beok_conference_context(context_text: str = "") -> bool:
-    return any(kw in (context_text or "") for kw in _BEOK_CONFERENCE_KW)
+    text = context_text or ""
+    strong = {"학회", "명찰", "사무국", "참가자"}
+    if any(kw in text for kw in strong):
+        return True
+    # "현장", "출력" 같은 약한 단어만으로는 홈페이지 제작 글에도 오탐된다.
+    return False
 
 
 def featured_image(brand_key: str, context_text: str = "") -> dict:

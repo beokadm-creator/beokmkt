@@ -24,8 +24,8 @@ def derive_query_plan(llm: LLMClient, topic: str, content_type: str) -> dict:
         prompts.INTENT_SYSTEM,
         prompts.INTENT_USER.format(topic=topic, content_type=content_type),
         model=config.MODEL_OUTLINE,
-        max_tokens=config.MAX_TOKENS_OUTLINE,
-        thinking=True,
+        max_tokens=config.MAX_TOKENS_INTENT,
+        thinking=False,
     )
     plan.setdefault("primary_keyword", topic)
     plan.setdefault("secondary_keywords", [])
