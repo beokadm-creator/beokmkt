@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-15 — 관리자 운영 준비도에 품질 게이트 상태 노출
+
+발행 품질 사고의 직접 원인이었던 `MIN_GROUNDING_RATIO`/`MIN_REVIEW_SCORE` 설정을 운영자가 대시보드에서 바로 볼 수 있도록 파이프라인 스냅샷과 로컬 관리자 API에 품질 게이트 상태를 추가했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | `blog_publisher/.env`에서 품질 게이트 값을 읽어 `ops.quality_gate`에 `min_grounding_ratio`, `min_review_score`, `enforced`, `ok` 저장 |
+| `server/index.mjs` | 로컬 `/api/pipeline/stats`도 동일한 품질 게이트 상태를 반환 |
+| `src/spa/pages/DashboardPage.tsx` | 운영 준비도 카드에 `품질 게이트` 셀 추가. 0 또는 운영 기준 미달이면 확인 필요로 표시 |
+| `functions/ssr-template.mjs` | SPA 빌드 산출 템플릿 갱신 |
+
+검증:
+- `node --check server/index.mjs`, `node --check blog_publisher/tools/sync_pipeline_snapshot.mjs` PASS
+- `npx tsc --noEmit` PASS
+- `python3 blog_publisher/run.py sync_snapshot`에서 `quality_gate: { min_grounding_ratio: 0.9, min_review_score: 80, enforced: true, ok: true }` 확인
+- `npm run lint -- .` 0 errors / 기존 warnings 유지
+- `python3 blog_publisher/run.py quality_selftest`, `verify_public 10` PASS
+- `npm run build:spa`, Firebase Hosting 배포 PASS
+
+---
+
 ## 2026-06-15 — 품질 게이트 복구와 네이버 생성 제약 강화
 
 채널별 실발행 검증에서 자체 블로그·티스토리는 발행됐지만 `grounding_ratio=0.0` 글도 통과했고, 네이버는 이미지/마크다운 표가 포함된 원고라 자동 발행이 차단됐다. 발행 전 품질 게이트를 코드에서 강제하고, 네이버 원고는 생성 단계부터 이미지/표를 만들지 않도록 제약을 주입했다.

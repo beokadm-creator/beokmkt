@@ -5,6 +5,7 @@ import { getAuth } from 'firebase-admin/auth'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
+import { readFileSync } from 'fs'
 import Database from 'better-sqlite3'
 import { getIdempotency, loadStore, newId, nowIso, saveStore, setIdempotency } from './store.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
@@ -15,6 +16,34 @@ const PIPELINE_DB_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../blog_publisher/db/blog.db'
 )
+const PIPELINE_ENV_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../blog_publisher/.env'
+)
+
+function readPipelineEnvNumber(key, fallback) {
+  try {
+    const text = readFileSync(PIPELINE_ENV_PATH, 'utf8')
+    const match = text.match(new RegExp(`^${key}=([^\\n#]+)`, 'm'))
+    if (!match) return fallback
+    const value = Number(String(match[1]).trim().replace(/^["']|["']$/g, ''))
+    return Number.isFinite(value) ? value : fallback
+  } catch {
+    const value = Number(process.env[key])
+    return Number.isFinite(value) ? value : fallback
+  }
+}
+
+function pipelineQualityGateStatus() {
+  const minGrounding = readPipelineEnvNumber('MIN_GROUNDING_RATIO', 0.9)
+  const minReviewScore = readPipelineEnvNumber('MIN_REVIEW_SCORE', 80)
+  return {
+    min_grounding_ratio: minGrounding,
+    min_review_score: minReviewScore,
+    enforced: minGrounding > 0 && minReviewScore > 0,
+    ok: minGrounding >= 0.9 && minReviewScore >= 80,
+  }
+}
 
 function openPipelineDb() {
   return new Database(PIPELINE_DB_PATH, { readonly: true, fileMustExist: true })
@@ -2519,6 +2548,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         snapshot_synced_at: null,
         snapshot_age_sec: 0,
         snapshot_stale: false,
+        quality_gate: pipelineQualityGateStatus(),
       },
       needs_human_posts,
       recent,

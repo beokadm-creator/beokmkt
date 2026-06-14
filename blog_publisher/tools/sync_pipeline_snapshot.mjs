@@ -3,15 +3,41 @@ import path from 'path'
 import os from 'os'
 import { fileURLToPath } from 'url'
 import Database from 'better-sqlite3'
+import { readFileSync } from 'fs'
 import { initializeApp } from 'firebase-admin/app'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DB_PATH = path.resolve(__dirname, '../db/blog.db')
+const ENV_PATH = path.resolve(__dirname, '../.env')
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'beokmkt'
 const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
 const CHANNELS = ['naver', 'tistory', 'selfhosted']
 const INVENTORY_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed']
+
+function readEnvNumber(key, fallback) {
+  try {
+    const text = readFileSync(ENV_PATH, 'utf8')
+    const match = text.match(new RegExp(`^${key}=([^\\n#]+)`, 'm'))
+    if (!match) return fallback
+    const value = Number(String(match[1]).trim().replace(/^["']|["']$/g, ''))
+    return Number.isFinite(value) ? value : fallback
+  } catch {
+    const value = Number(process.env[key])
+    return Number.isFinite(value) ? value : fallback
+  }
+}
+
+function qualityGateStatus() {
+  const minGrounding = readEnvNumber('MIN_GROUNDING_RATIO', 0.9)
+  const minReviewScore = readEnvNumber('MIN_REVIEW_SCORE', 80)
+  return {
+    min_grounding_ratio: minGrounding,
+    min_review_score: minReviewScore,
+    enforced: minGrounding > 0 && minReviewScore > 0,
+    ok: minGrounding >= 0.9 && minReviewScore >= 80,
+  }
+}
 
 function pipelineQuality(body = '', groundingRatio = null) {
   const value = String(body ?? '')
@@ -356,6 +382,7 @@ async function collectSnapshot() {
         publishing: by_status.publishing,
         stale,
         stuck_threshold_min: stuckThresholdMin,
+        quality_gate: qualityGateStatus(),
       },
       needs_human_posts,
       recent,

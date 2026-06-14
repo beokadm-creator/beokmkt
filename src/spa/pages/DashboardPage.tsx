@@ -71,6 +71,12 @@ type OpsStats = {
   snapshot_synced_at?: string | null
   snapshot_age_sec?: number | null
   snapshot_stale?: boolean
+  quality_gate?: {
+    min_grounding_ratio: number
+    min_review_score: number
+    enforced: boolean
+    ok: boolean
+  }
 }
 
 type PipelinePostDetail = {
@@ -275,7 +281,9 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
   const stockLow = ops.reviewed < ops.reviewed_target
   const dueBlocked = ops.queued_due > 0 && ops.publishing === 0
   const snapshotStale = ops.snapshot_stale === true
-  const active = inventoryLow || dueBlocked || staleTotal > 0 || snapshotStale
+  const gate = ops.quality_gate
+  const gateAlert = gate ? !gate.ok || !gate.enforced : false
+  const active = inventoryLow || dueBlocked || staleTotal > 0 || snapshotStale || gateAlert
   const snapshotAgeMin = typeof ops.snapshot_age_sec === 'number' ? Math.round(ops.snapshot_age_sec / 60) : null
   const cells = [
     {
@@ -283,6 +291,12 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
       value: snapshotStale ? '지연' : '정상',
       sub: ops.snapshot_generated_at ? `${formatDate(ops.snapshot_generated_at)}${snapshotAgeMin == null ? '' : ` · ${snapshotAgeMin}분 전`}` : '스냅샷 없음',
       alert: snapshotStale,
+    },
+    {
+      label: '품질 게이트',
+      value: gate ? (gate.ok ? '정상' : '확인') : '미측정',
+      sub: gate ? `grounding ${gate.min_grounding_ratio} · review ${gate.min_review_score}` : '스냅샷 갱신 필요',
+      alert: gateAlert,
     },
     {
       label: '전발행 재고',
@@ -327,7 +341,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
           {active ? '확인 필요' : '정상'}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-7">
         {cells.map((cell) => (
           <div
             key={cell.label}
