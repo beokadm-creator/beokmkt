@@ -119,6 +119,17 @@ function channelSessionHealth() {
   ]
 }
 
+function pipelineImageAssetHealthStatus() {
+  return {
+    ok: false,
+    beoksolution_public_images: 1,
+    beok_conference_actual_images: 0,
+    fallback_images: 3,
+    reason: 'beoksolution.com 공개 학회/명찰 현장 이미지는 아직 없음. 로고와 hongcomm.kr 공개 시스템 이미지를 대체 사용 중',
+    action: 'beoksolution.com에 학회 명찰/접수/재발행 현장 이미지를 공개 URL로 추가한 뒤 image_bank.py 갱신',
+  }
+}
+
 function collectPipelineFocusInventory(db, channels) {
   const brand = readPipelineEnvString('AUTO_SEED_BRAND_FILTER', 'beok')
   const terms = readPipelineEnvList(
@@ -2665,6 +2676,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         snapshot_stale: false,
         quality_gate: pipelineQualityGateStatus(),
         search_health: pipelineSearchHealthStatus(),
+        image_asset_health: pipelineImageAssetHealthStatus(),
         session_health: channelSessionHealth(),
       },
       needs_human_posts,

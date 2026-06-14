@@ -90,6 +90,14 @@ type OpsStats = {
     ok: boolean
     reason: string | null
   }
+  image_asset_health?: {
+    ok: boolean
+    beoksolution_public_images: number
+    beok_conference_actual_images: number
+    fallback_images: number
+    reason: string | null
+    action?: string | null
+  }
   session_health?: {
     channel: string
     exists: boolean
@@ -309,9 +317,11 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
   const gateAlert = gate ? !gate.ok || !gate.enforced : false
   const search = ops.search_health
   const searchAlert = search ? !search.ok : false
+  const imageHealth = ops.image_asset_health
+  const imageAlert = imageHealth ? !imageHealth.ok : false
   const sessionHealth = ops.session_health ?? []
   const sessionAlert = sessionHealth.some((session) => !session.ok)
-  const active = inventoryLow || focusInventoryLow || dueBlocked || staleTotal > 0 || snapshotStale || gateAlert || searchAlert || sessionAlert
+  const active = inventoryLow || focusInventoryLow || dueBlocked || staleTotal > 0 || snapshotStale || gateAlert || searchAlert || imageAlert || sessionAlert
   const snapshotAgeMin = typeof ops.snapshot_age_sec === 'number' ? Math.round(ops.snapshot_age_sec / 60) : null
   const cells = [
     {
@@ -331,6 +341,12 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
       value: search ? (search.ok ? '정상' : '확인') : '미측정',
       sub: search ? `${search.provider ?? '없음'} · naver ${search.naver_serp_ok ? 'on' : 'off'}` : '스냅샷 갱신 필요',
       alert: searchAlert,
+    },
+    {
+      label: 'beok 이미지',
+      value: imageHealth ? (imageHealth.ok ? '정상' : '제한') : '미측정',
+      sub: imageHealth ? `실제 ${imageHealth.beok_conference_actual_images} · 대체 ${imageHealth.fallback_images}` : '스냅샷 갱신 필요',
+      alert: imageAlert,
     },
     {
       label: '채널 세션',
@@ -389,7 +405,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
           {active ? '확인 필요' : '정상'}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-10">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-11">
         {cells.map((cell) => (
           <div
             key={cell.label}
@@ -408,6 +424,13 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
           </div>
         ))}
       </div>
+      {imageAlert ? (
+        <div className="mt-3 rounded-lg border border-amber-900/60 bg-zinc-950/50 p-3">
+          <div className="text-xs font-semibold text-amber-200">이미지 자산 제한</div>
+          <div className="mt-1 text-xs leading-5 text-zinc-400">{imageHealth?.reason}</div>
+          {imageHealth?.action ? <div className="mt-1 text-xs leading-5 text-zinc-500">{imageHealth.action}</div> : null}
+        </div>
+      ) : null}
     </div>
   )
 }

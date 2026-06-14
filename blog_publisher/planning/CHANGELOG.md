@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-15 — 관리자 대시보드 이미지 자산 제한 노출
+
+Phase C 이미지 제한이 CLI `image_audit`에만 보이고 관리자 대시보드에서는 보이지 않았다. 운영자가 현재 beok 학회/명찰 글의 이미지 상태를 착각하지 않도록 로컬 스냅샷/API와 대시보드 운영 준비도에 이미지 자산 상태를 노출했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | `ops.image_asset_health` 추가 |
+| `server/index.mjs` | `/api/pipeline/stats`의 `ops.image_asset_health` 추가 |
+| `src/spa/pages/DashboardPage.tsx` | 운영 준비도에 `beok 이미지` 셀과 제한 사유/조치 문구 표시 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+검증:
+- `node --check server/index.mjs`, `sync_pipeline_snapshot.mjs` PASS
+- `npx tsc --noEmit` PASS
+- `python3 blog_publisher/run.py sync_snapshot`에서 `image_asset_health` 확인
+- `python3 blog_publisher/run.py quality_selftest`, `image_audit`, `verify_public 10` PASS
+- `npm run build:spa` PASS
+
+---
+
 ## 2026-06-15 — Phase C 이미지 자산 감사 정밀화
 
 `beoksolution.com`에서 공개 접근 가능한 이미지 자산을 직접 확인한 결과 실제 이미지 URL은 `https://beoksolution.com/img/logo.png` 1개뿐이었다. 기존 이미지 감사는 중복 URL을 전역으로 제거해 `beok_conference` 그룹이 출력에서 사라졌고, beok 학회 글이 실제로 어떤 이미지를 쓰는지 운영자가 확인하기 어려웠다.
