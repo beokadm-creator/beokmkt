@@ -1,8 +1,8 @@
 /* 자체 블로그 스타일 (기획 09): 가독성 + 반응형 + 다크모드. 외부 폰트 의존 없음. */
 :root {
   --fg: #1a1a1a; --bg: #ffffff; --muted: #666; --accent: #2563eb;
-  --border: #e5e7eb; --code-bg: #f5f5f5;
-  --maxw: 720px;
+  --border: #e5e7eb; --code-bg: #f5f5f5; --soft: #f8fafc; --warn-soft: #fff7ed;
+  --maxw: 760px;
 }
 @media (prefers-color-scheme: dark) {
   :root { --fg: #e6e6e6; --bg: #16181c; --muted: #9aa0a6; --accent: #6ea8fe;
@@ -32,15 +32,39 @@ article a { color: var(--accent); text-decoration: underline; text-underline-off
 article img { max-width: 100%; height: auto; border-radius: 8px; margin: 1em 0; }
 article ul, article ol { padding-left: 1.3em; margin: 0 0 1.2em; }
 article li { margin: 0.3em 0; }
-blockquote {
-  margin: 1.2em 0; padding: 0.4em 1em; border-left: 3px solid var(--accent);
-  color: var(--muted);
+blockquote, .content-callout {
+  display: block;
+  margin: 1.4em 0;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  background: var(--warn-soft);
+  color: var(--fg);
 }
 code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
 pre { background: var(--code-bg); padding: 14px; border-radius: 8px; overflow: auto; }
-table { width: 100%; border-collapse: collapse; margin: 1.2em 0; font-size: 0.95rem; }
-th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
-th { background: var(--code-bg); }
+.table-wrap { margin: 1.4em 0; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.table-wrap table, table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.table-wrap table { margin: 0; }
+th, td { border-bottom: 1px solid var(--border); padding: 11px 12px; text-align: left; vertical-align: top; }
+th { background: var(--code-bg); color: var(--fg); font-weight: 800; }
+tr:last-child td { border-bottom: 0; }
+.check-list { list-style: none; padding-left: 0; }
+.check-item { display: flex; gap: 10px; align-items: flex-start; }
+.check-box {
+  flex: 0 0 auto;
+  width: 1.25em;
+  height: 1.25em;
+  margin-top: 0.18em;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--accent);
+  font-size: 0.78em;
+  font-weight: 900;
+  line-height: 1.25em;
+  text-align: center;
+}
 
 .summary-card {
   margin: 0 0 28px;

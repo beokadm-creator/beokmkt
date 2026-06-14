@@ -37,11 +37,17 @@
 - 한자 혼입 감지 재시도 + 최후 제거(`_count_hanzi`/`_strip_hanzi`).
 - 실측: 400~650자 평문 → 1600자+ 구조화/순한글. **자체 블로그에 직접 반영됨.**
 
-### ⬜ Phase B — 티스토리/자체 블로그 디자인 (다음, 효과 큼)
+### ◐ Phase B — 티스토리/자체 블로그 디자인 (진행 중, 1차 적용)
 - 티스토리·자체 블로그는 **리치 HTML이 살아남는 채널**(네이버와 다름).
-- `channel-rewriter.mjs`의 티스토리 가이드는 현재 **중복회피**에 최적화돼 있고 품질 지향이 아님 → 품질 지향으로 개편.
-- 자체 블로그 `render/template.html`·`style.css`에 콜아웃 박스/비교표/요약카드 등 디자인 컴포넌트 추가.
-- 검증: 실제 1건 렌더해서 브라우저로 본다.
+- `channel-rewriter.mjs`의 티스토리 가이드를 중복회피 중심에서 **품질 지향**으로 개편:
+  핵심 요약, h2/h3, 목록, 번호 절차, 비교표, 체크리스트, blockquote 콜아웃을 요구하고 낚시성 톤 금지.
+- `tistory-html-adapter.mjs`는 두 번째 AI 디자인 호출을 기본 비활성화(`TISTORY_AI_DESIGN=true`일 때만 사용).
+  기본 경로는 결정론적 HTML 스타일러로 바꿔 발행 timeout 리스크를 낮춘다.
+- 자체 블로그 `render/renderer.py`·`style.css`에 표 래퍼, 체크리스트, 콜아웃, beok CTA 조건을 추가.
+- 실측:
+  - 긴 원고(id=16) 티스토리 변환: 2,590자 / h2 6 / 목록 5 / 표 1 / 콜아웃 2 / 강조 17 / 금지톤 0 / 취소선 0.
+  - 자체 블로그 모바일 렌더: summary-card, TOC, CTA 노출 / 오버플로 0.
+- 남은 일: 실제 티스토리 신규 발행 1건에서 공개 HTML까지 확인하면 Phase B 완료 판정 가능.
 
 ### ◐ Phase C — 전 채널 이미지 (부분 완료, 추가 자산 필요)
 - `beoksolution.com` 공개 사이트에서 실제 이미지 자산을 수집한 결과 현재 확인 가능한 자산은 `https://beoksolution.com/img/logo.png`와 `favicon.svg`뿐이다.

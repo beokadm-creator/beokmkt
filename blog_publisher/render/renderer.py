@@ -34,6 +34,31 @@ def _inline(text: str) -> str:
     return text
 
 
+def _postprocess_content_html(body: str) -> str:
+    """마크다운 변환 결과를 자체 블로그 디자인 컴포넌트에 맞게 보강한다."""
+    out = body
+    out = re.sub(r"<table>", '<div class="table-wrap"><table>', out)
+    out = re.sub(r"</table>", "</table></div>", out)
+    out = re.sub(
+        r"<blockquote>\s*<p>(.*?)</p>\s*</blockquote>",
+        r'<aside class="content-callout">\1</aside>',
+        out,
+        flags=re.DOTALL,
+    )
+    out = re.sub(r"<blockquote>(.*?)</blockquote>", r'<aside class="content-callout">\1</aside>', out, flags=re.DOTALL)
+    out = re.sub(
+        r"<li>\s*\[([ xX])\]\s*(.*?)</li>",
+        lambda m: (
+            f'<li class="check-item {"is-done" if m.group(1).lower() == "x" else ""}">'
+            f'<span class="check-box">{"✓" if m.group(1).lower() == "x" else ""}</span>{m.group(2)}</li>'
+        ),
+        out,
+        flags=re.DOTALL,
+    )
+    out = re.sub(r"<ul>\s*(<li class=\"check-item[\s\S]*?</li>)\s*</ul>", r'<ul class="check-list">\1</ul>', out)
+    return out
+
+
 def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
     """경량 변환. (html, toc[(id,title)]) 반환. H2만 목차에 넣는다."""
     try:
@@ -48,7 +73,7 @@ def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
             body = body.replace(f"<h2>{html.escape(htext)}</h2>",
                                 f'<h2 id="{hid}">{html.escape(htext)}</h2>', 1)
             body = body.replace(f"<h2>{htext}</h2>", f'<h2 id="{hid}">{htext}</h2>', 1)
-        return body, headings
+        return _postprocess_content_html(body), headings
     except ImportError:
         pass
 
@@ -58,6 +83,7 @@ def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
     toc: list[tuple[str, str]] = []
     para: list[str] = []
     in_list = False
+    table_rows: list[str] = []
 
     def flush_para():
         nonlocal para
@@ -71,10 +97,32 @@ def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
             out.append("</ul>")
             in_list = False
 
+    def flush_table():
+        nonlocal table_rows
+        if not table_rows:
+            return
+        rows = [
+            row for row in table_rows
+            if not re.match(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$", row)
+        ]
+        if rows:
+            out.append('<div class="table-wrap"><table>')
+            for i, row in enumerate(rows):
+                cells = [c.strip() for c in row.strip().strip("|").split("|")]
+                tag = "th" if i == 0 else "td"
+                out.append("<tr>" + "".join(f"<{tag}>{_inline(c)}</{tag}>" for c in cells) + "</tr>")
+            out.append("</table></div>")
+        table_rows = []
+
     for ln in lines:
         s = ln.rstrip()
         if not s.strip():
-            flush_para(); close_list(); continue
+            flush_para(); close_list(); flush_table(); continue
+        if re.match(r"^\s*\|.+\|\s*$", s):
+            flush_para(); close_list()
+            table_rows.append(s)
+            continue
+        flush_table()
         if s.startswith("## "):
             flush_para(); close_list()
             t = s[3:].strip(); hid = _slug(t); toc.append((hid, t))
@@ -86,11 +134,21 @@ def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
             flush_para()
             if not in_list:
                 out.append("<ul>"); in_list = True
-            out.append("<li>" + _inline(re.sub(r"^[-*]\s+", "", s)) + "</li>")
+            item = re.sub(r"^[-*]\s+", "", s)
+            checked = re.match(r"^\[([ xX])\]\s+(.+)$", item)
+            if checked:
+                mark = "✓" if checked.group(1).lower() == "x" else ""
+                done = ' is-done' if mark else ''
+                out.append(f'<li class="check-item{done}"><span class="check-box">{mark}</span>{_inline(checked.group(2))}</li>')
+            else:
+                out.append("<li>" + _inline(item) + "</li>")
+        elif s.startswith("> "):
+            flush_para(); close_list()
+            out.append(f'<aside class="content-callout">{_inline(s[2:].strip())}</aside>')
         else:
             close_list(); para.append(s.strip())
-    flush_para(); close_list()
-    return "\n".join(out), toc
+    flush_para(); close_list(); flush_table()
+    return _postprocess_content_html("\n".join(out)), toc
 
 
 def _toc_html(toc: list[tuple[str, str]]) -> str:
@@ -130,7 +188,8 @@ def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str
 
 def _cta_html(post: dict) -> str:
     category = post.get("category") or ""
-    if "AI" in category or "예약" in category or "홈페이지" in category or not category:
+    topic = f"{post.get('topic', '')} {post.get('title', '')}"
+    if category == "beok" or "AI" in category or "예약" in category or "홈페이지" in category or "홈페이지" in topic or not category:
         return (
             '<aside class="soft-cta">'
             '<strong>홈페이지 제작·운영을 실제 업무와 연결해야 한다면</strong>'

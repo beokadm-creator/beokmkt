@@ -387,7 +387,7 @@ export default function DashboardPage() {
           label="수동 처리 필요"
           value={totalFailures}
           sub={totalFailures > 0 ? '즉시 확인 필요' : '이상 없음'}
-          alert
+          alert={totalFailures > 0}
         />
       </div>
 
@@ -412,7 +412,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <KpiCard label="평균 본문 길이" value={data.quality.avg_chars} sub="문자 수" alert={data.quality.avg_chars > 0 && data.quality.avg_chars < 1800} />
             <KpiCard label="이미지 포함" value={data.quality.with_images} sub="시각 요소 있는 글" />
-            <KpiCard label="짧은 글" value={data.quality.weak_posts} sub="1,800자 미만" alert />
+            <KpiCard label="짧은 글" value={data.quality.weak_posts} sub="1,800자 미만" alert={data.quality.weak_posts > 0} />
             <KpiCard label="평균 grounding" value={Math.round((data.quality.avg_grounding ?? 0) * 100)} sub={data.quality.avg_grounding == null ? '미측정' : '백분율'} alert={data.quality.avg_grounding != null && data.quality.avg_grounding < 0.9} />
           </div>
         </div>

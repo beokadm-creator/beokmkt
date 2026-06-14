@@ -3,6 +3,7 @@ import 'dotenv/config'
 const AI_API_KEY = process.env.AI_API_KEY || ''
 const AI_MODEL = process.env.AI_MODEL || 'glm-5.1'
 const AI_ENDPOINT = 'https://api.z.ai/api/coding/paas/v4/chat/completions'
+const AI_DESIGN_ENABLED = process.env.TISTORY_AI_DESIGN === 'true'
 
 function stripHtmlToStructured(html) {
   const blocks = []
@@ -104,6 +105,20 @@ function extractHtmlFromResponse(text) {
   return cleaned.trim()
 }
 
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function inlineMarkdown(text) {
+  return escapeHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
+}
+
 const DESIGN_SYSTEM = {
   colors: {
     primary: '#172033',
@@ -156,7 +171,7 @@ const SYSTEM_PROMPT = `당신은 HTML 디자이너입니다. 주어진 블로그
 
 async function convertForTistory(html) {
   if (!html || typeof html !== 'string') return ''
-  if (!AI_API_KEY) {
+  if (!AI_API_KEY || !AI_DESIGN_ENABLED) {
     return convertForTistoryFallback(html)
   }
 
@@ -169,32 +184,175 @@ async function convertForTistory(html) {
 
   try {
     const response = await callAi(messages)
-    return extractHtmlFromResponse(response)
+    return normalizeTistoryHtml(extractHtmlFromResponse(response))
   } catch (e) {
     console.error(`[tistory-html-adapter] AI 변환 실패, fallback 사용: ${e.message}`)
     return convertForTistoryFallback(html)
   }
 }
 
-function convertForTistoryFallback(html) {
-  let out = html
-  out = out.replace(/<script[\s\S]*?<\/script>/gi, '')
-  out = out.replace(/<style[\s\S]*?<\/style>/gi, '')
-  out = out.replace(/ class="[^"]*"/gi, '')
-  out = out.replace(/ class='[^']*'/gi, '')
-  out = out.replace(/<h2\b([^>]*)>/gi, `<h2$1 style="margin:36px 0 14px;padding:12px 16px;border-left:4px solid ${DESIGN_SYSTEM.colors.point};border-radius:8px;background:${DESIGN_SYSTEM.colors.highlight};font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:700;">`)
-  out = out.replace(/<h3\b([^>]*)>/gi, `<h3$1 style="margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid ${DESIGN_SYSTEM.colors.border};font-size:${DESIGN_SYSTEM.fonts.h3};line-height:1.5;color:${DESIGN_SYSTEM.colors.accent};font-weight:700;">`)
-  out = out.replace(/<p\b([^>]*)>/gi, `<p$1 style="margin:0 0 16px;font-size:${DESIGN_SYSTEM.fonts.body};line-height:${DESIGN_SYSTEM.fonts.lineHeight};color:${DESIGN_SYSTEM.colors.text};">`)
-  out = out.replace(/<strong\b([^>]*)>/gi, `<strong$1 style="color:${DESIGN_SYSTEM.colors.point};font-weight:700;">`)
-  out = out.replace(/<ul\b([^>]*)>/gi, `<ul$1 style="margin:16px 0 20px;padding:14px 18px 14px 34px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};">`)
-  out = out.replace(/<ol\b([^>]*)>/gi, `<ol$1 style="margin:16px 0 20px;padding:14px 18px 14px 34px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};">`)
-  out = out.replace(/<li\b([^>]*)>/gi, `<li$1 style="margin:0 0 8px;line-height:1.75;color:${DESIGN_SYSTEM.colors.text};">`)
-  out = out.replace(/<blockquote\b([^>]*)>/gi, `<blockquote$1 style="margin:20px 0;padding:16px 18px;border-left:4px solid ${DESIGN_SYSTEM.colors.point};border-radius:8px;background:${DESIGN_SYSTEM.colors.soft};color:${DESIGN_SYSTEM.colors.text};">`)
-  out = out.replace(/<table\b([^>]*)>/gi, `<table$1 style="width:100%;border-collapse:collapse;margin:22px 0;font-size:14px;">`)
-  out = out.replace(/<th\b([^>]*)>/gi, `<th$1 style="padding:11px 12px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">`)
-  out = out.replace(/<td\b([^>]*)>/gi, `<td$1 style="padding:11px 12px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};">`)
-  out = out.replace(/<img\b([^>]*)>/gi, `<img$1 style="max-width:100%;height:auto;border-radius:10px;margin:18px 0;">`)
+function markdownToHtml(markdown) {
+  const source = String(markdown ?? '')
+  const hasStructuralHtml = /<(h2|h3|p|ul|ol|li|blockquote|table|img)\b/i.test(source)
+  const hasMarkdownBlocks = /(^|\n)\s*(#{2,3}\s+|[-*]\s+|\d+\.\s+|>\s+|\|.+\||!\[[^\]]*\]\([^)\s]+\))/m.test(source)
+  if (hasStructuralHtml && !hasMarkdownBlocks) return source
+
+  const lines = source.split(/\r?\n/)
+  const out = []
+  let paragraph = []
+  let listType = ''
+  let tableRows = []
+
+  const closeParagraph = () => {
+    if (!paragraph.length) return
+    out.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`)
+    paragraph = []
+  }
+  const closeList = () => {
+    if (!listType) return
+    out.push(`</${listType}>`)
+    listType = ''
+  }
+  const closeTable = () => {
+    if (!tableRows.length) return
+    const rows = tableRows
+      .filter((row) => !/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(row))
+      .map((row, index) => {
+        const cells = row.replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
+        const tag = index === 0 ? 'th' : 'td'
+        return `<tr>${cells.map((cell) => `<${tag}>${inlineMarkdown(cell)}</${tag}>`).join('')}</tr>`
+      })
+      .join('')
+    if (rows) out.push(`<table><tbody>${rows}</tbody></table>`)
+    tableRows = []
+  }
+  const openList = (type) => {
+    closeParagraph()
+    closeTable()
+    if (listType === type) return
+    closeList()
+    listType = type
+    out.push(`<${type}>`)
+  }
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      closeParagraph()
+      closeList()
+      closeTable()
+      continue
+    }
+    if (/^<p\b[\s\S]*<\/p>$/i.test(line) || /^<img\b/i.test(line) || /^<blockquote\b/i.test(line)) {
+      closeParagraph()
+      closeList()
+      closeTable()
+      out.push(line)
+      continue
+    }
+    if (/^\|.+\|$/.test(line)) {
+      closeParagraph()
+      closeList()
+      tableRows.push(line)
+      continue
+    }
+    closeTable()
+    const image = line.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)
+    if (image) {
+      closeParagraph()
+      closeList()
+      out.push(`<img src="${escapeHtml(image[2])}" alt="${escapeHtml(image[1])}">`)
+      continue
+    }
+    const h2 = line.match(/^##\s+(.+)$/)
+    if (h2) {
+      closeParagraph()
+      closeList()
+      out.push(`<h2>${inlineMarkdown(h2[1])}</h2>`)
+      continue
+    }
+    const h3 = line.match(/^###\s+(.+)$/)
+    if (h3) {
+      closeParagraph()
+      closeList()
+      out.push(`<h3>${inlineMarkdown(h3[1])}</h3>`)
+      continue
+    }
+    const quote = line.match(/^>\s+(.+)$/)
+    if (quote) {
+      closeParagraph()
+      closeList()
+      out.push(`<blockquote>${inlineMarkdown(quote[1])}</blockquote>`)
+      continue
+    }
+    const bullet = line.match(/^[-*]\s+(.+)$/)
+    if (bullet) {
+      openList('ul')
+      const checked = bullet[1].match(/^\[([ xX])\]\s+(.+)$/)
+      const text = checked ? `${checked[1].toLowerCase() === 'x' ? '✓ ' : ''}${checked[2]}` : bullet[1]
+      out.push(`<li>${inlineMarkdown(text)}</li>`)
+      continue
+    }
+    const numbered = line.match(/^\d+\.\s+(.+)$/)
+    if (numbered) {
+      openList('ol')
+      out.push(`<li>${inlineMarkdown(numbered[1])}</li>`)
+      continue
+    }
+    paragraph.push(line)
+  }
+  closeParagraph()
+  closeList()
+  closeTable()
+  return out.join('\n')
+}
+
+function sanitizeHtml(html) {
+  return String(html ?? '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<\/?(?:s|strike|del)\b[^>]*>/gi, '')
+    .replace(/\sclass=["'][^"']*["']/gi, '')
+    .replace(/\son\w+=["'][^"']*["']/gi, '')
+    .replace(/javascript:/gi, '')
+}
+
+function addOrMergeStyle(html, tagName, style) {
+  const regex = new RegExp(`<${tagName}\\b([^>]*)>`, 'gi')
+  return html.replace(regex, (match, attrs) => {
+    if (/style=["'][^"']*["']/i.test(attrs)) {
+      return match.replace(/style=["']([^"']*)["']/i, (_m, existing) => `style="${existing};${style}"`)
+    }
+    return `<${tagName}${attrs} style="${style}">`
+  })
+}
+
+function normalizeTistoryHtml(html) {
+  let out = sanitizeHtml(markdownToHtml(html))
+  const styles = {
+    h2: `margin:38px 0 16px;padding:14px 18px;border-left:5px solid ${DESIGN_SYSTEM.colors.point};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;`,
+    h3: `margin:28px 0 12px;padding-bottom:8px;border-bottom:1px solid ${DESIGN_SYSTEM.colors.border};font-size:${DESIGN_SYSTEM.fonts.h3};line-height:1.5;color:${DESIGN_SYSTEM.colors.accent};font-weight:800;`,
+    p: `margin:0 0 16px;font-size:${DESIGN_SYSTEM.fonts.body};line-height:${DESIGN_SYSTEM.fonts.lineHeight};color:${DESIGN_SYSTEM.colors.text};`,
+    strong: `color:${DESIGN_SYSTEM.colors.point};font-weight:800;`,
+    a: `color:${DESIGN_SYSTEM.colors.accent};text-decoration:underline;`,
+    ul: `margin:16px 0 22px;padding:16px 20px 16px 36px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:12px;background:${DESIGN_SYSTEM.colors.highlight};`,
+    ol: `margin:16px 0 22px;padding:16px 20px 16px 36px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:12px;background:${DESIGN_SYSTEM.colors.highlight};`,
+    li: `margin:0 0 8px;line-height:1.75;color:${DESIGN_SYSTEM.colors.text};`,
+    blockquote: `margin:22px 0;padding:16px 18px;border-left:5px solid ${DESIGN_SYSTEM.colors.point};border-radius:10px;background:${DESIGN_SYSTEM.colors.soft};color:${DESIGN_SYSTEM.colors.text};`,
+    table: `width:100%;border-collapse:collapse;margin:24px 0;font-size:14px;`,
+    th: `padding:12px 14px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;`,
+    td: `padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;`,
+    img: `max-width:100%;height:auto;border-radius:12px;margin:20px 0;`,
+  }
+  for (const [tag, style] of Object.entries(styles)) {
+    out = addOrMergeStyle(out, tag, style)
+  }
+  out = out.replace(/(<h2\b[^>]*>[\s\S]*?<\/h2>)/i, '<section style="margin:0 0 28px;padding:18px 20px;border:1px solid #d8dee8;border-radius:14px;background:#f6f8fb;">$1</section>')
   return out.trim()
+}
+
+function convertForTistoryFallback(html) {
+  return normalizeTistoryHtml(html)
 }
 
 export { convertForTistory }
