@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-14 — 관리자 대시보드 공개 URL 품질 카드
+
+정기 `verify_public`은 로그/알림으로 동작하지만, 관리자 화면에서도 최근 공개 URL 품질을 바로 볼 수 있도록 Cloud Functions API와 SPA 대시보드를 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `functions/index.mjs` | `/api/pipeline/stats` 응답에 `public_quality` 추가. 최근 공개 URL 최대 8건을 6초 타임아웃으로 실제 조회해 HTTP, 본문 길이, 이미지, h1/h2, 금칙어, 보이는 취소선, 채널별 URL 형식을 검사 |
+| `src/spa/pages/DashboardPage.tsx` | 공개 URL 품질 검증 카드 추가. 실패 시 문제 URL, HTTP 상태, 본문/이미지 수, 실패 사유를 관리자 화면에 노출 |
+
+검증:
+- `node --check functions/index.mjs`, `npx tsc --noEmit`, `npm run build:spa`, `npm run lint -- .` PASS
+- `python3 run.py verify_public 12` → published 공개 글 12/12 통과
+- 배포 후 `/api/pipeline/stats`에 `public_quality` 노출 확인. 클라우드 외부 발행 로그의 과거 네이버 취소선 문제는 대시보드에서 실패 항목으로 표시됨
+
+---
+
 ## 2026-06-14 — 공개 품질 검증 운영 자동화 연결
 
 `verify_public`이 수동 도구로만 남지 않도록 운영 자동화에 연결했다. published 공개 URL의 실제 HTML 품질이 깨지면 정기 점검 로그와 알림에서 드러나도록 했다.

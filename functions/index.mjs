@@ -146,6 +146,91 @@ function pipelineQuality(body = '', groundingRatio = null) {
   }
 }
 
+function publicQualityIssues({ channel = '', title = '', url = '', html = '', status = null }) {
+  const issues = []
+  const content = String(html ?? '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  const text = stripHtml(content)
+  const images = (content.match(/<img\b/gi) || []).length
+  const h1 = (content.match(/<h1\b/gi) || []).length
+  const h2 = (content.match(/<h2\b/gi) || []).length
+
+  if (status !== 200) issues.push(`HTTP ${status ?? 'error'}`)
+  const forbidden = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '무조건', '충격', '실화', '[이미지:']
+    .filter((word) => content.includes(word) || text.includes(word))
+  if (forbidden.length) issues.push(`금칙/마커: ${forbidden.slice(0, 3).join(', ')}`)
+  const visibleStrike = [...content.matchAll(/<(?:s|strike|del)\b[^>]*>([\s\S]*?)<\/(?:s|strike|del)>/gi)]
+    .some((match) => stripHtml(match[1]).replace(/\u200b|\ufeff/g, '').trim())
+  if (visibleStrike || /text-decoration\s*:\s*line-through/i.test(content)) issues.push('보이는 취소선')
+
+  if (channel === 'selfhosted') {
+    if (text.length < 1000) issues.push(`본문 짧음(${text.length}자)`)
+    if (h1 !== 1) issues.push(`h1 ${h1}개`)
+    if (/<article\b[^>]*>\s*<header\b/i.test(content)) issues.push('본문 header 중복')
+    if (/학회|명찰/i.test(title) && images < 1) issues.push('학회/명찰 이미지 없음')
+  } else if (channel === 'tistory') {
+    if (!/^https:\/\/[^/]+\.tistory\.com\/\d+(?:[/?#].*)?$/.test(url)) issues.push('공개 URL 형식 아님')
+    if (text.length < 800) issues.push(`본문 짧음(${text.length}자)`)
+    if (h2 < 2) issues.push(`소제목 부족(${h2})`)
+  } else if (channel === 'naver') {
+    if (!/PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(url)) issues.push('공개 URL 형식 아님')
+    if (status === 200 && text.length < 500) issues.push(`본문 짧음(${text.length}자)`)
+  }
+
+  return { issues, chars: text.length, images, h1, h2 }
+}
+
+async function fetchPublicQualityItem(item) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 6000)
+  try {
+    const res = await fetch(item.url, {
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'user-agent': 'Mozilla/5.0 beok-public-quality/1.0',
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    })
+    const html = await res.text()
+    const measured = publicQualityIssues({ ...item, html, status: res.status })
+    return { ...item, status: res.status, ...measured, ok: measured.issues.length === 0 }
+  } catch (error) {
+    return {
+      ...item,
+      status: null,
+      chars: 0,
+      images: 0,
+      h1: 0,
+      h2: 0,
+      ok: false,
+      issues: [error instanceof Error ? error.message : 'fetch failed'],
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function publicQualitySnapshot(items) {
+  const unique = []
+  const seen = new Set()
+  for (const item of items) {
+    if (!item?.url || seen.has(item.url)) continue
+    seen.add(item.url)
+    unique.push(item)
+    if (unique.length >= 8) break
+  }
+  const checked = await Promise.all(unique.map(fetchPublicQualityItem))
+  const failed = checked.filter((item) => !item.ok)
+  return {
+    checked: checked.length,
+    ok: checked.length - failed.length,
+    failed: failed.length,
+    items: failed.slice(0, 5),
+  }
+}
+
 function sanitizePreviewHtml(html = '') {
   return String(html)
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -2046,6 +2131,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
   let qualityChars = 0
   let groundingSum = 0
   let groundingCount = 0
+  const publicQualityCandidates = []
 
   for (const post of posts) {
     const status = typeof post.status === 'string' ? post.status : 'draft'
@@ -2075,6 +2161,15 @@ app.get('/api/pipeline/stats', async (req, res) => {
     if (status === 'published' && publishedDate && !Number.isNaN(publishedDate.getTime())) {
       if (publishedDate >= todayStart) published_today += 1
       if (publishedDate >= weekStart) published_this_week += 1
+    }
+    if (status === 'published') {
+      publicQualityCandidates.push({
+        id: post.pipeline_id ?? post.id,
+        channel,
+        title: post.title ?? post.topic ?? '',
+        url: post.public_url ?? post.url ?? blogPostAbsoluteUrl(post, spaBaseUrl(req)),
+        updated_at: updatedAt ?? '',
+      })
     }
 
     const external = post.external_publish && typeof post.external_publish === 'object'
@@ -2153,6 +2248,15 @@ app.get('/api/pipeline/stats', async (req, res) => {
       if (publishedDate >= todayStart) published_today += 1
       if (publishedDate >= weekStart) published_this_week += 1
     }
+    if (result.status === 'success' && result.url) {
+      publicQualityCandidates.push({
+        id: result.source_id ?? result.id,
+        channel: platform,
+        title: result.title ?? result.topic ?? '',
+        url: result.url,
+        updated_at: updatedAt,
+      })
+    }
 
     if (result.status === 'failed' && needs_human_posts.length < 10) {
       needs_human_posts.push({
@@ -2181,6 +2285,10 @@ app.get('/api/pipeline/stats', async (req, res) => {
 
   quality.avg_chars = quality.measured_posts ? Math.round(qualityChars / quality.measured_posts) : 0
   quality.avg_grounding = groundingCount ? Math.round((groundingSum / groundingCount) * 100) / 100 : null
+  const public_quality = await publicQualitySnapshot(
+    publicQualityCandidates
+      .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())
+  )
 
   ok(res, {
     by_status,
@@ -2188,6 +2296,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
     published_today,
     published_this_week,
     quality,
+    public_quality,
     needs_human_posts,
     recent: recent
       .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())

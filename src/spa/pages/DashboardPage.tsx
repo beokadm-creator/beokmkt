@@ -67,6 +67,23 @@ type PipelineStats = {
   by_channel: ByChannel
   published_today: number
   published_this_week: number
+  public_quality?: {
+    checked: number
+    ok: number
+    failed: number
+    items: {
+      id: number | string
+      channel: string
+      title: string
+      url: string
+      status: number | null
+      chars: number
+      images: number
+      h1: number
+      h2: number
+      issues: string[]
+    }[]
+  }
   quality?: {
     measured_posts: number
     avg_chars: number
@@ -226,6 +243,57 @@ function LocalOpsPanel({ active }: { active: boolean }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function PublicQualityPanel({ data }: { data?: PipelineStats['public_quality'] }) {
+  if (!data) return null
+  const failed = data.failed > 0
+  return (
+    <div className={['rounded-xl border p-4', failed ? 'border-rose-900/60 bg-rose-950/15' : 'border-emerald-900/50 bg-emerald-950/10'].join(' ')}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className={['text-sm font-semibold', failed ? 'text-rose-200' : 'text-emerald-200'].join(' ')}>
+            공개 URL 품질 검증
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">
+            최근 공개 URL을 실제 HTML로 다시 읽어 URL 생성과 산출물 품질을 분리 확인합니다.
+          </div>
+        </div>
+        <span className={['rounded-md border px-2 py-1 text-xs tabular-nums', failed ? 'border-rose-800 text-rose-200' : 'border-emerald-800 text-emerald-200'].join(' ')}>
+          {data.ok}/{data.checked} 통과
+        </span>
+      </div>
+      {data.items.length > 0 ? (
+        <div className="mt-3 grid gap-2">
+          {data.items.map((item) => (
+            <a
+              key={`${item.channel}-${item.id}-${item.url}`}
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3 hover:bg-zinc-900"
+            >
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-mono text-zinc-500">#{item.id}</span>
+                <StatusBadge value={item.channel} />
+                <span className="text-zinc-500">HTTP {item.status ?? 'error'}</span>
+                <span className="text-zinc-500">본문 {item.chars.toLocaleString('ko-KR')}자</span>
+                <span className="text-zinc-500">이미지 {item.images}</span>
+              </div>
+              <div className="mt-2 truncate text-sm text-zinc-200">{item.title || item.url}</div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {item.issues.map((issue) => (
+                  <span key={issue} className="rounded-md border border-rose-900/50 bg-rose-950/20 px-2 py-0.5 text-[11px] text-rose-200">
+                    {issue}
+                  </span>
+                ))}
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -451,6 +519,8 @@ export default function DashboardPage() {
       </div>
 
       <LocalOpsPanel active={totalFailures > 0} />
+
+      <PublicQualityPanel data={data?.public_quality} />
 
       {/* 품질 지표 */}
       {data?.quality ? (
