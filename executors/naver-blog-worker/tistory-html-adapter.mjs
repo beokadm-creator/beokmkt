@@ -350,18 +350,73 @@ function normalizeTistoryHtml(html) {
     out = addOrMergeStyle(out, tag, style)
   }
   out = out.replace(/(<h2\b[^>]*>[\s\S]*?<\/h2>)/i, '<section style="margin:0 0 28px;padding:18px 20px;border:1px solid #d8dee8;border-radius:14px;background:#f6f8fb;">$1</section>')
+  out = ensureTistoryLeadSummary(out)
+  out = ensureTistoryCta(out)
   return out.trim()
 }
 
-function tistoryHtmlQuality(html) {
-  const value = String(html ?? '')
-  const text = value
+function plainTextFromHtml(html) {
+  return String(html ?? '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function hasLeadSummaryText(html) {
+  return /핵심\s*요약|요약|먼저\s*확인|결론부터/i.test(plainTextFromHtml(html).slice(0, 700))
+}
+
+function hasCtaText(html) {
+  return /상담|문의|운영\s*상담/i.test(plainTextFromHtml(html).slice(-900))
+}
+
+function extractFirstSentences(html, max = 3) {
+  const text = plainTextFromHtml(html)
+  const sentences = text
+    .split(/(?<=[.!?。]|다\.|요\.|니다\.)\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 20)
+  const picked = sentences.slice(0, max)
+  if (picked.length) return picked
+  return text ? [text.slice(0, 180)] : []
+}
+
+function ensureTistoryLeadSummary(html) {
+  if (!html.trim() || hasLeadSummaryText(html)) return html
+  const bullets = extractFirstSentences(html, 3)
+  if (!bullets.length) return html
+  const items = bullets
+    .map((line) => `<li style="margin:0 0 8px;line-height:1.75;color:${DESIGN_SYSTEM.colors.text};">${escapeHtml(line)}</li>`)
+    .join('')
+  const summary = [
+    `<section style="margin:0 0 26px;padding:18px 20px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:14px;background:${DESIGN_SYSTEM.colors.highlight};">`,
+    `<p style="margin:0 0 10px;font-size:15px;line-height:1.7;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">먼저 확인할 핵심 요약</p>`,
+    `<ul style="margin:0;padding:0 0 0 20px;">${items}</ul>`,
+    `</section>`,
+  ].join('')
+  return `${summary}\n${html}`
+}
+
+function ensureTistoryCta(html) {
+  if (!html.trim() || hasCtaText(html)) return html
+  const cta = [
+    `<section style="margin:34px 0 0;padding:20px 22px;border-radius:14px;background:${DESIGN_SYSTEM.colors.primary};color:#fff;">`,
+    `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">운영 환경 점검이 필요하신가요?</p>`,
+    `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">홈페이지 구축, 보안 설정, 신청폼 연동처럼 실제 운영에 연결되는 작업은 비오케이솔루션에 문의해 현재 상황에 맞는 점검을 받아보실 수 있습니다.</p>`,
+    `</section>`,
+  ].join('')
+  return `${html}\n${cta}`
+}
+
+function tistoryHtmlQuality(html) {
+  const value = String(html ?? '')
+  const text = plainTextFromHtml(value)
   return {
     chars: text.length,
     headings: (value.match(/<h[23]\b/gi) || []).length,

@@ -73,4 +73,9 @@ class TistoryPublisher:
                 f"티스토리 자동 발행 결과 확인 실패[{code}]: {msg}. "
                 "저장 버튼 이후 공개 URL을 못 찾은 상태라 재시도하면 중복 발행 위험이 있어 수동 확인으로 격리합니다."
             )
+        if code in {"TISTORY_HTML_QUALITY_FAILED"}:
+            raise NeedsHumanError(
+                f"티스토리 발행 전 품질검증 실패[{code}]: {msg}. "
+                "같은 원고를 재시도해도 품질 기준이 바뀌지 않아 수동 확인으로 격리합니다."
+            )
         raise RetryableError(f"티스토리 발행 실패[{code}]: {msg}")

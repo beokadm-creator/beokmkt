@@ -628,10 +628,12 @@ function hasMarkdownTableLeak(html) {
 
 function assertNaverAutoPublishable(html) {
   const imageCount = (String(html || '').match(/<img\b/gi) || []).length
+  const markdownImageCount = (String(html || '').match(/!\[[^\]]*\]\([^)\s]+\)/g) || []).length
   const tableCount = (String(html || '').match(/<table\b/gi) || []).length
   const markdownTableLeak = hasMarkdownTableLeak(html)
   const reasons = []
   if (imageCount > 0) reasons.push(`이미지 ${imageCount}개`)
+  if (markdownImageCount > 0) reasons.push(`마크다운 이미지 ${markdownImageCount}개`)
   if (tableCount > 0) reasons.push(`HTML 표 ${tableCount}개`)
   if (markdownTableLeak) reasons.push('마크다운 표 문법 잔존')
   if (!reasons.length) return
@@ -639,7 +641,7 @@ function assertNaverAutoPublishable(html) {
     'NAVER_RICH_CONTENT_UNSUPPORTED',
     `네이버 SmartEditor 자동 발행에서 구조 보존이 검증되지 않은 리치 원고입니다: ${reasons.join(', ')}. ` +
       '이미지/표 보존 발행은 수동 확인 또는 전용 업로드 구현 후 진행하세요.',
-    { imageCount, tableCount, markdownTableLeak }
+    { imageCount, markdownImageCount, tableCount, markdownTableLeak }
   )
 }
 
@@ -723,6 +725,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
   log('info', `네이버용 재작성 ${rewritten.rewritten ? '완료' : '건너뜀(원문 사용)'} — 제목: ${rewritten.title}`)
 
   const publishTitle = rewritten.title
+  assertNaverAutoPublishable(rewritten.html)
   const naverHtml = convertForNaver(rewritten.html)
   if (!naverHtml.trim()) throw new WorkerError('EMPTY_CONTENT', '변환된 본문이 비어있습니다.')
   assertNaverAutoPublishable(naverHtml)
