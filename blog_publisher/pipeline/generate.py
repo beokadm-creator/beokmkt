@@ -181,16 +181,34 @@ def _generate_one(llm: LLMClient, post: dict) -> None:
     )
 
 
+SECTION_MIN = 2   # 하한(이하면 실패)
+SECTION_MAX = 8   # 상한(초과분은 잘라서 보정)
+
+
 def _validate_outline(outline: dict) -> dict:
-    """기획 01 §4.1 + 06: title 존재 + sections 4~8개 + 각 항목 h2/point."""
+    """
+    기획 01 §4.1 + 06. 하드 리젝 대신 '보정'으로 throughput 손실을 막는다(감사 후속).
+    - title 없으면 실패
+    - h2/point 없는 섹션은 버림
+    - 유효 섹션이 SECTION_MIN 미만이면 실패, SECTION_MAX 초과면 앞에서 자름
+    """
     if not outline.get("title"):
         raise ValueError("개요에 title 없음")
     sections = outline.get("sections")
-    if not isinstance(sections, list) or not (4 <= len(sections) <= 8):
-        raise ValueError(f"sections 개수 위반(4~8): {len(sections or [])}")
-    for sec in sections:
-        if not sec.get("h2") or not sec.get("point"):
-            raise ValueError(f"섹션에 h2/point 누락: {sec}")
+    if not isinstance(sections, list):
+        raise ValueError("sections가 리스트가 아님")
+
+    valid = [
+        s for s in sections
+        if isinstance(s, dict) and s.get("h2") and s.get("point")
+    ]
+    if len(valid) < SECTION_MIN:
+        raise ValueError(f"유효 섹션 부족(<{SECTION_MIN}): {len(valid)}")
+    if len(valid) > SECTION_MAX:
+        print(f"[generate] 섹션 {len(valid)}개 → {SECTION_MAX}개로 보정")
+        valid = valid[:SECTION_MAX]
+
+    outline["sections"] = valid
     return outline
 
 

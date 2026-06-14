@@ -155,7 +155,7 @@ async function dismissDraftRestorePopup(page) {
   return false
 }
 
-async function publishToNaver({ title, content_html, tags, link, canonical_url }) {
+async function publishToNaver({ post_id, title, content_html, tags, link, canonical_url }) {
   // 유사문서 필터 회피: 네이버용으로 구성/문체를 재작성 (실패 시 원문 + 출처 링크)
   log('info', '네이버용 콘텐츠 재작성 (AI) 시작…')
   const rewritten = await rewriteForChannel({
@@ -208,6 +208,8 @@ async function publishToNaver({ title, content_html, tags, link, canonical_url }
     }
 
     await clickPublishButton(page)
+    // 멱등성: 발행 버튼 클릭 직후 즉시 기록 → URL 캡처 단계에서 크래시해도 재발행 방지
+    if (post_id) await recordPublished(`naver:${post_id}`, '')
     const publishedUrl = await capturePublishedUrl(page)
     await saveStorageState(context)
 

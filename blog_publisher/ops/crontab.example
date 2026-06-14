@@ -1,0 +1,31 @@
+# BEOK 블로그 자동화 crontab 예시 (감사 후속: 운영 자동화 고정)
+# 설치:  crontab blog_publisher/ops/crontab.example
+# 확인:  crontab -l
+#
+# 경로/바이너리는 환경에 맞게 확인:
+#   which python3   # 예: /opt/homebrew/bin/python3 또는 /usr/bin/python3
+#   which node
+# 아래는 Apple Silicon(homebrew) 기준. 로그는 newsyslog로 회전(ops/newsyslog-blog.conf).
+
+PYTHON=/opt/homebrew/bin/python3
+PUBDIR=/Users/aaron/Developer/personal/beokmkt/blog_publisher
+WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
+
+# ── 콘텐츠 파이프라인 ──────────────────────────────────────────────
+*/30 * * * * cd $PUBDIR && $PYTHON run.py generate   >> /tmp/blog-generate.log 2>&1
+*/15 * * * * cd $PUBDIR && $PYTHON run.py factcheck   >> /tmp/blog-generate.log 2>&1
+*/30 * * * * cd $PUBDIR && $PYTHON run.py review      >> /tmp/blog-generate.log 2>&1
+0    9 * * * cd $PUBDIR && $PYTHON run.py schedule    >> /tmp/blog-publish.log  2>&1
+*/5  * * * * cd $PUBDIR && $PYTHON run.py publish     >> /tmp/blog-publish.log  2>&1
+
+# ── 복구 / 재고 / 백업 ─────────────────────────────────────────────
+*/35 * * * * cd $PUBDIR && $PYTHON run.py recover     >> /tmp/blog-generate.log 2>&1
+0  */6 * * * cd $PUBDIR && $PYTHON run.py auto_seed selfhosted 3 >> /tmp/blog-generate.log 2>&1
+0    4 * * * cd $PUBDIR && $PYTHON run.py backup      >> /tmp/blog-publish.log  2>&1
+
+# ── 세션 keepalive (월·목 10시 + 지터) ─────────────────────────────
+0   10 * * 1,4 $PYTHON -c "import random,time; time.sleep(random.randint(0,1800))" && cd $WORKERDIR && /opt/homebrew/bin/npm run keepalive >> /tmp/blog-keepalive.log 2>&1
+
+# ── 워커는 LaunchAgent(com.beok.blog-worker.plist)가 상시 구동/재기동 ──
+# (@reboot 백업: LaunchAgent 미설치 시에만 사용)
+# @reboot cd $WORKERDIR && /opt/homebrew/bin/node index.mjs >> /tmp/blog-worker.log 2>&1

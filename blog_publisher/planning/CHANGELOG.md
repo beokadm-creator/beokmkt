@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-14 — 후속: 섹션 보정 · 멱등성 강화 · 운영 자동화
+
+감사 후 운영 중 발견된 항목 + 운영 자동화 고정.
+
+| 영역 | 대상 | 내용 |
+|---|---|---|
+| 생성 throughput | `pipeline/generate.py` `_validate_outline` | 하드 리젝 → **보정**. 무효 섹션 제거, >8개는 8개로 자르고, <2개만 실패. "sections 개수 위반" 반복 실패 해소(재고 부족 원인 제거) |
+| 멱등성 | `executors/.../index.mjs` `publishToNaver` | 발행 버튼 클릭 **직후 즉시 dedup 기록** → URL 캡처 중 크래시해도 재발행 방지(중복 차단 창 축소) |
+| 운영 자동화 | `executors/.../com.beok.blog-worker.plist` | 워커 LaunchAgent(KeepAlive·RunAtLoad) — `launchctl submit` 임시 실행 대체 |
+| 운영 자동화 | `blog_publisher/ops/newsyslog-blog.conf` | macOS 로그 로테이션(newsyslog, 7세대·5MB·bzip2) |
+| 운영 자동화 | `blog_publisher/ops/crontab.example` | generate/factcheck/review/schedule/publish/recover/auto_seed/backup + keepalive 일괄 |
+| 운영 자동화 | `blog_publisher/ops/install-ops.sh` | LaunchAgent·newsyslog·crontab·헬스체크 설치 스크립트 |
+
+검증: 섹션 보정 단위테스트(9→8/3수용/혼합→유효만/1실패), py compileall, `run.py selftest` PASS, `node --check index.mjs`, `bash -n install-ops.sh`, plist lint 통과.
+
+설치(맥): `bash blog_publisher/ops/install-ops.sh` (newsyslog는 sudo, crontab은 기존 항목과 병합 검토 후 적용).
+
+---
+
 ## 2026-06-14 — 감사 지적사항 전체 수정 (AUDIT-2026-06-14 대응)
 
 | 우선 | 대상 | 수정 |

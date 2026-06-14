@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  네이버/티스토리/트위터 발행 워커 LaunchAgent (감사 후속: 장기 운영 고정).
+  설치:
+    cp executors/naver-blog-worker/com.beok.blog-worker.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.beok.blog-worker.plist
+  상태:  launchctl list | grep com.beok.blog-worker
+  중지:  launchctl unload -w ~/Library/LaunchAgents/com.beok.blog-worker.plist
+  ※ node 경로(/opt/homebrew/bin/node)는 환경에 맞게 확인: which node
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.beok.blog-worker</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>index.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/blog-worker.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/blog-worker.err.log</string>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+</dict>
+</plist>
