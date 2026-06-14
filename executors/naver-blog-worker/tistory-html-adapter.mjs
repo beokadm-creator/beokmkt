@@ -351,8 +351,41 @@ function normalizeTistoryHtml(html) {
   return out.trim()
 }
 
+function tistoryHtmlQuality(html) {
+  const value = String(html ?? '')
+  const text = value
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return {
+    chars: text.length,
+    headings: (value.match(/<h[23]\b/gi) || []).length,
+    lists: (value.match(/<(ul|ol)\b/gi) || []).length,
+    listItems: (value.match(/<li\b/gi) || []).length,
+    tables: (value.match(/<table\b/gi) || []).length,
+    callouts: (value.match(/<blockquote\b/gi) || []).length,
+    images: (value.match(/<img\b/gi) || []).length,
+    bolds: (value.match(/<strong\b/gi) || []).length,
+  }
+}
+
+function validateTistoryHtml(html) {
+  const quality = tistoryHtmlQuality(html)
+  const reasons = []
+  if (quality.chars < 800) reasons.push(`본문 짧음(${quality.chars}자)`)
+  if (quality.headings < 2) reasons.push(`소제목 부족(${quality.headings})`)
+  if (quality.listItems < 3) reasons.push(`목록 부족(${quality.listItems})`)
+  if ((quality.tables + quality.callouts + quality.images + quality.bolds) < 2) {
+    reasons.push('표/콜아웃/이미지/강조 구조 부족')
+  }
+  return { ok: reasons.length === 0, reasons, quality }
+}
+
 function convertForTistoryFallback(html) {
   return normalizeTistoryHtml(html)
 }
 
-export { convertForTistory }
+export { convertForTistory, validateTistoryHtml }

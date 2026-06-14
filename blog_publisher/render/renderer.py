@@ -189,11 +189,19 @@ def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str
 def _cta_html(post: dict) -> str:
     category = post.get("category") or ""
     topic = f"{post.get('topic', '')} {post.get('title', '')}"
-    if category == "beok" or "AI" in category or "예약" in category or "홈페이지" in category or "홈페이지" in topic or not category:
+    if category == "beok" or "명찰" in topic or "학회" in topic or not category:
         return (
             '<aside class="soft-cta">'
-            '<strong>홈페이지 제작·운영을 실제 업무와 연결해야 한다면</strong>'
-            '<p>비오케이솔루션은 홈페이지 제작, 예약·결제, 알림톡, AI 자동화까지 운영 흐름에 맞춰 설계합니다.</p>'
+            '<strong>학회 명찰 출력과 현장 재발행 기준이 필요하다면</strong>'
+            '<p>비오케이솔루션은 참가자 명단 정리, QR·바코드 확인, 출력 운영, 현장 재발행 동선을 사무국 흐름에 맞춰 정리합니다.</p>'
+            '<a href="https://beoksolution.com" target="_blank" rel="noopener">상담 문의하기</a>'
+            '</aside>'
+        )
+    if "AI" in category or "예약" in category or "홈페이지" in category or "홈페이지" in topic:
+        return (
+            '<aside class="soft-cta">'
+            '<strong>운영 업무를 실제 시스템과 연결해야 한다면</strong>'
+            '<p>비오케이솔루션은 예약·결제, 알림톡, 관리자, AI 자동화까지 업무 흐름에 맞춰 설계합니다.</p>'
             '<a href="https://beoksolution.com" target="_blank" rel="noopener">상담 문의하기</a>'
             '</aside>'
         )

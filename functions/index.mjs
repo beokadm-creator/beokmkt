@@ -5006,46 +5006,12 @@ function blogPostBodyHtml(post, extras = {}) {
 }
 
 function blogListBodyHtml(posts, baseUrl) {
-  const plans = [
-    {
-      name: '라이트 관리형',
-      price: '월 5만원',
-      label: '일반 홈페이지',
-      description: '초기 제작비 없이 회사소개, 서비스 소개, 문의 연결까지 빠르게 시작하는 기본형입니다.',
-      features: ['초기 제작비 0원', '1~5페이지 반응형 홈페이지', '서버/SSL/기본 유지관리 포함', '기본 SEO/Search Console 세팅', '텍스트·이미지 수정 월 1회'],
-    },
-    {
-      name: '성장 관리형',
-      price: '월 20만원',
-      label: '예약·결제·알림톡',
-      description: '문의와 신청을 실제 운영 데이터로 연결해야 하는 사업자를 위한 운영형 홈페이지입니다.',
-      features: ['라이트 포함', '예약·신청폼·결제 연동', '알림톡/SMS/이메일 연동', '관리자 페이지와 고객 데이터 관리', '수정 월 5회 및 월간 점검'],
-    },
-    {
-      name: '프리미엄 운영형',
-      price: '월 50만원~',
-      label: 'AI·자동화·커스텀',
-      description: '상담, 콘텐츠, 고객관리, 업무 자동화까지 맞춤형 시스템으로 확장하는 구독형 플랫폼입니다.',
-      features: ['라이트+성장 포함', '완전 맞춤 기능 설계', 'AI 상담/콘텐츠/견적 엔진 도입', 'CRM·대시보드·외부 API 연동', '우선 대응 및 월간 개선 리포트'],
-    },
-  ]
-
-  const planHtml = plans.map((plan) => [
-    `<article style="border:1px solid #27272a;background:#18181b;border-radius:8px;padding:24px;">`,
-    `<p style="font-size:0.8rem;color:#fde047;margin:0 0 10px;">${escapeHtml(plan.label)}</p>`,
-    `<h3 style="font-size:1.25rem;color:#fff;margin:0 0 8px;">${escapeHtml(plan.name)}</h3>`,
-    `<p style="font-size:2rem;font-weight:700;color:#fff;margin:0 0 14px;">${escapeHtml(plan.price)}</p>`,
-    `<p style="font-size:0.9rem;color:#a1a1aa;line-height:1.6;margin:0 0 18px;">${escapeHtml(plan.description)}</p>`,
-    `<ul style="padding-left:18px;margin:0;color:#d4d4d8;font-size:0.9rem;line-height:1.8;">${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join('')}</ul>`,
-    `</article>`,
-  ].join('\n')).join('\n')
-
   const items = posts
     .slice(0, 12)
     .map((post) => {
       const slug = post.slug || post.id
       const title = escapeHtml(post.title || 'Untitled')
-      const excerpt = escapeHtml(post.excerpt || '')
+      const excerpt = escapeHtml(post.seo_description || post.excerpt || '')
       const date = post.published_at || post.created_at || ''
       const href = `${baseUrl}/blog/${encodeURIComponent(slug)}`
       const sub = post.subcategory ? `<span style="display:inline-block;font-size:0.75rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:999px;margin-right:6px;">${escapeHtml(post.subcategory)}</span>` : ''
@@ -5067,44 +5033,24 @@ function blogListBodyHtml(posts, baseUrl) {
     `<h1 style="font-size:2.6rem;font-weight:800;line-height:1.2;color:#fff;margin:0;max-width:820px;">학회 운영 사무국의 명찰 출력과 현장 재발행 기준을 정리합니다.</h1>`,
     `<p style="font-size:1rem;color:#a1a1aa;line-height:1.7;margin:20px 0 0;max-width:760px;">참가자 명단 정리, QR·바코드 검수, 현장 재발행, 발행 자동화까지 실제 운영 흐름에 맞춘 콘텐츠를 모읍니다.</p>`,
     `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px;">`,
-    `<a href="https://pf.kakao.com/_wxexmxgn/chat" style="display:inline-block;background:#fde047;color:#09090b;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">카카오톡으로 상담하기</a>`,
-    `<a href="#plans" style="display:inline-block;border:1px solid #52525b;color:#fff;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">요금제 확인하기</a>`,
+    `<a href="#articles" style="display:inline-block;background:#fafafa;color:#09090b;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">최신 글 보기</a>`,
+    `<a href="#topics" style="display:inline-block;border:1px solid #fde047;color:#fde047;font-weight:700;text-decoration:none;border-radius:6px;padding:12px 18px;">운영 주제 보기</a>`,
     `</div>`,
-    `<section id="plans" style="margin-top:56px;">`,
-    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">3가지 구독 요금제</h2>`,
-    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">초기 제작비는 낮추고, 사업이 커질수록 기능과 자동화를 확장하는 구조입니다.</p>`,
-    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">${planHtml}</div>`,
+    `<section id="articles" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
+    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">최신 발행 글</h2>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">공개 URL로 확인된 글을 기준으로 명찰 출력과 현장 운영 기준을 추적합니다.</p>`,
+    `<ul style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">${items || '<li style="color:#71717a;">발행된 글이 없습니다.</li>'}</ul>`,
     `</section>`,
-    `<section style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
-    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">AI 엔진으로 차별화되는 프리미엄 운영</h2>`,
-    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0;max-width:820px;">프리미엄 운영형은 단순 챗봇을 넘어 문의 자동 분류, 콘텐츠 초안 생성, 견적 보조, 운영 리포트 자동화까지 연결합니다.</p>`,
-    `</section>`,
-    `<section style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
-    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">레퍼런스와 운영 인사이트</h2>`,
-    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">단순 홈페이지를 넘어 예약, 행사, 커머스, AI 자동화까지 운영해온 경험을 기반으로 제작합니다.</p>`,
+    `<section id="topics" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
+    `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">운영 주제</h2>`,
+    `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">콘텐츠는 검색 유입보다 먼저 실제 사무국이 반복 확인하는 절차를 기준으로 분류합니다.</p>`,
     `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">`,
     ...[
-      { cat: '홈페이지 제작', title: '제작보다 중요한 것은 매달 바뀌는 정보입니다.', desc: '공지, 가격, 사진, FAQ가 멈추지 않아야 홈페이지가 검색과 상담 전환에 계속 기여합니다.' },
-      { cat: '예약 시스템', title: '전화 문의를 예약 데이터로 바꾸는 구조', desc: '신청폼, 예약, 결제, 알림톡, 관리자 페이지를 연결하면 반복 응대가 줄어듭니다.' },
-      { cat: '학술대회', title: '등록, 결제, QR 출결까지 운영해본 경험', desc: '행사 운영에서 검증된 흐름을 병원, 학원, 설명회, 세미나 홈페이지에도 적용합니다.' },
-      { cat: 'AI 자동화', title: '문의와 콘텐츠를 운영 리포트까지 연결', desc: 'AI는 외부 챗봇이 아니라 운영자가 매달 반복 업무를 줄이는 내부 엔진이어야 합니다.' },
-    ].map((item) => `<div style="border:1px solid #27272a;border-radius:8px;padding:16px;background:rgba(24,24,27,0.4);"><span style="display:inline-block;background:#27272a;border-radius:4px;padding:2px 8px;font-size:0.75rem;color:#a1a1aa;">${item.cat}</span><h3 style="margin:10px 0 0;font-size:0.85rem;color:#f4f4f5;">${item.title}</h3><p style="margin:6px 0 0;font-size:0.75rem;color:#a1a1aa;line-height:1.5;">${item.desc}</p></div>`),
-    `</div>`,
-    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:32px;">`,
-    ...[
-      { cat: 'Academic', name: 'e-Regi 학술대회 통합 시스템', desc: '등록, 결제, QR 출결, 배지, 알림톡, 학회 포털, 파트너 포털 통합' },
-      { cat: 'Society', name: '학회·기관 홈페이지 솔루션', desc: '회원, 행사, 자료실, 결제, 논문 투고, 학회지, 관리자 대시보드' },
-      { cat: 'AI', name: 'AI 실시간 동시통역 플랫폼', desc: 'QR 접속 기반 38개국 언어 음성·자막 통역' },
-      { cat: 'Reservation', name: '스마트 설명회·예약 시스템', desc: '대기열, 매크로 방지, CAPTCHA, 실시간 관제, 알림톡' },
-      { cat: 'Conference', name: '컨퍼런스 전자초록집', desc: '발표, 연사, 세션, 초록 PWA' },
-      { cat: 'Commerce', name: 'Trevi 여행·호텔 예약 커머스', desc: '멀티 공급사, 채널 매니저, PMS, 예약, 결제, 환불, 정산, CRM' },
-      { cat: 'Energy', name: 'EMS · BMS 통합 운영·관제', desc: 'ESS, BESS, 태양광 PV, 충전기 맵 기반 대시보드' },
-      { cat: 'Automation', name: 'AgentRegi 법률·행정 자동화 SaaS', desc: '사건 진단, 전문가 매칭, 서류 수집, 전자신청, Document AI' },
-      { cat: 'Intelligence', name: 'EUM News AI 뉴스 인텔리전스', desc: '기업 단위 뉴스 수집, AI 필터링, 투자 리서치, M&A 모니터링' },
-      { cat: 'Content Ops', name: 'beokmkt 숏폼 콘텐츠 AI 파이프라인', desc: '아이디어, 스크립트, 렌더링, 발행, 작업 큐, 실패 복구' },
-      { cat: 'Mobile', name: '모바일 서비스 앱 플랫폼', desc: 'React Native, Expo, Firebase, 관리자 콘솔 통합 앱' },
-      { cat: 'Internal', name: '사내 위키·매뉴얼 시스템', desc: '트리 구조, 블록 편집기, PIN 인증, 검색, 버전 히스토리' },
-    ].map((item) => `<div style="border:1px solid #27272a;border-radius:8px;padding:16px;background:rgba(24,24,27,0.4);"><span style="display:inline-block;background:#27272a;border-radius:4px;padding:2px 8px;font-size:0.75rem;color:#a1a1aa;">${item.cat}</span><h3 style="margin:10px 0 0;font-size:0.85rem;color:#f4f4f5;">${item.name}</h3><p style="margin:6px 0 0;font-size:0.75rem;color:#a1a1aa;line-height:1.5;">${item.desc}</p></div>`),
+      { cat: '명단 데이터', title: '출력 전 데이터 확정', desc: '이름, 소속, 직함, 등록 구분, QR 식별값을 같은 기준으로 검수합니다.' },
+      { cat: '출력 운영', title: '출력 자재와 샘플 검수', desc: '재단선, 용지, 케이스, 프린터, 여분 자재까지 사무국 체크리스트로 관리합니다.' },
+      { cat: '현장 재발행', title: '승인 기준과 출력 로그', desc: '오탈자, 당일 등록, 직함 변경을 승인 기준과 재발행 기록으로 처리합니다.' },
+      { cat: '발행 자동화', title: '공개 URL 품질 확인', desc: '자체 블로그, 티스토리, 네이버 발행 결과를 실제 URL과 품질 지표로 확인합니다.' },
+    ].map((item) => `<div style="border:1px solid #27272a;border-radius:8px;padding:16px;background:rgba(24,24,27,0.4);"><span style="display:inline-block;background:#27272a;border-radius:4px;padding:2px 8px;font-size:0.75rem;color:#a1a1aa;">${item.cat}</span><h3 style="margin:10px 0 0;font-size:0.95rem;color:#f4f4f5;">${item.title}</h3><p style="margin:8px 0 0;font-size:0.82rem;color:#a1a1aa;line-height:1.6;">${item.desc}</p></div>`),
     `</div>`,
     `</section>`,
     `</div>`,
@@ -5243,19 +5189,12 @@ function serviceOfferJsonLd(baseUrl) {
   return JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'Service',
-    name: '홈페이지 구독형 제작·운영 서비스',
-    description: '초기 제작비 없이 홈페이지 제작, 서버, 유지관리, SEO, 예약·결제·알림톡, AI 자동화까지 단계별로 제공하는 구독 서비스',
+    name: '학회 운영 사무국 명찰 출력 운영 지원',
+    description: '참가자 명단 검수, QR·바코드 확인, 명찰 출력, 현장 재발행, 행사 운영 데이터 정리를 지원합니다.',
     provider: { '@type': 'Organization', name: '비오케이솔루션', url: baseUrl },
     areaServed: 'KR',
-    hasOfferCatalog: {
-      '@type': 'OfferCatalog',
-      name: '홈페이지 구독 요금제',
-      itemListElement: [
-        { '@type': 'Offer', name: '라이트 관리형', price: '50000', priceCurrency: 'KRW', description: '일반 홈페이지 제작과 기본 유지관리' },
-        { '@type': 'Offer', name: '성장 관리형', price: '200000', priceCurrency: 'KRW', description: '예약, 결제, 알림톡, 관리자 기능 포함' },
-        { '@type': 'Offer', name: '프리미엄 운영형', price: '500000', priceCurrency: 'KRW', description: 'AI 엔진, 자동화, CRM, 커스텀 기능 포함' },
-      ],
-    },
+    serviceType: '학회 운영 사무국 지원',
+    audience: { '@type': 'Audience', audienceType: '학회 운영 사무국, 협회, PCO, 행사 운영팀' },
   })
 }
 

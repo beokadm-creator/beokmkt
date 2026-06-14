@@ -5,7 +5,7 @@ import readline from 'readline'
 import http from 'http'
 import { chromium } from 'playwright'
 import { convertForNaver } from './naver-html-adapter.mjs'
-import { convertForTistory } from './tistory-html-adapter.mjs'
+import { convertForTistory, validateTistoryHtml } from './tistory-html-adapter.mjs'
 import { rewriteForChannel } from './channel-rewriter.mjs'
 import { writePostWithBrowser as tistoryWritePost, assertTistoryAuthenticated, TistoryError } from './tistory-client.mjs'
 import { postTweet, TwitterError } from './twitter-client.mjs'
@@ -779,6 +779,14 @@ async function publishToTistory({ title, content_html, tags, link, canonical_url
     log('info', '티스토리 HTML 변환 시작…')
     const convertedHtml = await convertForTistory(rewritten.html)
     log('info', `티스토리 HTML 변환 완료 (${convertedHtml.length}자)`)
+    const quality = validateTistoryHtml(convertedHtml)
+    if (!quality.ok) {
+      throw new WorkerError(
+        'TISTORY_HTML_QUALITY_FAILED',
+        `티스토리 발행 전 HTML 품질 검증 실패: ${quality.reasons.join(', ')}`,
+        quality.quality
+      )
+    }
     const result = await tistoryWritePost({ title: rewritten.title, content_html: convertedHtml, tags })
     return result
   } catch (e) {
