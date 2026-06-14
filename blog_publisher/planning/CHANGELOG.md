@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-06-15 — 핵심 파이프라인 LaunchAgent 고정
+
+macOS `crontab` 적용이 반환되지 않는 환경을 다시 확인했다. 이미 품질 점검과 스냅샷 동기화는 LaunchAgent로 안정화했으므로, 생성·팩트체크·검수·스케줄·발행·복구·백업도 LaunchAgent로 분리해 운영 자동화의 주체를 macOS 서비스로 고정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/ops/com.beok.blog-generate.plist` | 30분마다 `run.py generate` 실행 |
+| `blog_publisher/ops/com.beok.blog-factcheck.plist` | 15분마다 `run.py factcheck` 실행 |
+| `blog_publisher/ops/com.beok.blog-review.plist` | 30분마다 `run.py review` 실행 |
+| `blog_publisher/ops/com.beok.blog-schedule.plist` | 30분마다 `run.py schedule` 실행 |
+| `blog_publisher/ops/com.beok.blog-publish.plist` | 5분마다 `run.py publish` 실행 |
+| `blog_publisher/ops/com.beok.blog-recover.plist` | 35분마다 `run.py recover` 실행 |
+| `blog_publisher/ops/com.beok.blog-backup.plist` | 매일 04:00 `run.py backup` 실행 |
+| `blog_publisher/ops/install-ops.sh` | 핵심 파이프라인 LaunchAgent 설치 대상 추가 |
+| `blog_publisher/ops/crontab.example` | LaunchAgent 우선 운영과 crontab 백업 용도를 명확히 정리 |
+
+검증:
+- 신규/기존 plist 전체 `plutil -lint` PASS
+- `launchctl load` 후 `stock-seed`, `generate`, `factcheck`, `review`, `schedule`, `publish`, `recover`, `backup`, `sync-snapshot` 등록 확인
+- 짧은 단계 kickstart 확인: factcheck/review/recover 0건, schedule 1건 큐 등록, snapshot 갱신
+- generate는 실제 id 51 생성 작업을 집어가 진행 중(섹션 작성 로그 확인)
+
+---
+
 ## 2026-06-15 — 재고 보충과 factcheck/review 큐 조회 버그 수정
 
 실제 운영 상태를 확인한 결과 발행 실패가 아니라 `reviewed` 재고가 모두 예약 큐로 빠진 뒤 새 draft가 없거나, 본문이 있는 draft가 빈 draft 뒤에 밀려 factcheck/review가 계속 0건 처리되는 문제가 있었다. 목표 재고 기반 시드 보충과 본문 보유 draft 직접 조회를 추가해 생성된 글이 실제 `reviewed`까지 올라가게 고쳤다.

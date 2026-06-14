@@ -1,4 +1,10 @@
-# BEOK 블로그 자동화 crontab 예시 (감사 후속: 운영 자동화 고정)
+# BEOK 블로그 자동화 crontab 참고 예시
+#
+# 주 운영 경로는 macOS LaunchAgent입니다:
+#   bash blog_publisher/ops/install-ops.sh
+#
+# 이 파일은 LaunchAgent를 쓸 수 없는 환경의 백업용입니다.
+# macOS에서 crontab 적용이 반환되지 않는 경우가 있어 기본 운영에는 권장하지 않습니다.
 # 설치:  crontab blog_publisher/ops/crontab.example
 # 확인:  crontab -l
 #
@@ -12,23 +18,23 @@ PUBDIR=/Users/aaron/Developer/personal/beokmkt/blog_publisher
 WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 
 # ── 콘텐츠 파이프라인 ──────────────────────────────────────────────
-*/30 * * * * cd $PUBDIR && $PYTHON run.py generate   >> /tmp/blog-generate.log 2>&1
-*/15 * * * * cd $PUBDIR && $PYTHON run.py factcheck   >> /tmp/blog-generate.log 2>&1
-*/30 * * * * cd $PUBDIR && $PYTHON run.py review      >> /tmp/blog-generate.log 2>&1
-*/30 * * * * cd $PUBDIR && $PYTHON run.py schedule    >> /tmp/blog-publish.log  2>&1
-*/5  * * * * cd $PUBDIR && $PYTHON run.py publish     >> /tmp/blog-publish.log  2>&1
-*/5  * * * * cd $PUBDIR && $PYTHON run.py sync_snapshot >> /tmp/blog-publish.log 2>&1
-17  * * * * cd $PUBDIR && $PYTHON run.py verify_public 20 >> /tmp/blog-verify.log 2>&1
-23  */6 * * * cd $PUBDIR && $PYTHON run.py quality_selftest >> /tmp/blog-quality.log 2>&1
-41  5 * * * cd $PUBDIR && $PYTHON run.py image_audit >> /tmp/blog-quality.log 2>&1
+# */30 * * * * cd $PUBDIR && $PYTHON run.py stock_seed selfhosted >> /tmp/blog-generate.log 2>&1
+# */30 * * * * cd $PUBDIR && $PYTHON run.py generate   >> /tmp/blog-generate.log 2>&1
+# */15 * * * * cd $PUBDIR && $PYTHON run.py factcheck   >> /tmp/blog-factcheck.log 2>&1
+# */30 * * * * cd $PUBDIR && $PYTHON run.py review      >> /tmp/blog-review.log 2>&1
+# */30 * * * * cd $PUBDIR && $PYTHON run.py schedule    >> /tmp/blog-schedule.log 2>&1
+# */5  * * * * cd $PUBDIR && $PYTHON run.py publish     >> /tmp/blog-publish.log 2>&1
+# */5  * * * * cd $PUBDIR && $PYTHON run.py sync_snapshot >> /tmp/blog-publish.log 2>&1
+# 17  * * * * cd $PUBDIR && $PYTHON run.py verify_public 20 >> /tmp/blog-verify.log 2>&1
+# 23  */6 * * * cd $PUBDIR && $PYTHON run.py quality_selftest >> /tmp/blog-quality.log 2>&1
+# 41  5 * * * cd $PUBDIR && $PYTHON run.py image_audit >> /tmp/blog-quality.log 2>&1
 
 # ── 복구 / 재고 / 백업 ─────────────────────────────────────────────
-*/35 * * * * cd $PUBDIR && $PYTHON run.py recover     >> /tmp/blog-generate.log 2>&1
-*/30 * * * * cd $PUBDIR && $PYTHON run.py stock_seed selfhosted >> /tmp/blog-generate.log 2>&1
+# */35 * * * * cd $PUBDIR && $PYTHON run.py recover     >> /tmp/blog-recover.log 2>&1
 # naver/tistory는 콘텐츠 품질 기준과 티스토리 인증을 정비한 뒤 수동 재개
 # 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed naver 2      >> /tmp/blog-generate.log 2>&1
 # 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed tistory 2    >> /tmp/blog-generate.log 2>&1
-0    4 * * * cd $PUBDIR && $PYTHON run.py backup      >> /tmp/blog-publish.log  2>&1
+# 0    4 * * * cd $PUBDIR && $PYTHON run.py backup      >> /tmp/blog-backup.log 2>&1
 
 # ── 세션 keepalive (매일 10시 + 지터) ─────────────────────────────
 0   10 * * * $PYTHON -c "import random,time; time.sleep(random.randint(0,1800))" && cd $WORKERDIR && /opt/homebrew/bin/npm run keepalive >> /tmp/blog-keepalive.log 2>&1
