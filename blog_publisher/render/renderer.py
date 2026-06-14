@@ -187,12 +187,22 @@ def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str
     desc_html = f"<p>{html.escape(desc)}</p>" if desc else ""
     minutes = _reading_minutes(source_md)
     list_html = f"<ul>{bullet_html}</ul>" if bullet_html else ""
+    topic = f"{post.get('topic', '')} {post.get('title', '')}"
+    if any(token in topic for token in ("학회", "명찰", "사무국")):
+        decision = "명단 기준, 출력 검수, 현장 재발행 기준을 순서대로 확인하세요."
+    elif any(token in topic for token in ("홈페이지", "신청폼", "SSL", "보안")):
+        decision = "운영 목적, 보안 설정, 신청/문의 흐름을 먼저 대조하세요."
+    else:
+        decision = "본문의 기준과 체크리스트를 실제 운영 상황에 맞춰 확인하세요."
     return (
         '<section class="summary-card" aria-label="글 요약">'
+        '<div class="summary-head">'
         '<div class="summary-kicker">핵심 요약</div>'
+        f'<div class="summary-time">읽기 {minutes}분</div>'
+        '</div>'
         f"{desc_html}"
         f"{list_html}"
-        f'<div class="summary-meta">예상 읽기 시간 {minutes}분 · 실무 체크용</div>'
+        f'<div class="summary-decision"><strong>판단 포인트</strong><span>{html.escape(decision)}</span></div>'
         '</section>'
     )
 

@@ -30,10 +30,11 @@ const CHANNEL_GUIDES = {
 - 구글 검색 유입 독자가 10초 안에 가치를 판단할 수 있게 첫머리에 "핵심 요약" 3줄을 둔다
 - 단순 줄글 금지: h2/h3, 불릿, 번호 목록, 비교표, 체크리스트, blockquote 콜아웃을 상황에 맞게 적극 사용한다
 - 최소 구조: h2 3개 이상, 목록 항목 4개 이상, 표 또는 blockquote 1개 이상, strong 강조 2개 이상
+- 첫머리 요약 뒤에는 "운영 체크포인트" 섹션을 두고, 독자가 바로 판단할 기준 3~4개를 목록으로 정리한다
 - 각 h2는 "무엇/왜/어떻게/주의점/체크리스트" 중 하나가 분명히 드러나게 쓴다
 - 실무자가 바로 적용할 수 있는 판단 기준, 단계, 확인 항목, 장애 대응 흐름을 포함한다
 - 내용이 둘 이상 비교되면 반드시 표를 쓴다. 절차가 있으면 번호 목록을 쓴다. 주의사항은 blockquote로 분리한다
-- 과장된 광고문 대신 차분한 전문가 톤으로, 마지막에 "비오케이솔루션" 또는 "상담/문의"가 들어간 부드러운 상담 CTA를 둔다
+- 과장된 광고문 대신 차분한 전문가 톤으로, 마지막에 "비오케이솔루션"과 "상담/문의"가 모두 들어간 부드러운 상담 CTA를 둔다
 - 제목도 원래 제목과 다르게 새로 작성하되 검색 의도와 실무 효용을 분명히 담는다
 - 절대 금지: 낚시성 제목, 과장, 속어, 유행어, 감탄사, 이모지, "꿀팁", "환장", "대박", "지옥", "끝판왕", "완벽", "무조건", "충격", "실화"`,
 }
@@ -174,6 +175,8 @@ function tistoryRewriteQuality(html, sourceChars = 0) {
     images: (value.match(/<img\b/gi) || []).length + (value.match(/!\[[^\]]*]\([^)\s]+\)/g) || []).length,
     hasLeadSummary: /핵심\s*요약|요약|먼저\s*확인|결론부터/i.test(firstBlock),
     hasCta: /상담|문의|운영\s*상담/i.test(ctaTail),
+    hasBrandedCta: /비오케이솔루션/.test(ctaTail),
+    hasDecisionChecklist: /운영\s*체크포인트|실행\s*체크|판단\s*기준/i.test(plain),
   }
 }
 
@@ -188,6 +191,8 @@ function validateTistoryRewrite(html, sourceChars = 0) {
   if ((quality.tables + quality.callouts + quality.bolds + quality.images) < 3) reasons.push('구조 강조 부족')
   if (!quality.hasLeadSummary) reasons.push('첫머리 요약 없음')
   if (!quality.hasCta) reasons.push('마지막 상담 CTA 없음')
+  if (!quality.hasBrandedCta) reasons.push('비오케이솔루션 CTA 없음')
+  if (!quality.hasDecisionChecklist) reasons.push('운영 체크포인트 없음')
   if (hasHanzi(plain)) reasons.push('한자/중문자 혼입')
   if (hasForbiddenTone(plain)) reasons.push('금칙 톤 포함')
   if (hasTistorySemanticRisk(plain)) reasons.push('의미 반전 위험 문장 포함')

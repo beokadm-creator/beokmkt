@@ -351,6 +351,7 @@ function normalizeTistoryHtml(html) {
   }
   out = out.replace(/(<h2\b[^>]*>[\s\S]*?<\/h2>)/i, '<section style="margin:0 0 28px;padding:18px 20px;border:1px solid #d8dee8;border-radius:14px;background:#f6f8fb;">$1</section>')
   out = ensureTistoryLeadSummary(out)
+  out = ensureTistoryDecisionChecklist(out)
   out = ensureTistoryCta(out)
   return out.trim()
 }
@@ -374,6 +375,25 @@ function hasLeadSummaryText(html) {
 
 function hasCtaText(html) {
   return /상담|문의|운영\s*상담/i.test(plainTextFromHtml(html).slice(-900))
+}
+
+function hasDecisionChecklist(html) {
+  return /운영\s*체크포인트|실행\s*체크|판단\s*기준/i.test(plainTextFromHtml(html))
+}
+
+function isConferenceBadgeContent(html) {
+  return /학회|명찰|사무국|참가자|재발행|접수대/.test(plainTextFromHtml(html))
+}
+
+function extractHeadingTexts(html, max = 4) {
+  const headings = []
+  const regex = /<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>/gi
+  let match
+  while ((match = regex.exec(String(html ?? ''))) !== null && headings.length < max) {
+    const text = plainTextFromHtml(match[1])
+    if (text && !/핵심\s*요약|운영\s*체크포인트/i.test(text)) headings.push(text)
+  }
+  return headings
 }
 
 function extractFirstSentences(html, max = 3) {
@@ -403,12 +423,33 @@ function ensureTistoryLeadSummary(html) {
   return `${summary}\n${html}`
 }
 
+function ensureTistoryDecisionChecklist(html) {
+  if (!html.trim() || hasDecisionChecklist(html)) return html
+  const headings = extractHeadingTexts(html, 4)
+  if (headings.length < 2) return html
+  const items = headings
+    .map((heading) => `<li style="margin:0 0 8px;line-height:1.75;color:${DESIGN_SYSTEM.colors.text};"><strong style="color:${DESIGN_SYSTEM.colors.point};font-weight:800;">${escapeHtml(heading)}</strong> 기준을 실제 운영 전에 확인합니다.</li>`)
+    .join('')
+  const checklist = [
+    `<section style="margin:26px 0;padding:18px 20px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:14px;background:#ffffff;">`,
+    `<p style="margin:0 0 10px;font-size:15px;line-height:1.7;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">운영 체크포인트</p>`,
+    `<ul style="margin:0;padding:0 0 0 20px;">${items}</ul>`,
+    `</section>`,
+  ].join('')
+  return `${html}\n${checklist}`
+}
+
 function ensureTistoryCta(html) {
   if (!html.trim() || hasCtaText(html)) return html
+  const conference = isConferenceBadgeContent(html)
   const cta = [
     `<section style="margin:34px 0 0;padding:20px 22px;border-radius:14px;background:${DESIGN_SYSTEM.colors.primary};color:#fff;">`,
-    `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">운영 환경 점검이 필요하신가요?</p>`,
-    `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">홈페이지 구축, 보안 설정, 신청폼 연동처럼 실제 운영에 연결되는 작업은 비오케이솔루션에 문의해 현재 상황에 맞는 점검을 받아보실 수 있습니다.</p>`,
+    conference
+      ? `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">학회 명찰 출력과 현장 재발행 기준이 필요하신가요?</p>`
+      : `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">운영 환경 점검이 필요하신가요?</p>`,
+    conference
+      ? `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">비오케이솔루션은 참가자 데이터 정리, 명찰 출력, QR·바코드 확인, 현장 재발행 동선을 사무국 운영 흐름에 맞춰 함께 점검합니다. 행사 전 상담 문의로 현재 명단 구조와 출력 기준을 확인해 주세요.</p>`
+      : `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">홈페이지 구축, 보안 설정, 신청폼 연동처럼 실제 운영에 연결되는 작업은 비오케이솔루션에 문의해 현재 상황에 맞는 점검을 받아보실 수 있습니다.</p>`,
     `</section>`,
   ].join('')
   return `${html}\n${cta}`
@@ -428,6 +469,8 @@ function tistoryHtmlQuality(html) {
     bolds: (value.match(/<strong\b/gi) || []).length,
     hasLeadSummary: /핵심\s*요약|요약|먼저\s*확인|결론부터/i.test(text.slice(0, 700)),
     hasCta: /상담|문의|운영\s*상담/i.test(text.slice(-900)),
+    hasBrandedCta: /비오케이솔루션/.test(text.slice(-1000)),
+    hasDecisionChecklist: hasDecisionChecklist(value),
   }
 }
 
@@ -445,6 +488,8 @@ function validateTistoryHtml(html) {
   }
   if (!quality.hasLeadSummary) reasons.push('첫머리 요약 없음')
   if (!quality.hasCta) reasons.push('상담 CTA 없음')
+  if (!quality.hasBrandedCta) reasons.push('비오케이솔루션 CTA 없음')
+  if (!quality.hasDecisionChecklist) reasons.push('운영 체크포인트 없음')
   return { ok: reasons.length === 0, reasons, quality }
 }
 

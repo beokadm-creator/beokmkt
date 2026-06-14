@@ -78,7 +78,7 @@ def _test_selfhosted_renderer() -> list[str]:
     issues += _assert_contains(
         "selfhosted",
         html,
-        ["summary-card", 'class="toc"', "soft-cta", "table-wrap", "<img ", "content-callout"],
+        ["summary-card", "summary-decision", 'class="toc"', "soft-cta", "table-wrap", "<img ", "content-callout"],
     )
     if "<article" in html or "<h1" in html:
         issues.append("selfhosted: 저장 fragment에 article/h1 포함")
@@ -95,7 +95,7 @@ const html = await convertForTistory(source)
 const quality = validateTistoryHtml(html)
 const issues = []
 if (!quality.ok) issues.push(...quality.reasons)
-for (const token of ['<h2', '<ul', '<ol', '<table', '<blockquote', '<img ', '<strong']) {{
+for (const token of ['<h2', '<ul', '<ol', '<table', '<blockquote', '<img ', '<strong', '운영 체크포인트', '비오케이솔루션']) {{
   if (!html.includes(token)) issues.push(`티스토리: ${{token}} 누락`)
 }}
 if (html.includes('[이미지:')) issues.push('티스토리: 이미지 텍스트 마커 노출')
@@ -125,6 +125,13 @@ def _test_channel_rewriter_gate() -> list[str]:
   <li><strong>QR 코드</strong> 스캔 정상 여부를 샘플로 확인합니다.</li>
   <li><strong>재발행 로그</strong>를 남겨 중복 출력을 막습니다.</li>
   <li><strong>소모품 수량</strong>을 접수 시작 전 다시 확인합니다.</li>
+</ul>
+<h2>운영 체크포인트</h2>
+<ul>
+  <li><strong>명단 확정 시각</strong>을 출력 전 기준으로 고정했는지 확인합니다.</li>
+  <li><strong>출력 샘플</strong>로 줄바꿈과 코드 스캔을 확인합니다.</li>
+  <li><strong>재발행 승인자</strong>와 출력 담당자를 분리합니다.</li>
+  <li><strong>행사 후 기록</strong>으로 변경 요청을 정리합니다.</li>
 </ul>
 <h2>무엇을 먼저 확인해야 하나</h2>
 <p>사무국은 이름, 소속, 직함, 등록 구분, 식별 코드를 같은 기준으로 정리해야 합니다. 파일이 여러 개로 갈라지면 현장에서는 어느 항목이 최종인지 판단하기 어렵습니다.</p>
