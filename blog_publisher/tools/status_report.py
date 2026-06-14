@@ -8,6 +8,8 @@
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import config
 from db import db
 
@@ -19,6 +21,15 @@ STATUSES = [
 
 def report() -> dict[str, int]:
     counts = {s: db.count_by_status(s) for s in STATUSES}
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    with db.connect() as conn:
+        queued_due = conn.execute(
+            "SELECT COUNT(*) AS n FROM posts WHERE status = 'queued' AND next_run_at <= ?",
+            (now,),
+        ).fetchone()["n"]
+        next_queued = conn.execute(
+            "SELECT MIN(next_run_at) AS next_run_at FROM posts WHERE status = 'queued'",
+        ).fetchone()["next_run_at"]
 
     print("=== 파이프라인 상태 ===")
     for s in STATUSES:
@@ -31,6 +42,12 @@ def report() -> dict[str, int]:
               f"(생성량↑/시드 보충 필요)")
     else:
         print(f"  [정상] 재고 충분: reviewed={counts['reviewed']} (목표 {buffer_target})")
+
+    if counts["queued"]:
+        if queued_due:
+            print(f"  [확인] 즉시 발행 대상: queued_due={queued_due} (publish 실행 대상)")
+        else:
+            print(f"  [대기] 예약 글 {counts['queued']}건, 다음 예약 UTC={next_queued}")
 
     if counts["needs_human"]:
         print(f"  [경고] 수동 처리 대기: needs_human={counts['needs_human']}")

@@ -37,6 +37,17 @@ type RecentPost = {
   updated_at: string
 }
 
+type OpsStats = {
+  reviewed_target: number
+  reviewed: number
+  queued: number
+  queued_due: number
+  next_queued_at: string | null
+  publishing: number
+  stale: Record<string, number>
+  stuck_threshold_min: number
+}
+
 type PipelinePostDetail = {
   id: number | string
   cloud_id?: string
@@ -95,6 +106,7 @@ type PipelineStats = {
     weak_posts: number
     avg_grounding: number | null
   }
+  ops?: OpsStats | null
   needs_human_posts: NeedsHumanPost[]
   recent: RecentPost[]
 }
@@ -216,6 +228,73 @@ function ChannelTable({ by_channel }: { by_channel: ByChannel }) {
         })}
       </tbody>
     </table>
+  )
+}
+
+function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
+  if (!ops) return null
+  const staleTotal = Object.values(ops.stale ?? {}).reduce((sum, n) => sum + n, 0)
+  const stockLow = ops.reviewed < ops.reviewed_target
+  const dueBlocked = ops.queued_due > 0 && ops.publishing === 0
+  const active = stockLow || dueBlocked || staleTotal > 0
+  const cells = [
+    {
+      label: '검토 재고',
+      value: `${ops.reviewed}/${ops.reviewed_target}`,
+      sub: stockLow ? '목표 미달' : '목표 충족',
+      alert: stockLow,
+    },
+    {
+      label: '예약 대기',
+      value: String(ops.queued),
+      sub: ops.next_queued_at ? `다음 ${formatDate(ops.next_queued_at)}` : '예약 없음',
+      alert: false,
+    },
+    {
+      label: '즉시 발행 대상',
+      value: String(ops.queued_due),
+      sub: ops.queued_due > 0 ? 'publish 대상' : 'due 없음',
+      alert: dueBlocked,
+    },
+    {
+      label: '멈춘 작업',
+      value: String(staleTotal),
+      sub: `${ops.stuck_threshold_min}분 초과`,
+      alert: staleTotal > 0,
+    },
+  ]
+
+  return (
+    <div className={['rounded-xl border p-4', active ? 'border-amber-900/60 bg-amber-950/15' : 'border-emerald-900/50 bg-emerald-950/10'].join(' ')}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">운영 준비도</div>
+          <div className="mt-1 text-xs text-zinc-500">재고, 예약, due 큐, stuck 작업을 분리해서 봅니다.</div>
+        </div>
+        <span className={['rounded-md border px-2 py-1 text-xs', active ? 'border-amber-800 text-amber-200' : 'border-emerald-800 text-emerald-200'].join(' ')}>
+          {active ? '확인 필요' : '정상'}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {cells.map((cell) => (
+          <div
+            key={cell.label}
+            className={[
+              'rounded-lg border bg-zinc-950/50 p-3',
+              cell.alert ? 'border-amber-800/70' : 'border-zinc-800',
+            ].join(' ')}
+          >
+            <div className="text-xs text-zinc-500">{cell.label}</div>
+            <div className={['mt-1 text-xl font-semibold tabular-nums', cell.alert ? 'text-amber-200' : 'text-zinc-100'].join(' ')}>
+              {cell.value}
+            </div>
+            <div className={['mt-1 truncate text-xs', cell.alert ? 'text-amber-300' : 'text-zinc-500'].join(' ')}>
+              {cell.sub}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -547,6 +626,8 @@ export default function DashboardPage() {
         <div className="mb-3 text-sm font-semibold">파이프라인 상태</div>
         {data ? <StageBar by_status={data.by_status} /> : <div className="text-sm text-zinc-500">로딩 중…</div>}
       </div>
+
+      <OpsReadinessPanel ops={data?.ops} />
 
       <LocalOpsPanel active={totalFailures > 0} />
 

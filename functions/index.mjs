@@ -2132,6 +2132,19 @@ app.get('/api/pipeline/stats', async (req, res) => {
   let groundingSum = 0
   let groundingCount = 0
   const publicQualityCandidates = []
+  const reviewedTarget = Number(process.env.DAILY_PUBLISH_TARGET || 5) * Number(process.env.STOCK_BUFFER_DAYS || 3)
+  const stuckThresholdMin = Number(process.env.STUCK_THRESHOLD_MIN || 35)
+  const staleCutoff = new Date(now.getTime() - stuckThresholdMin * 60_000)
+  const ops = {
+    reviewed_target: reviewedTarget,
+    reviewed: 0,
+    queued: 0,
+    queued_due: 0,
+    next_queued_at: null,
+    publishing: 0,
+    stale: { generating: 0, factchecking: 0, reviewing: 0, publishing: 0 },
+    stuck_threshold_min: stuckThresholdMin,
+  }
 
   for (const post of posts) {
     const status = typeof post.status === 'string' ? post.status : 'draft'
@@ -2139,6 +2152,24 @@ app.get('/api/pipeline/stats', async (req, res) => {
     if (status in by_status) by_status[status] += 1
     if (channel in by_channel && status in by_channel[channel]) {
       by_channel[channel][status] += 1
+    }
+    const nextRunAtRaw = serializeValue(post.next_run_at ?? post.scheduled_at ?? null)
+    const nextRunAt = nextRunAtRaw ? new Date(nextRunAtRaw) : null
+    const updatedRaw = serializeValue(post.updated_at ?? post.created_at ?? null)
+    const updatedDate = updatedRaw ? new Date(updatedRaw) : null
+    if (status === 'reviewed') ops.reviewed += 1
+    if (status === 'queued') {
+      ops.queued += 1
+      if (nextRunAt && !Number.isNaN(nextRunAt.getTime())) {
+        if (nextRunAt <= now) ops.queued_due += 1
+        if (!ops.next_queued_at || nextRunAt < new Date(ops.next_queued_at)) {
+          ops.next_queued_at = nextRunAtRaw
+        }
+      }
+    }
+    if (status === 'publishing') ops.publishing += 1
+    if (status in ops.stale && updatedDate && !Number.isNaN(updatedDate.getTime()) && updatedDate < staleCutoff) {
+      ops.stale[status] += 1
     }
 
     const content = String(post.content ?? post.body ?? post.html ?? '')
@@ -2299,6 +2330,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
     published_today,
     published_this_week,
     quality,
+    ops,
     public_quality,
     needs_human_posts,
     recent: recent

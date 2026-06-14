@@ -2231,6 +2231,25 @@ app.get('/api/pipeline/stats', (req, res) => {
     const weekRow = db.prepare(
       "SELECT COUNT(*) AS n FROM posts WHERE status='published' AND updated_at >= datetime('now','-6 days','start of day')"
     ).get()
+    const reviewedTarget = Number(process.env.DAILY_PUBLISH_TARGET || 5) * Number(process.env.STOCK_BUFFER_DAYS || 3)
+    const stuckThresholdMin = Number(process.env.STUCK_THRESHOLD_MIN || 35)
+    const dueRow = db.prepare(
+      "SELECT COUNT(*) AS n FROM posts WHERE status='queued' AND next_run_at <= datetime('now')"
+    ).get()
+    const nextQueuedRow = db.prepare(
+      "SELECT MIN(next_run_at) AS next_queued_at FROM posts WHERE status='queued'"
+    ).get()
+    const staleRows = db.prepare(
+      `SELECT status, COUNT(*) AS n
+       FROM posts
+       WHERE status IN ('generating','factchecking','reviewing','publishing')
+         AND updated_at < datetime('now', ?)
+       GROUP BY status`
+    ).all(`-${stuckThresholdMin} minutes`)
+    const stale = { generating: 0, factchecking: 0, reviewing: 0, publishing: 0 }
+    for (const row of staleRows) {
+      if (row.status in stale) stale[row.status] = row.n
+    }
 
     const needs_human_posts = db.prepare(
       "SELECT id, topic, title, channel, status, body, grounding_ratio, last_error, published_url, updated_at FROM posts WHERE status IN ('needs_human','failed') ORDER BY updated_at DESC LIMIT 12"
@@ -2276,11 +2295,21 @@ app.get('/api/pipeline/stats', (req, res) => {
         weak_posts: qualityRow?.weak_posts ?? 0,
         avg_grounding: qualityRow?.avg_grounding == null ? null : Math.round(qualityRow.avg_grounding * 100) / 100,
       },
+      ops: {
+        reviewed_target: reviewedTarget,
+        reviewed: by_status.reviewed,
+        queued: by_status.queued,
+        queued_due: dueRow?.n ?? 0,
+        next_queued_at: nextQueuedRow?.next_queued_at ?? null,
+        publishing: by_status.publishing,
+        stale,
+        stuck_threshold_min: stuckThresholdMin,
+      },
       needs_human_posts,
       recent,
     })
   } catch (e) {
-    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, needs_human_posts: [], recent: [] })
+    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, ops: null, needs_human_posts: [], recent: [] })
   } finally {
     db.close()
   }
