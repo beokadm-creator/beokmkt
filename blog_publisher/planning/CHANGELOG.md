@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-14 — 자체 블로그 본문 구조/카테고리 보정
+
+자체 블로그 공개 상세에서 페이지가 이미 제목/메타를 렌더링하는데, 저장된 `content` 안에도 `<article><header><h1>`이 들어가 중복 제목이 생길 수 있는 구조를 정리했다. 또한 학회·명찰 글이 `홈페이지제작`으로 표시되는 카테고리 매핑 문제를 보정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/render/renderer.py` | `render_body()`를 API 저장용 본문 fragment로 분리. 새 자체 블로그 글에는 내부 `<article><header><h1>`을 저장하지 않음 |
+| `src/spa/pages/PublicBlogPostPage.tsx`, `functions/index.mjs` | 이미 발행된 글의 저장 본문에 남아 있는 embedded article/header를 공개 렌더링 단계에서 제거 |
+| `blog_publisher/tools/category_map.py` | beok 명찰/학회/사무국/QR/재발행/현장 키워드를 `학회운영` 카테고리로 우선 매핑 |
+| `src/spa/pages/PublicBlogPage.tsx`, `src/spa/pages/PublicBlogPostPage.tsx`, `functions/index.mjs` | 공개 목록·상세·JSON-LD의 표시 카테고리를 제목/태그 기준으로 `학회운영` 보정 |
+
+검증:
+- 렌더러 샘플: `render_body()` h1 0, article 0, summary/toc/cta/table 유지
+- 카테고리 샘플: 학회 명찰 제목 → `학회운영`
+- `node --check functions/index.mjs`, `python3 -m py_compile`, `npx tsc --noEmit`, `npm run build:spa`, `python3 run.py selftest` PASS
+- Firebase Functions/Hosting 배포 후 실제 공개 상세 HTML: h1 1개, embedded article header 0, `학회운영` 표시 확인
+
+---
+
 ## 2026-06-14 — 티스토리 rewriter 품질 게이트/GLM thinking 보정
 
 Phase B의 핵심인 티스토리 채널 재작성 품질을 실제 모델 호출 기준으로 보강했다. 기존 rewriter는 품질 지시는 있었지만 GLM reasoning 토큰이 길어지면 최종 `content`가 비어 원문 폴백되는 문제가 있었다.

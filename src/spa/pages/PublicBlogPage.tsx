@@ -40,6 +40,12 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString('ko-KR')
 }
 
+function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+  const haystack = `${post.title} ${post.category} ${(post.tags ?? []).join(' ')}`
+  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) return '학회운영'
+  return post.category || '블로그'
+}
+
 export default function PublicBlogPage() {
   const [data, setData] = useState<ListResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -179,7 +185,7 @@ export default function PublicBlogPage() {
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                    <span>{featured.category || '블로그'}</span>
+                    <span>{displayCategory(featured)}</span>
                     <span>{formatDate(featured.published_at ?? featured.created_at)}</span>
                   </div>
                   <h3 className="mt-3 text-2xl font-bold leading-snug text-white group-hover:text-yellow-100">{featured.title}</h3>
@@ -198,7 +204,7 @@ export default function PublicBlogPage() {
                   className="group rounded-lg border border-zinc-800 bg-zinc-900/45 p-5 transition hover:border-yellow-300/70 hover:bg-zinc-900"
                 >
                   <div className="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                    <span>{post.category || '블로그'}</span>
+                    <span>{displayCategory(post)}</span>
                     <span>{formatDate(post.published_at ?? post.created_at)}</span>
                   </div>
                   <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-6 text-zinc-100 group-hover:text-yellow-100">

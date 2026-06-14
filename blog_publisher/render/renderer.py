@@ -208,6 +208,31 @@ def _cta_html(post: dict) -> str:
     return ""
 
 
+def _source_footer_html(post: dict) -> str:
+    if not post.get("source_url"):
+        return ""
+    u = html.escape(post["source_url"])
+    return (
+        f'<footer class="src">참고 출처: '
+        f'<a href="{u}" rel="nofollow noopener" target="_blank">{u}</a></footer>'
+    )
+
+
+def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]], source_md: str) -> str:
+    tags = post.get("tags", []) or []
+    tags_html = "".join(
+        f'<a href="/tag/{html.escape(t)}">#{html.escape(t)}</a>' for t in tags
+    )
+    return (
+        f'{_summary_card(post, toc, source_md)}\n'
+        f'{_toc_html(toc)}\n'
+        f'<div class="content">\n{content_html}\n</div>\n'
+        f'{_cta_html(post)}\n'
+        f'<div class="tags">{tags_html}</div>\n'
+        f'{_source_footer_html(post)}'
+    )
+
+
 def _build_article_html(post: dict) -> tuple[str, str, str]:
     """(article_html, tags_html, json_ld_json) 반환."""
     title = post.get("title", "")
@@ -219,14 +244,6 @@ def _build_article_html(post: dict) -> tuple[str, str, str]:
     tags_html = "".join(
         f'<a href="/tag/{html.escape(t)}">#{html.escape(t)}</a>' for t in tags
     )
-    source_footer = ""
-    if post.get("source_url"):
-        u = html.escape(post["source_url"])
-        source_footer = (
-            f'<footer class="src">참고 출처: '
-            f'<a href="{u}" rel="nofollow noopener" target="_blank">{u}</a></footer>'
-        )
-
     article_html = (
         f'<article>\n'
         f'  <header>\n'
@@ -236,12 +253,7 @@ def _build_article_html(post: dict) -> tuple[str, str, str]:
         f' · {html.escape(post.get("author", "BEOK"))}\n'
         f'    </div>\n'
         f'  </header>\n'
-        f'  {_summary_card(post, toc, body_md)}\n'
-        f'  {_toc_html(toc)}\n'
-        f'  <div class="content">\n{content_html}\n  </div>\n'
-        f'  {_cta_html(post)}\n'
-        f'  <div class="tags">{tags_html}</div>\n'
-        f'  {source_footer}\n'
+        f'  {_body_fragment_html(post, content_html, toc, body_md)}\n'
         f'</article>'
     )
 
@@ -260,9 +272,10 @@ def _build_article_html(post: dict) -> tuple[str, str, str]:
 
 
 def render_body(post: dict) -> str:
-    """Firebase처럼 content를 innerHTML로 주입하는 시스템용 — <article> HTML만 반환."""
-    article_html, _, _ = _build_article_html(post)
-    return article_html
+    """Firebase처럼 외부 페이지가 제목/메타를 렌더링하는 시스템용 본문 fragment 반환."""
+    body_md = post.get("body", "")
+    content_html, toc = _markdown_to_html(body_md)
+    return _body_fragment_html(post, content_html, toc, body_md)
 
 
 def render(post: dict) -> str:

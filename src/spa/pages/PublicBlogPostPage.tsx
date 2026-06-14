@@ -5,6 +5,19 @@ import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type Beoksolu
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 
+function normalizeRenderedContent(html: string) {
+  return String(html || '')
+    .replace(/<article\b[^>]*>\s*<header\b[\s\S]*?<\/header>/i, '')
+    .replace(/<\/article>\s*$/i, '')
+    .trim()
+}
+
+function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+  const haystack = `${post.title} ${post.category} ${(post.tags ?? []).join(' ')}`
+  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) return '학회운영'
+  return post.category || '운영 글'
+}
+
 type BlogPost = {
   id: string
   title: string
@@ -50,13 +63,14 @@ export default function PublicBlogPostPage() {
     if (!post) return
     const canonical = `${window.location.origin}/blog/${encodeURIComponent(post.slug || post.id)}`
     const description = post.seo_description || post.excerpt || `${post.title} 블로그 글`
+    const category = displayCategory(post)
     applySeo({
       title: post.seo_title || post.title,
       description,
       canonical,
       image: post.featured_image || undefined,
       type: 'article',
-      keywords: [post.category, ...(post.tags ?? [])].filter(Boolean),
+      keywords: [category, ...(post.tags ?? [])].filter(Boolean),
       publishedTime: post.published_at ?? post.created_at,
       modifiedTime: post.updated_at ?? post.published_at ?? post.created_at,
       jsonLd: [
@@ -70,7 +84,7 @@ export default function PublicBlogPostPage() {
           datePublished: post.published_at ?? post.created_at,
           dateModified: post.updated_at ?? post.published_at ?? post.created_at,
           inLanguage: 'ko-KR',
-          articleSection: post.category || '일반',
+          articleSection: category,
           keywords: (post.tags ?? []).join(', '),
           image: post.featured_image ? [post.featured_image] : undefined,
           author: {
@@ -130,6 +144,8 @@ export default function PublicBlogPostPage() {
   }
 
   const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
+  const contentHtml = normalizeRenderedContent(post.content || '<p>본문이 없습니다.</p>')
+  const categoryLabel = displayCategory(post)
 
   return (
     <div className="min-h-screen overflow-hidden bg-zinc-950 text-white">
@@ -146,7 +162,7 @@ export default function PublicBlogPostPage() {
             <section className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-6 shadow-xl shadow-black/20 backdrop-blur md:p-10">
 
               <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
-                <span className="rounded-md border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 font-bold text-yellow-200">{post.category || '운영 글'}</span>
+                <span className="rounded-md border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 font-bold text-yellow-200">{categoryLabel}</span>
                 <time dateTime={post.published_at ?? post.created_at} className="font-medium">{publishedLabel}</time>
               </div>
 
@@ -184,7 +200,7 @@ export default function PublicBlogPostPage() {
             ) : (
               <div
                 className="mt-10 max-w-none prose prose-invert prose-zinc prose-headings:text-zinc-100 prose-p:text-zinc-300 prose-a:no-underline prose-a:text-blue-300 prose-strong:text-white prose-li:text-zinc-300 prose-img:rounded-xl prose-table:block prose-table:overflow-x-auto prose-th:border prose-th:border-white/10 prose-th:bg-white/10 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-white/10 prose-td:px-3 prose-td:py-2 [&_.summary-card]:not-prose [&_.summary-card]:mb-8 [&_.summary-card]:rounded-2xl [&_.summary-card]:border [&_.summary-card]:border-white/10 [&_.summary-card]:bg-white/[0.06] [&_.summary-card]:p-5 [&_.summary-kicker]:text-xs [&_.summary-kicker]:font-black [&_.summary-kicker]:uppercase [&_.summary-kicker]:tracking-[0.18em] [&_.summary-kicker]:text-emerald-200 [&_.summary-card_p]:mt-3 [&_.summary-card_p]:text-sm [&_.summary-card_p]:leading-7 [&_.summary-card_p]:text-zinc-300 [&_.summary-card_ul]:mt-4 [&_.summary-card_ul]:grid [&_.summary-card_ul]:gap-2 [&_.summary-card_li]:rounded-xl [&_.summary-card_li]:bg-black/20 [&_.summary-card_li]:px-3 [&_.summary-card_li]:py-2 [&_.summary-card_li]:text-sm [&_.summary-card_li]:text-zinc-200 [&_.summary-meta]:mt-4 [&_.summary-meta]:text-xs [&_.summary-meta]:text-zinc-500 [&_.soft-cta]:not-prose [&_.soft-cta]:mt-10 [&_.soft-cta]:rounded-2xl [&_.soft-cta]:border [&_.soft-cta]:border-emerald-300/20 [&_.soft-cta]:bg-emerald-300/10 [&_.soft-cta]:p-5 [&_.soft-cta_strong]:block [&_.soft-cta_strong]:text-lg [&_.soft-cta_strong]:font-black [&_.soft-cta_p]:mt-2 [&_.soft-cta_p]:text-sm [&_.soft-cta_p]:leading-7 [&_.soft-cta_p]:text-zinc-300 [&_.soft-cta_a]:mt-4 [&_.soft-cta_a]:inline-flex [&_.soft-cta_a]:rounded-xl [&_.soft-cta_a]:bg-white [&_.soft-cta_a]:px-4 [&_.soft-cta_a]:py-2 [&_.soft-cta_a]:text-sm [&_.soft-cta_a]:font-black [&_.soft-cta_a]:text-zinc-950"
-                dangerouslySetInnerHTML={{ __html: post.content || '<p>본문이 없습니다.</p>' }}
+                dangerouslySetInnerHTML={{ __html: contentHtml }}
               />
             )}
           </article>

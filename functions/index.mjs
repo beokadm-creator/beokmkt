@@ -4937,15 +4937,29 @@ function formatKoreanDate(value) {
   return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
 }
 
+function normalizeRenderedBlogContent(html = '') {
+  return String(html || '')
+    .replace(/<article\b[^>]*>\s*<header\b[\s\S]*?<\/header>/i, '')
+    .replace(/<\/article>\s*$/i, '')
+    .trim()
+}
+
+function publicDisplayCategory(post = {}) {
+  const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
+  const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.category ?? ''} ${tags}`
+  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) return '학회운영'
+  return post.category || '운영 글'
+}
+
 function blogPostBodyHtml(post, extras = {}) {
   const title = escapeHtml(post.title || 'Untitled')
   const excerpt = escapeHtml(post.excerpt || '')
   const schema = post.content_schema && typeof post.content_schema === 'object' ? post.content_schema : null
   const content = schema?.template === 'beoksolution_landing_v1'
     ? renderBeoksolutionLandingSchema(schema)
-    : (post.content || '')
+    : normalizeRenderedBlogContent(post.content || '')
   const date = formatKoreanDate(post.published_at || post.created_at || '')
-  const category = escapeHtml(post.category || '운영 글')
+  const category = escapeHtml(publicDisplayCategory(post))
   const tags = Array.isArray(post.tags) ? post.tags : []
   const renderedContent = content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join('')
 
@@ -5015,7 +5029,7 @@ function blogListBodyHtml(posts, baseUrl) {
       const excerpt = escapeHtml(post.seo_description || post.excerpt || '')
       const date = post.published_at || post.created_at || ''
       const href = `${baseUrl}/blog/${encodeURIComponent(slug)}`
-      const sub = post.subcategory ? `<span style="display:inline-block;font-size:0.75rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:999px;margin-right:6px;">${escapeHtml(post.subcategory)}</span>` : ''
+      const sub = `<span style="display:inline-block;font-size:0.75rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:999px;margin-right:6px;">${escapeHtml(post.subcategory || publicDisplayCategory(post))}</span>`
       return [
         `<li style="margin-bottom:20px;">`,
         `<a href="${escapeHtml(href)}" style="color:#fafafa;text-decoration:none;">`,
@@ -5061,7 +5075,8 @@ function blogListBodyHtml(posts, baseUrl) {
 function blogPostingJsonLd(post, baseUrl) {
   const url = `${baseUrl}/blog/${encodeURIComponent(post.slug || post.id)}`
   const articleText = stripHtml(post.content || '')
-  const keywords = [post.category, ...(Array.isArray(post.tags) ? post.tags : [])].filter(Boolean)
+  const displayCategory = publicDisplayCategory(post)
+  const keywords = [displayCategory, ...(Array.isArray(post.tags) ? post.tags : [])].filter(Boolean)
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -5078,7 +5093,7 @@ function blogPostingJsonLd(post, baseUrl) {
     wordCount: articleText ? articleText.split(/\s+/).length : undefined,
   }
   if (post.featured_image) schema.image = post.featured_image
-  if (post.category) schema.articleSection = post.category
+  schema.articleSection = displayCategory
   if (keywords.length > 0) {
     schema.keywords = keywords.join(', ')
     schema.about = keywords.map((name) => ({ '@type': 'Thing', name }))
