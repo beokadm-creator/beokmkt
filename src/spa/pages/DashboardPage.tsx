@@ -339,6 +339,7 @@ function LocalOpsPanel({ active }: { active: boolean }) {
     { label: '공개 품질 검증', command: 'cd blog_publisher && python3 run.py verify_public 20' },
     { label: '멈춘 작업 복구', command: 'cd blog_publisher && python3 run.py recover' },
     { label: '발행 워커 1회', command: 'cd blog_publisher && python3 run.py publish' },
+    { label: '지정 글 1건 발행', command: 'cd blog_publisher && python3 run.py publish_one <post_id>' },
     { label: '대시보드 동기화', command: 'cd blog_publisher && python3 run.py sync_snapshot' },
     { label: '로컬 실패 보관', command: 'cd blog_publisher && python3 run.py archive_local --all-reviewed --reason operator_reviewed' },
     { label: 'DB 백업', command: 'cd blog_publisher && python3 run.py backup' },
@@ -357,6 +358,61 @@ function LocalOpsPanel({ active }: { active: boolean }) {
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
         {commands.map((item) => (
+          <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+            <div className="text-xs font-medium text-zinc-400">{item.label}</div>
+            <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function QualityActionPanel({ quality }: { quality?: PipelineStats['quality'] }) {
+  if (!quality) return null
+  const weak = quality.weak_posts > 0
+  const lowGrounding = quality.avg_grounding != null && quality.avg_grounding < 0.9
+  if (!weak && !lowGrounding) return null
+
+  const actions = [
+    {
+      label: '렌더러·리라이터 회귀검사',
+      command: 'cd blog_publisher && python3 run.py quality_selftest',
+      active: weak,
+    },
+    {
+      label: '공개 URL 실제 품질검증',
+      command: 'cd blog_publisher && python3 run.py verify_public 20',
+      active: weak,
+    },
+    {
+      label: '검색 연결 후 품질 게이트 원복',
+      command: 'MIN_GROUNDING_RATIO=0.9 MIN_REVIEW_SCORE=80',
+      active: lowGrounding,
+    },
+    {
+      label: '대시보드 스냅샷 갱신',
+      command: 'cd blog_publisher && python3 run.py sync_snapshot',
+      active: true,
+    },
+  ].filter((item) => item.active)
+
+  return (
+    <div className="rounded-xl border border-amber-900/60 bg-amber-950/15 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-amber-200">품질 조치 필요</div>
+          <div className="mt-1 text-xs leading-5 text-zinc-500">
+            짧은 글 {quality.weak_posts}건, 평균 grounding {quality.avg_grounding == null ? '미측정' : quality.avg_grounding.toFixed(2)}입니다.
+            검증은 실제 산출물 기준으로 실행합니다.
+          </div>
+        </div>
+        <span className="rounded-md border border-amber-800 px-2 py-1 text-xs text-amber-200">
+          운영 점검
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {actions.map((item) => (
           <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
             <div className="text-xs font-medium text-zinc-400">{item.label}</div>
             <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
@@ -728,6 +784,8 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : null}
+
+      <QualityActionPanel quality={data?.quality} />
 
       <DetailPanel
         detail={detail}
