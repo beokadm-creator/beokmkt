@@ -17,6 +17,8 @@ type NeedsHumanPost = {
   action?: string | null
   can_requeue?: boolean
   reason?: string | null
+  external_doc_id?: string | null
+  can_archive?: boolean
   quality?: {
     chars: number
     images: number
@@ -49,6 +51,8 @@ type PipelinePostDetail = {
   action?: string | null
   can_requeue?: boolean
   requeue_block_reason?: string | null
+  external_doc_id?: string | null
+  can_archive?: boolean
   body_available?: boolean
   body?: string
   preview_html?: string
@@ -413,6 +417,7 @@ export default function DashboardPage() {
   const [detailError, setDetailError] = useState<string | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [requeueing, setRequeueing] = useState(false)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
     try {
@@ -454,6 +459,24 @@ export default function DashboardPage() {
       setRequeueing(false)
     }
   }, [detail, fetchStats, openDetail])
+
+  const archiveExternalResult = useCallback(async (post: Pick<NeedsHumanPost, 'id' | 'external_doc_id'>) => {
+    const externalId = post.external_doc_id || String(post.id)
+    setArchivingId(externalId)
+    setDetailError(null)
+    try {
+      await apiJson(`/api/pipeline/external-results/${encodeURIComponent(externalId)}/archive`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: 'operator_reviewed' }),
+      })
+      await fetchStats()
+      if (detail?.external_doc_id === externalId) setDetail(null)
+    } catch (e) {
+      setDetailError(errorMessage(e, '외부 실패 보관 실패'))
+    } finally {
+      setArchivingId(null)
+    }
+  }, [detail, fetchStats])
 
   useEffect(() => {
     fetchStats()
@@ -638,6 +661,16 @@ export default function DashboardPage() {
                     >
                       공개 글
                     </a>
+                  ) : null}
+                  {post.can_archive ? (
+                    <button
+                      type="button"
+                      disabled={archivingId === (post.external_doc_id || String(post.id))}
+                      onClick={() => archiveExternalResult(post)}
+                      className="rounded-md border border-zinc-800 px-2 py-1 text-center text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:text-zinc-700"
+                    >
+                      {archivingId === (post.external_doc_id || String(post.id)) ? '보관 중' : '보관'}
+                    </button>
                   ) : null}
                 </div>
               </div>

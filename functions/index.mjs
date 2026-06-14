@@ -2236,6 +2236,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
     ? externalSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
     : []
   for (const result of externalResults) {
+    if (result.archived_at) continue
     const platform = result.platform
     if (!(platform in by_channel)) continue
     const status = result.status === 'success' ? 'published' : result.status === 'failed' ? 'needs_human' : null
@@ -2270,6 +2271,8 @@ app.get('/api/pipeline/stats', async (req, res) => {
         action: actionForExternalIssue(platform, result.error ?? ''),
         quality: pipelineQuality(''),
         ...cloudRequeuePolicy('외부 발행 결과 로그입니다. 로컬 파이프라인 DB에서 재큐잉하세요.'),
+        external_doc_id: result.id,
+        can_archive: true,
         updated_at: updatedAt,
       })
     }
@@ -2342,6 +2345,7 @@ app.get('/api/pipeline/posts/:id', async (req, res) => {
     const snap = await db.collection('external_publish_results').doc(docId).get().catch(() => null)
     if (!snap?.exists) continue
     const result = { id: snap.id, ...snap.data() }
+    if (result.archived_at) continue
     return ok(res, {
       id: result.source_id ?? result.id,
       cloud_id: result.id,
@@ -2354,6 +2358,8 @@ app.get('/api/pipeline/posts/:id', async (req, res) => {
       action: actionForExternalIssue(result.platform ?? '', result.error ?? ''),
       can_requeue: false,
       requeue_block_reason: '외부 발행 결과 로그입니다. 로컬 파이프라인 DB에서 재큐잉하세요.',
+      external_doc_id: result.id,
+      can_archive: true,
       body_available: false,
       body: '',
       preview_html: '',
@@ -2363,6 +2369,28 @@ app.get('/api/pipeline/posts/:id', async (req, res) => {
   }
 
   return fail(res, 404, 'NOT_FOUND', 'pipeline post not found', { id })
+})
+
+app.post('/api/pipeline/external-results/:id/archive', async (req, res) => {
+  const id = String(req.params.id ?? '').trim()
+  if (!id) return fail(res, 400, 'VALIDATION_ERROR', 'external result id is required', {})
+
+  const ref = db.collection('external_publish_results').doc(id)
+  const snap = await ref.get().catch(() => null)
+  if (!snap?.exists) return fail(res, 404, 'NOT_FOUND', 'external publish result not found', { id })
+
+  await ref.set(
+    {
+      archived_at: nowIso(),
+      archived_by: req.user?.uid ?? req.user?.email ?? 'api',
+      archive_reason: typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 300) : 'operator_archived',
+      updated_at: nowIso(),
+    },
+    { merge: true }
+  )
+  await addAuditLog('external_publish.archived', 'external_publish_result', id, req.user?.uid ?? 'admin')
+  const updated = await ref.get()
+  ok(res, { id: updated.id, ...updated.data() })
 })
 
 app.post('/api/source-items/import', async (req, res) => {
