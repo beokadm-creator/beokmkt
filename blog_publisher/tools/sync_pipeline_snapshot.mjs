@@ -29,6 +29,33 @@ function pipelineQuality(body = '', groundingRatio = null) {
   }
 }
 
+function actionForExternalIssue(channel, error = '') {
+  const msg = String(error ?? '')
+  if (channel === 'tistory' && /세션|login|auth|TISTORY/i.test(msg)) return '티스토리 재인증 후 워커 재시작'
+  if (channel === 'naver' && /404|삭제|품질|구조|PASTE|SmartEditor/i.test(msg)) return '네이버 공개상태·본문 품질 확인 후 재발행 판단'
+  if (/세션|login|auth/i.test(msg)) return '채널 세션 재인증'
+  if (/품질|review|grounding|구조/i.test(msg)) return '본문 품질 재검토'
+  return '원인 확인'
+}
+
+function pipelineRequeuePolicy(post) {
+  const error = String(post?.last_error ?? '')
+  if (!post) return { can_requeue: false, reason: 'post not found' }
+  if (!['needs_human', 'failed'].includes(post.status)) {
+    return { can_requeue: false, reason: 'needs_human/failed 상태만 재큐잉 가능' }
+  }
+  if (/세션|login|auth|LOGIN_REQUIRED|AUTH_REQUIRED|NOT_AUTHED|TISTORY/i.test(error)) {
+    return { can_requeue: false, reason: '채널 세션/인증 문제는 재인증 후 수동 재큐잉' }
+  }
+  if (post.channel === 'naver' && /404|삭제|품질|구조|PASTE|SmartEditor|RICH_CONTENT|NAVER_RICH/i.test(error)) {
+    return { can_requeue: false, reason: '네이버 구조 손실/품질 실패 글은 자동 재발행 금지' }
+  }
+  if (!post.body || String(post.body).trim().length < 500) {
+    return { can_requeue: false, reason: '본문이 없거나 너무 짧아 재발행 불가' }
+  }
+  return { can_requeue: true, reason: null }
+}
+
 function collectSnapshot() {
   const db = new Database(DB_PATH, { readonly: true, fileMustExist: true })
   try {
@@ -76,17 +103,24 @@ function collectSnapshot() {
     ).get()
     const needs_human_posts = db.prepare(
       "SELECT id, topic, title, channel, status, body, grounding_ratio, last_error, published_url, updated_at FROM posts WHERE status IN ('needs_human','failed') ORDER BY updated_at DESC LIMIT 12"
-    ).all().map((post) => ({
-      id: post.id,
-      topic: post.title || post.topic || '',
-      title: post.title || post.topic || '',
-      channel: post.channel,
-      status: post.status,
-      last_error: post.last_error || null,
-      published_url: post.published_url || null,
-      quality: pipelineQuality(post.body, post.grounding_ratio),
-      updated_at: post.updated_at,
-    }))
+    ).all().map((post) => {
+      const policy = pipelineRequeuePolicy(post)
+      return {
+        id: post.id,
+        topic: post.title || post.topic || '',
+        title: post.title || post.topic || '',
+        channel: post.channel,
+        status: post.status,
+        last_error: post.last_error || null,
+        published_url: post.published_url || null,
+        quality: pipelineQuality(post.body, post.grounding_ratio),
+        can_requeue: policy.can_requeue,
+        reason: policy.reason,
+        can_archive: false,
+        action: actionForExternalIssue(post.channel, post.last_error || ''),
+        updated_at: post.updated_at,
+      }
+    })
     const recent = db.prepare(
       'SELECT id, topic, title, channel, status, published_url, updated_at FROM posts ORDER BY updated_at DESC LIMIT 10'
     ).all().map((post) => ({

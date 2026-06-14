@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-15 — 관리자 needs_human 보관 액션 보강
+
+네이버 id 67처럼 자동 재시도 금지로 격리된 글은 대시보드에서 "왜 막혔는지"뿐 아니라 검토 완료 후 운영 경고에서 제거할 수 있어야 한다. 로컬 관리자 API에 보관 액션을 추가하고, 대시보드가 로컬 SQLite 항목과 외부 발행 결과 로그를 구분해 보관하도록 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `server/index.mjs` | `/api/pipeline/posts/:id/archive` 추가. `needs_human/failed` 로컬 SQLite 글을 `archived`로 전환하며 기존 오류를 보존 |
+| `server/index.mjs` | 네이버 `PASTE/SmartEditor/RICH_CONTENT` 오류를 재큐잉 금지 정책에 포함 |
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | 스냅샷의 `needs_human_posts`에 `can_requeue`, `reason`, `action`, `can_archive` 필드 추가 |
+| `src/spa/pages/DashboardPage.tsx` | 상세 패널과 목록에서 로컬/외부 보관 액션 분기 처리 |
+| `functions/ssr-template.mjs` | SPA 빌드 산출 템플릿 갱신 |
+
+검증:
+- `npx tsc --noEmit` PASS
+- `node --check server/index.mjs`, `node --check blog_publisher/tools/sync_pipeline_snapshot.mjs` PASS
+- 로컬 `/api/pipeline/stats`에서 id 67이 `can_requeue=false`, `reason=네이버 구조 손실/품질 실패 글은 자동 재발행 금지`, `can_archive=true`로 노출 확인
+- `npm run build:spa` PASS
+- `npm run lint -- .` 0 errors / 기존 warnings 유지
+
+---
+
 ## 2026-06-15 — 채널별 실발행 검증과 네이버 구조손실 재시도 차단
 
 자체 블로그·티스토리·네이버를 각각 1건씩 실제 발행 경로로 실행했다. 자체 블로그와 티스토리는 공개 URL 200 응답과 이미지/표 보존을 확인했고, 네이버는 SmartEditor에 긴 리치 원고를 붙여넣는 과정에서 이미지·표 구조가 깨지는 것을 확인해 자동 발행을 차단했다.

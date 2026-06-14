@@ -2088,8 +2088,8 @@ function pipelineRequeuePolicy(row) {
   if (/세션|login|auth|LOGIN_REQUIRED|AUTH_REQUIRED|NOT_AUTHED|TISTORY/i.test(error)) {
     return { can_requeue: false, reason: '채널 세션/인증 문제는 재인증 후 수동 재큐잉' }
   }
-  if (row.channel === 'naver' && /404|삭제|품질/i.test(error)) {
-    return { can_requeue: false, reason: '네이버에서 삭제/품질 처리된 글은 자동 재발행 금지' }
+  if (row.channel === 'naver' && /404|삭제|품질|구조|PASTE|SmartEditor|RICH_CONTENT|NAVER_RICH/i.test(error)) {
+    return { can_requeue: false, reason: '네이버 구조 손실/품질 실패 글은 자동 재발행 금지' }
   }
   if (!row.body || String(row.body).trim().length < 500) {
     return { can_requeue: false, reason: '본문이 없거나 너무 짧아 재발행 불가' }
@@ -2256,19 +2256,24 @@ app.get('/api/pipeline/stats', (req, res) => {
     const needs_human_posts = db.prepare(
       "SELECT id, topic, title, channel, status, body, grounding_ratio, last_error, published_url, updated_at FROM posts WHERE status IN ('needs_human','failed') ORDER BY updated_at DESC LIMIT 12"
     ).all()
-      .map((post) => ({
-        id: post.id,
-        topic: post.title || post.topic || '',
-        title: post.title || post.topic || '',
-        channel: post.channel,
-        status: post.status,
-        last_error: post.last_error || null,
-        published_url: post.published_url || null,
-        updated_at: post.updated_at,
-        quality: pipelineQuality(String(post.body ?? ''), post.grounding_ratio),
-        ...pipelineRequeuePolicy(post),
-        action: actionForExternalIssue(post.channel, post.last_error || ''),
-      }))
+      .map((post) => {
+        const policy = pipelineRequeuePolicy(post)
+        return {
+          id: post.id,
+          topic: post.title || post.topic || '',
+          title: post.title || post.topic || '',
+          channel: post.channel,
+          status: post.status,
+          last_error: post.last_error || null,
+          published_url: post.published_url || null,
+          updated_at: post.updated_at,
+          quality: pipelineQuality(String(post.body ?? ''), post.grounding_ratio),
+          can_requeue: policy.can_requeue,
+          reason: policy.reason,
+          can_archive: true,
+          action: actionForExternalIssue(post.channel, post.last_error || ''),
+        }
+      })
 
     const recent = db.prepare(
       'SELECT id, topic, channel, status, published_url, updated_at FROM posts ORDER BY updated_at DESC LIMIT 10'
@@ -2351,6 +2356,7 @@ app.get('/api/pipeline/posts/:id', (req, res) => {
       action: actionForExternalIssue(row.channel, row.last_error || ''),
       can_requeue: policy.can_requeue,
       requeue_block_reason: policy.reason,
+      can_archive: ['needs_human', 'failed'].includes(row.status),
       quality: pipelineQuality(body, row.grounding_ratio),
       body,
       preview_html: /<(h[1-6]|p|ul|ol|li|blockquote|img|figure)\b/i.test(body)
@@ -2388,6 +2394,41 @@ app.post('/api/pipeline/posts/:id/requeue', (req, res) => {
     ).run(id)
     const next = db.prepare('SELECT id, channel, status, next_run_at, updated_at FROM posts WHERE id = ?').get(id)
     ok(res, { ...next, requeued: true })
+  } catch (e) {
+    fail(res, 500, 'PIPELINE_DB_ERROR', e instanceof Error ? e.message : 'pipeline db error', {})
+  } finally {
+    if (db) db.close()
+  }
+})
+
+app.post('/api/pipeline/posts/:id/archive', (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id <= 0) return fail(res, 400, 'VALIDATION_ERROR', 'numeric pipeline post id is required', {})
+
+  let db
+  try {
+    db = openPipelineDbWritable()
+    const row = db.prepare('SELECT id, status FROM posts WHERE id = ?').get(id)
+    if (!row) return fail(res, 404, 'NOT_FOUND', 'pipeline post not found', { id })
+    if (!['needs_human', 'failed'].includes(row.status)) {
+      return fail(res, 409, 'ARCHIVE_BLOCKED', 'needs_human/failed 상태만 보관할 수 있습니다.', { id, status: row.status })
+    }
+    const reason = typeof req.body?.reason === 'string' && req.body.reason.trim()
+      ? req.body.reason.trim().slice(0, 300)
+      : 'operator_reviewed'
+    const archivedMsg = `ARCHIVED: ${reason}`
+    db.prepare(
+      `UPDATE posts
+       SET status='archived',
+           last_error = CASE
+             WHEN last_error IS NULL OR last_error = '' THEN @archivedMsg
+             ELSE @archivedMsg || ' | previous: ' || substr(last_error, 1, 800)
+           END,
+           updated_at=datetime('now')
+       WHERE id = @id AND status IN ('needs_human','failed')`
+    ).run({ id, archivedMsg })
+    const next = db.prepare('SELECT id, channel, status, updated_at FROM posts WHERE id = ?').get(id)
+    ok(res, { ...next, archived: true, reason })
   } catch (e) {
     fail(res, 500, 'PIPELINE_DB_ERROR', e instanceof Error ? e.message : 'pipeline db error', {})
   } finally {

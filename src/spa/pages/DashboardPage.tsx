@@ -420,15 +420,19 @@ function DetailPanel({
   loading,
   error,
   requeueing,
+  archiving,
   onClose,
   onRequeue,
+  onArchive,
 }: {
   detail: PipelinePostDetail | null
   loading: boolean
   error: string | null
   requeueing: boolean
+  archiving: boolean
   onClose: () => void
   onRequeue: () => void
+  onArchive: () => void
 }) {
   if (!detail && !loading && !error) return null
 
@@ -476,6 +480,19 @@ function DetailPanel({
                 ].join(' ')}
               >
                 {requeueing ? '큐 등록 중...' : '재시도 큐 등록'}
+              </button>
+              <button
+                type="button"
+                disabled={!detail.can_archive || archiving}
+                onClick={onArchive}
+                className={[
+                  'mt-2 h-8 w-full rounded-lg border px-3 text-xs',
+                  detail.can_archive
+                    ? 'border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800'
+                    : 'cursor-not-allowed border-zinc-800 bg-zinc-900/40 text-zinc-600',
+                ].join(' ')}
+              >
+                {archiving ? '보관 중...' : '확인 완료 보관'}
               </button>
             </div>
 
@@ -573,23 +590,35 @@ export default function DashboardPage() {
     }
   }, [detail, fetchStats, openDetail])
 
-  const archiveExternalResult = useCallback(async (post: Pick<NeedsHumanPost, 'id' | 'external_doc_id'>) => {
-    const externalId = post.external_doc_id || String(post.id)
-    setArchivingId(externalId)
+  const archivePost = useCallback(async (post: Pick<NeedsHumanPost, 'id' | 'external_doc_id'>) => {
+    const archiveId = post.external_doc_id || String(post.id)
+    setArchivingId(archiveId)
     setDetailError(null)
     try {
-      await apiJson(`/api/pipeline/external-results/${encodeURIComponent(externalId)}/archive`, {
-        method: 'POST',
-        body: JSON.stringify({ reason: 'operator_reviewed' }),
-      })
+      if (post.external_doc_id) {
+        await apiJson(`/api/pipeline/external-results/${encodeURIComponent(post.external_doc_id)}/archive`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: 'operator_reviewed' }),
+        })
+      } else {
+        await apiJson(`/api/pipeline/posts/${encodeURIComponent(String(post.id))}/archive`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: 'operator_reviewed' }),
+        })
+      }
       await fetchStats()
-      if (detail?.external_doc_id === externalId) setDetail(null)
+      if (detail && String(detail.id) === String(post.id)) setDetail(null)
     } catch (e) {
-      setDetailError(errorMessage(e, '외부 실패 보관 실패'))
+      setDetailError(errorMessage(e, '보관 실패'))
     } finally {
       setArchivingId(null)
     }
   }, [detail, fetchStats])
+
+  const archiveSelected = useCallback(async () => {
+    if (!detail) return
+    await archivePost({ id: detail.id, external_doc_id: detail.external_doc_id })
+  }, [archivePost, detail])
 
   useEffect(() => {
     fetchStats()
@@ -690,11 +719,13 @@ export default function DashboardPage() {
         loading={detailLoading}
         error={detailError}
         requeueing={requeueing}
+        archiving={Boolean(detail && archivingId === (detail.external_doc_id || String(detail.id)))}
         onClose={() => {
           setDetail(null)
           setDetailError(null)
         }}
         onRequeue={requeueSelected}
+        onArchive={archiveSelected}
       />
 
       {/* 채널별 현황 */}
@@ -781,7 +812,7 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       disabled={archivingId === (post.external_doc_id || String(post.id))}
-                      onClick={() => archiveExternalResult(post)}
+                      onClick={() => archivePost(post)}
                       className="rounded-md border border-zinc-800 px-2 py-1 text-center text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:text-zinc-700"
                     >
                       {archivingId === (post.external_doc_id || String(post.id)) ? '보관 중' : '보관'}
