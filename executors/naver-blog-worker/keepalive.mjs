@@ -8,6 +8,12 @@ const NAV_TIMEOUT = Number(process.env.NAVER_BLOG_TIMEOUT_MS || '60000')
 const NAVER_STORAGE = path.resolve(process.env.NAVER_BLOG_STORAGE_STATE_PATH || './.session/naver-session.json')
 const TISTORY_STORAGE = path.resolve(process.env.TISTORY_SESSION_PATH || './.session/tistory-session.json')
 const CHROME_PROFILE = path.resolve(process.env.CHROME_PROFILE_PATH || `${process.env.HOME}/Library/Application Support/Google/Chrome/Profile 1`)
+const NAVER_BLOG_ID = process.env.NAVER_BLOG_ID || ''
+const NAVER_WRITE_URL = process.env.NAVER_BLOG_WRITE_URL || (
+  NAVER_BLOG_ID
+    ? `https://blog.naver.com/PostWriteForm.naver?blogId=${encodeURIComponent(NAVER_BLOG_ID)}&Redirect=Write&redirect=Write`
+    : 'https://blog.naver.com/PostWrite.naver'
+)
 
 function log(level, ...args) {
   const ts = new Date().toISOString()
@@ -58,7 +64,7 @@ async function main() {
   try {
     const naverExists = await readJsonIfExists(NAVER_STORAGE)
     if (naverExists) {
-      results.naver = await probeSession('naver', NAVER_STORAGE, 'https://blog.naver.com/PostWrite.naver', ['nid.naver.com'])
+      results.naver = await probeSession('naver', NAVER_STORAGE, NAVER_WRITE_URL, ['nid.naver.com'])
       log('info', `naver: ${results.naver.ok ? 'session refreshed ✓' : results.naver.expired ? '세션 만료 ✗ (재로그인 필요)' : 'failed ✗'} (${results.naver.before} → ${results.naver.after})`)
     } else {
       log('info', 'naver: 세션 없음 (npm run login 필요)')

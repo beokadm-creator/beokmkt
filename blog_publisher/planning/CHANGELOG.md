@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-06-14 — 네이버 글쓰기 URL/SmartEditor ONE 셀렉터 수정
+
+| 대상 | 내용 |
+|---|---|
+| `executors/naver-blog-worker/index.mjs` | `PostWrite.naver` 구 URL → `PostWriteForm.naver?blogId=...&Redirect=Write` 지원. `NAVER_BLOG_ID`/`NAVER_BLOG_WRITE_URL` 환경변수 추가 |
+| `executors/naver-blog-worker/index.mjs` | 네이버 제목 입력을 `input` 기반에서 SmartEditor ONE의 `.se-title-text`/contenteditable 구조까지 지원 |
+| `executors/naver-blog-worker/index.mjs` | 본문 붙여넣기 대상을 구 iframe 우선에서 현재 `.se-section-text` 본문 영역 우선으로 변경 |
+| `executors/naver-blog-worker/keepalive.mjs` | keepalive도 동일한 글쓰기 URL 빌더 사용 |
+| `executors/naver-blog-worker/.env.example` | `NAVER_BLOG_ID` 예시 추가 |
+
+검증: Node Playwright로 `beoksolution` 글쓰기 화면 진입 확인, 제목/본문 타깃 visible 확인, 발행 버튼 클릭 없이 입력 스모크 테스트 통과.
+
+---
+
 ## 2026-06-14 — 프론트 lint 정리 (npm run lint 통과)
 
 | 대상 | 내용 |

@@ -17,6 +17,7 @@ const MAIN_API_URL = (process.env.MAIN_API_URL || 'http://localhost:8787').repla
 const MAIN_API_TOKEN = process.env.MAIN_API_TOKEN || ''
 
 const NAVER_USERNAME = process.env.NAVER_BLOG_USERNAME || ''
+const NAVER_BLOG_ID = process.env.NAVER_BLOG_ID || ''
 const HEADLESS = process.env.NAVER_BLOG_HEADLESS !== 'false'
 const SLOW_MO = Number(process.env.NAVER_BLOG_SLOW_MO || '0')
 const NAV_TIMEOUT = Number(process.env.NAVER_BLOG_TIMEOUT_MS || '60000')
@@ -24,7 +25,11 @@ const STORAGE_PATH = path.resolve(
   process.env.NAVER_BLOG_STORAGE_STATE_PATH || './.session/naver-session.json'
 )
 
-const WRITE_URL = 'https://blog.naver.com/PostWrite.naver'
+const WRITE_URL = process.env.NAVER_BLOG_WRITE_URL || (
+  NAVER_BLOG_ID
+    ? `https://blog.naver.com/PostWriteForm.naver?blogId=${encodeURIComponent(NAVER_BLOG_ID)}&Redirect=Write&redirect=Write`
+    : 'https://blog.naver.com/PostWrite.naver'
+)
 const LOGIN_URL = 'https://nid.naver.com/nidlogin.login'
 
 // 멱등성: 발행 성공 기록(post_id+platform). 재시도 시 중복 발행 방지.
@@ -90,8 +95,15 @@ async function loginIfNeeded(page) {
 
 async function pasteHtmlIntoEditor(page, html) {
   await page.bringToFront()
-  const editorFrame = page.frameLocator('iframe[id*="se2_editor"], iframe[title*="스마트에디터"], iframe#se2_editor').first()
-  await editorFrame.locator('body').click({ delay: 100 }).catch(() => {})
+  const smartEditorBody = page.locator(
+    '.se-section-text .se-text-paragraph, .se-component.se-text .se-text-paragraph, .se-module.se-module-text:not(.se-title-text) .se-text-paragraph'
+  ).first()
+  if ((await smartEditorBody.count()) > 0 && (await smartEditorBody.isVisible().catch(() => false))) {
+    await smartEditorBody.click({ delay: 100 })
+  } else {
+    const editorFrame = page.frameLocator('iframe[id*="se2_editor"], iframe[title*="스마트에디터"], iframe#se2_editor').first()
+    await editorFrame.locator('body').click({ delay: 100 }).catch(() => {})
+  }
 
   await page.evaluate(async (htmlPayload) => {
     const blob = new Blob([htmlPayload], { type: 'text/html' })
@@ -102,6 +114,29 @@ async function pasteHtmlIntoEditor(page, html) {
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
   await page.keyboard.press(`${modifier}+KeyV`)
   await page.waitForTimeout(800)
+}
+
+async function fillNaverTitle(page, title) {
+  const selectors = [
+    '.se-title-text .se-text-paragraph',
+    '.se-documentTitle .se-text-paragraph',
+    '.se-title-text',
+    'input[name="title"]',
+    '#title',
+    '.se_title_input input',
+    'input[placeholder*="제목"]',
+  ]
+  for (const sel of selectors) {
+    const handle = page.locator(sel).first()
+    if ((await handle.count()) > 0 && (await handle.isVisible().catch(() => false))) {
+      await handle.click({ timeout: 5000 })
+      const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
+      await page.keyboard.press(`${modifier}+KeyA`).catch(() => {})
+      await page.keyboard.insertText(title)
+      return true
+    }
+  }
+  throw new WorkerError('TITLE_INPUT_NOT_FOUND', '네이버 제목 입력 영역을 찾지 못했습니다.')
 }
 
 async function clickPublishButton(page) {
@@ -193,9 +228,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
     await page.waitForTimeout(2000)
     await dismissDraftRestorePopup(page)
 
-    const titleInput = page.locator('input[name="title"], #title, .se_title_input input, input[placeholder*="제목"]').first()
-    await titleInput.waitFor({ state: 'visible', timeout: 10000 })
-    await titleInput.fill(publishTitle)
+    await fillNaverTitle(page, publishTitle)
 
     await pasteHtmlIntoEditor(page, naverHtml)
 
