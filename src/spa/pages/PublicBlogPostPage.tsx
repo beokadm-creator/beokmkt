@@ -76,6 +76,12 @@ function enhanceContent(html: string) {
   }
 }
 
+function wordCountForJsonLd(html: string) {
+  const plain = stripHtml(html)
+  if (!plain) return undefined
+  return plain.split(/\s+/).filter(Boolean).length
+}
+
 function isConferenceBadgePost(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
   const haystack = `${post.title} ${post.category} ${(post.tags ?? []).join(' ')}`
   return /학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)
@@ -112,9 +118,73 @@ type BlogPost = {
   content_schema?: BeoksolutionLandingSchema | null
 }
 
+function relatedScore(current: BlogPost, candidate: BlogPost) {
+  if (current.id === candidate.id) return -1
+  if (current.slug && candidate.slug && current.slug === candidate.slug) return -1
+  if (current.title.trim() === candidate.title.trim()) return -1
+  const currentTags = new Set((current.tags ?? []).map((tag) => tag.toLowerCase()))
+  const candidateTags = (candidate.tags ?? []).map((tag) => tag.toLowerCase())
+  const tagOverlap = candidateTags.filter((tag) => currentTags.has(tag)).length
+  const categoryMatch = current.category && candidate.category === current.category ? 1 : 0
+  const conferenceMatch = isConferenceBadgePost(current) && isConferenceBadgePost(candidate) ? 1 : 0
+  return tagOverlap * 3 + categoryMatch * 2 + conferenceMatch
+}
+
+function pickRelatedPosts(current: BlogPost, posts: BlogPost[], limit = 3) {
+  return posts
+    .map((candidate) => ({ candidate, score: relatedScore(current, candidate) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      const da = a.candidate.published_at ?? a.candidate.created_at
+      const db = b.candidate.published_at ?? b.candidate.created_at
+      return db.localeCompare(da)
+    })
+    .slice(0, limit)
+    .map((entry) => entry.candidate)
+}
+
+function RelatedPostsSection({ posts }: { posts: BlogPost[] }) {
+  if (!posts.length) return null
+  return (
+    <section className="mt-10 rounded-lg border border-white/10 bg-white/[0.04] p-5">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-200">NEXT READING</p>
+          <h2 className="mt-2 text-xl font-black text-white">함께 읽으면 좋은 글</h2>
+        </div>
+        <Link to="/blog/" className="shrink-0 text-xs font-semibold text-zinc-400 hover:text-white">
+          전체 보기
+        </Link>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        {posts.map((item) => (
+          <Link
+            key={item.id}
+            to={`/blog/${encodeURIComponent(item.slug || item.id)}`}
+            className="group rounded-lg border border-zinc-800 bg-zinc-950/70 p-4 hover:border-yellow-300/60 hover:bg-zinc-900"
+          >
+            <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+              <span>{displayCategory(item)}</span>
+              <span>{new Date(item.published_at ?? item.created_at).toLocaleDateString('ko-KR')}</span>
+            </div>
+            <h3 className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-zinc-100 group-hover:text-yellow-100">
+              {item.title}
+            </h3>
+            <p className="mt-2 line-clamp-3 text-xs leading-5 text-zinc-500">
+              {item.seo_description || item.excerpt || '관련 운영 기준을 정리한 글입니다.'}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function PublicBlogPostPage() {
   const { slug } = useParams()
   const [post, setPost] = useState<BlogPost | null>(null)
+  const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -138,9 +208,30 @@ export default function PublicBlogPostPage() {
 
   useEffect(() => {
     if (!post) return
+
+    const controller = new AbortController()
+    fetch('/api/blog-posts?status=published&limit=50', { signal: controller.signal })
+      .then(async (r) => {
+        const payload = await r.json().catch(() => null)
+        if (!r.ok) throw new Error('관련 글을 불러오지 못했습니다.')
+        return (payload?.data ?? payload)?.items ?? []
+      })
+      .then((items: BlogPost[]) => setRelatedPosts(pickRelatedPosts(post, items)))
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        setRelatedPosts([])
+      })
+
+    return () => controller.abort()
+  }, [post])
+
+  useEffect(() => {
+    if (!post) return
     const canonical = `${window.location.origin}/blog/${encodeURIComponent(post.slug || post.id)}`
     const description = post.seo_description || post.excerpt || `${post.title} 블로그 글`
     const category = displayCategory(post)
+    const contentStats = enhanceContent(normalizeRenderedContent(post.content || ''))
+    const wordCount = wordCountForJsonLd(post.content || '')
     applySeo({
       title: post.seo_title || post.title,
       description,
@@ -162,6 +253,8 @@ export default function PublicBlogPostPage() {
           dateModified: post.updated_at ?? post.published_at ?? post.created_at,
           inLanguage: 'ko-KR',
           articleSection: category,
+          wordCount,
+          timeRequired: `PT${contentStats.readingMinutes}M`,
           keywords: (post.tags ?? []).join(', '),
           image: post.featured_image ? [post.featured_image] : undefined,
           author: {
@@ -283,6 +376,8 @@ export default function PublicBlogPostPage() {
                 dangerouslySetInnerHTML={{ __html: content.html }}
               />
             )}
+
+            <RelatedPostsSection posts={relatedPosts} />
           </article>
 
           <aside className="hidden lg:block">
