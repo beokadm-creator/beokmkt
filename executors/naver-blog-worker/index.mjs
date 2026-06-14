@@ -608,7 +608,7 @@ async function publishToTistory({ title, content_html, tags, link, canonical_url
     })
     log('info', `티스토리용 재작성 ${rewritten.rewritten ? '완료' : '건너뜀(원문 사용)'} — 제목: ${rewritten.title}`)
 
-    log('info', '티스토리 HTML 변환 (AI) 시작…')
+    log('info', '티스토리 HTML 변환 시작…')
     const convertedHtml = await convertForTistory(rewritten.html)
     log('info', `티스토리 HTML 변환 완료 (${convertedHtml.length}자)`)
     const result = await tistoryWritePost({ title: rewritten.title, content_html: convertedHtml, tags })

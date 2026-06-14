@@ -143,6 +143,16 @@ function hasEnoughRichStructure(html) {
   return headings >= 3 && lists >= 1 && listItems >= 3 && (tables + callouts + bolds) >= 2
 }
 
+function hasTistorySemanticRisk(text) {
+  const value = String(text ?? '').replace(/\s+/g, ' ')
+  const riskyPatterns = [
+    /핵심은\s*단순히[^.?!]{0,80}기능에\s*있(?:습니다|다)/,
+    /중요한\s*것은\s*단순히[^.?!]{0,80}기능에\s*있(?:습니다|다)/,
+    /목적은\s*단순히[^.?!]{0,80}기능에\s*있(?:습니다|다)/,
+  ]
+  return riskyPatterns.some((pattern) => pattern.test(value))
+}
+
 function sanitizeAllowedHtml(html) {
   return String(html ?? '')
     .replace(/<\/?(?:s|strike|del)\b[^>]*>/gi, '')
@@ -207,6 +217,10 @@ ${guide}`
       }
       if (!hasEnoughRichStructure(newHtml)) {
         console.warn('[channel-rewriter] tistory 재작성 구조가 부족해 원문 사용')
+        return fallback
+      }
+      if (hasTistorySemanticRisk(`${newTitle}\n${stripToPlainText(newHtml)}`)) {
+        console.warn('[channel-rewriter] tistory 재작성 의미 반전 위험 문장이 있어 원문 사용')
         return fallback
       }
     }
