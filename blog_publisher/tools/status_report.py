@@ -20,6 +20,32 @@ STATUSES = [
 INVENTORY_STATUSES = ("draft", "generating", "factchecking", "reviewing", "reviewed")
 
 
+def _focus_inventory_by_channel() -> dict[str, int]:
+    terms = config.AUTO_SEED_REQUIRED_TERMS
+    if not terms:
+        return {}
+    placeholders = ",".join("?" for _ in INVENTORY_STATUSES)
+    like_clause = " OR ".join("topic LIKE ?" for _ in terms)
+    params = (
+        *INVENTORY_STATUSES,
+        config.AUTO_SEED_BRAND_FILTER,
+        *[f"%{term}%" for term in terms],
+    )
+    with db.connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT channel, COUNT(*) AS n
+            FROM posts
+            WHERE status IN ({placeholders})
+              AND category = ?
+              AND ({like_clause})
+            GROUP BY channel
+            """,
+            params,
+        ).fetchall()
+    return {row["channel"]: int(row["n"]) for row in rows}
+
+
 def report() -> dict[str, int]:
     counts = {s: db.count_by_status(s) for s in STATUSES}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -51,6 +77,7 @@ def report() -> dict[str, int]:
     by_channel: dict[str, dict[str, int]] = {}
     for row in channel_rows:
         by_channel.setdefault(row["channel"], {})[row["status"]] = int(row["n"])
+    focus_inventory = _focus_inventory_by_channel()
 
     print("\n=== 채널별 현황 ===")
     for channel in sorted(by_channel):
@@ -59,6 +86,7 @@ def report() -> dict[str, int]:
         active_queue = row.get("queued", 0) + row.get("publishing", 0)
         print(
             f"  {channel:10} inventory={inventory:>3} "
+            f"focus={focus_inventory.get(channel, 0):>3} "
             f"queued={active_queue:>3} published={row.get('published', 0):>3} "
             f"needs_human={row.get('needs_human', 0):>3} failed={row.get('failed', 0):>3}"
         )
@@ -79,6 +107,15 @@ def report() -> dict[str, int]:
               f"(stock_seed/generate 확인)")
     else:
         print(f"  [정상] 전발행 재고 충분: inventory={inventory} (목표 {buffer_target})")
+
+    focus_total = sum(focus_inventory.values())
+    if focus_total < buffer_target:
+        print(
+            f"  [경고] 목표 주제 재고 부족: focus_inventory={focus_total} < 목표 {buffer_target} "
+            f"({config.BLOG_FOCUS_NAME})"
+        )
+    else:
+        print(f"  [정상] 목표 주제 재고 충분: focus_inventory={focus_total} (목표 {buffer_target})")
 
     if counts["reviewed"] < buffer_target:
         print(f"  [진행] reviewed 전환 대기: reviewed={counts['reviewed']} < 목표 {buffer_target} "

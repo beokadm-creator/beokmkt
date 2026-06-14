@@ -40,6 +40,13 @@ function readEnvString(key, fallback = '') {
   }
 }
 
+function readEnvList(key, fallback = '') {
+  return readEnvString(key, fallback)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 function qualityGateStatus() {
   const minGrounding = readEnvNumber('MIN_GROUNDING_RATIO', 0.9)
   const minReviewScore = readEnvNumber('MIN_REVIEW_SCORE', 80)
@@ -94,6 +101,29 @@ function sessionFileHealth(channel, relativePath) {
       size: 0,
     }
   }
+}
+
+function collectFocusInventory(db) {
+  const brand = readEnvString('AUTO_SEED_BRAND_FILTER', 'beok')
+  const terms = readEnvList(
+    'AUTO_SEED_REQUIRED_TERMS',
+    '학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드',
+  )
+  const result = Object.fromEntries(CHANNELS.map((channel) => [channel, 0]))
+  if (!brand || terms.length === 0) return result
+  const statusPlaceholders = INVENTORY_STATUSES.map(() => '?').join(',')
+  const likeClause = terms.map(() => 'topic LIKE ?').join(' OR ')
+  for (const row of db.prepare(
+    `SELECT channel, COUNT(*) AS n
+     FROM posts
+     WHERE status IN (${statusPlaceholders})
+       AND category = ?
+       AND (${likeClause})
+     GROUP BY channel`
+  ).all(...INVENTORY_STATUSES, brand, ...terms.map((term) => `%${term}%`))) {
+    if (row.channel in result) result[row.channel] = row.n
+  }
+  return result
 }
 
 function channelSessionHealth() {
@@ -429,6 +459,8 @@ async function collectSnapshot() {
 
     const reviewedTarget = Number(process.env.DAILY_PUBLISH_TARGET || 5) * Number(process.env.STOCK_BUFFER_DAYS || 3)
     const inventory = INVENTORY_STATUSES.reduce((sum, status) => sum + (by_status[status] || 0), 0)
+    const focus_inventory_by_channel = collectFocusInventory(db)
+    const focus_inventory = Object.values(focus_inventory_by_channel).reduce((sum, n) => sum + n, 0)
     const stuckThresholdMin = Number(process.env.STUCK_THRESHOLD_MIN || 35)
     const dueRow = db.prepare("SELECT COUNT(*) AS n FROM posts WHERE status='queued' AND next_run_at <= datetime('now')").get()
     const nextQueuedRow = db.prepare("SELECT MIN(next_run_at) AS next_queued_at FROM posts WHERE status='queued'").get()
@@ -532,6 +564,9 @@ async function collectSnapshot() {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
         inventory,
+        focus_name: readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'),
+        focus_inventory,
+        focus_inventory_by_channel,
         reviewed: by_status.reviewed,
         queued: by_status.queued,
         queued_due: dueRow?.n ?? 0,

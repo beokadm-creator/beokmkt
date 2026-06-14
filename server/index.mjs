@@ -49,6 +49,13 @@ function readPipelineEnvString(key, fallback = '') {
   }
 }
 
+function readPipelineEnvList(key, fallback = '') {
+  return readPipelineEnvString(key, fallback)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 function pipelineQualityGateStatus() {
   const minGrounding = readPipelineEnvNumber('MIN_GROUNDING_RATIO', 0.9)
   const minReviewScore = readPipelineEnvNumber('MIN_REVIEW_SCORE', 80)
@@ -110,6 +117,30 @@ function channelSessionHealth() {
     sessionFileHealth('naver', './.session/naver-session.json'),
     sessionFileHealth('tistory', './.session/tistory-session.json'),
   ]
+}
+
+function collectPipelineFocusInventory(db, channels) {
+  const brand = readPipelineEnvString('AUTO_SEED_BRAND_FILTER', 'beok')
+  const terms = readPipelineEnvList(
+    'AUTO_SEED_REQUIRED_TERMS',
+    '학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드',
+  )
+  const inventoryStatuses = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed']
+  const result = Object.fromEntries(channels.map((channel) => [channel, 0]))
+  if (!brand || terms.length === 0) return result
+  const statusPlaceholders = inventoryStatuses.map(() => '?').join(',')
+  const likeClause = terms.map(() => 'topic LIKE ?').join(' OR ')
+  for (const row of db.prepare(
+    `SELECT channel, COUNT(*) AS n
+     FROM posts
+     WHERE status IN (${statusPlaceholders})
+       AND category = ?
+       AND (${likeClause})
+     GROUP BY channel`
+  ).all(...inventoryStatuses, brand, ...terms.map((term) => `%${term}%`))) {
+    if (row.channel in result) result[row.channel] = row.n
+  }
+  return result
 }
 
 function openPipelineDb() {
@@ -2539,6 +2570,8 @@ app.get('/api/pipeline/stats', async (req, res) => {
     const reviewedTarget = Number(process.env.DAILY_PUBLISH_TARGET || 5) * Number(process.env.STOCK_BUFFER_DAYS || 3)
     const inventory = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed']
       .reduce((sum, status) => sum + (by_status[status] || 0), 0)
+    const focusInventoryByChannel = collectPipelineFocusInventory(db, CHANNELS)
+    const focusInventory = Object.values(focusInventoryByChannel).reduce((sum, n) => sum + n, 0)
     const stuckThresholdMin = Number(process.env.STUCK_THRESHOLD_MIN || 35)
     const dueRow = db.prepare(
       "SELECT COUNT(*) AS n FROM posts WHERE status='queued' AND next_run_at <= datetime('now')"
@@ -2615,6 +2648,9 @@ app.get('/api/pipeline/stats', async (req, res) => {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
         inventory,
+        focus_name: readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행'),
+        focus_inventory: focusInventory,
+        focus_inventory_by_channel: focusInventoryByChannel,
         reviewed: by_status.reviewed,
         queued: by_status.queued,
         queued_due: dueRow?.n ?? 0,

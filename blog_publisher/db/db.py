@@ -407,3 +407,24 @@ def archive_posts(post_ids: list[int], reason: str = "operator_reviewed") -> int
             (archived_msg, archived_msg, now, *post_ids),
         )
         return cur.rowcount
+
+
+def quarantine_posts(post_ids: list[int], reason: str = "operator_quarantine") -> int:
+    """아직 공개되지 않은 글을 삭제하지 않고 운영 대상에서 격리한다."""
+    if not post_ids:
+        return 0
+    now = _iso(_utcnow())
+    placeholders = ",".join("?" for _ in post_ids)
+    archived_msg = f"ARCHIVED: {reason}"
+    with connect() as conn:
+        cur = conn.execute(
+            f"UPDATE posts SET status = 'archived', "
+            f"last_error = CASE "
+            f"  WHEN last_error IS NULL OR last_error = '' THEN ? "
+            f"  ELSE ? || ' | previous: ' || substr(last_error, 1, 800) "
+            f"END, updated_at = ? "
+            f"WHERE id IN ({placeholders}) "
+            f"AND status IN ('draft', 'reviewed', 'queued', 'generating', 'factchecking', 'reviewing')",
+            (archived_msg, archived_msg, now, *post_ids),
+        )
+        return cur.rowcount

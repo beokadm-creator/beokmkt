@@ -21,6 +21,11 @@ def run(argv: list[str] | None = None) -> bool:
     parser.add_argument("ids", nargs="*", type=int, help="보관할 post id")
     parser.add_argument("--all-reviewed", action="store_true", help="현재 needs_human/failed 전체 보관")
     parser.add_argument("--reason", default="operator_reviewed", help="보관 사유")
+    parser.add_argument(
+        "--quarantine",
+        action="store_true",
+        help="미공개 draft/reviewed/queued 글도 운영 대상에서 격리",
+    )
     args = parser.parse_args(argv)
 
     ids = _candidate_ids() if args.all_reviewed else args.ids
@@ -28,7 +33,7 @@ def run(argv: list[str] | None = None) -> bool:
         print("보관할 id가 없습니다.")
         return True
 
-    n = db.archive_posts(ids, args.reason)
+    n = db.quarantine_posts(ids, args.reason) if args.quarantine else db.archive_posts(ids, args.reason)
     print(f"보관 완료: {n}/{len(ids)}건")
     if n:
         print("ids:", ", ".join(str(i) for i in ids))

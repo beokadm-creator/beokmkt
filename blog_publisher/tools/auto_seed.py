@@ -36,12 +36,34 @@ def _existing_topics() -> set[str]:
     return {_normalize(r["topic"]) for r in rows}
 
 
-def _inventory_count() -> int:
+def _matches_focus(topic: str = "", brand_key: str = "") -> bool:
+    brand_filter = (config.AUTO_SEED_BRAND_FILTER or "").strip()
+    if brand_filter and brand_key != brand_filter:
+        return False
+    terms = config.AUTO_SEED_REQUIRED_TERMS
+    if not terms:
+        return True
+    return any(term in (topic or "") for term in terms)
+
+
+def _inventory_count(channel: str) -> int:
     placeholders = ",".join("?" for _ in INVENTORY_STATUSES)
     with db.connect() as conn:
         row = conn.execute(
-            f"SELECT COUNT(*) AS n FROM posts WHERE status IN ({placeholders})",
-            INVENTORY_STATUSES,
+            f"""
+            SELECT COUNT(*) AS n
+            FROM posts
+            WHERE channel = ?
+              AND status IN ({placeholders})
+              AND category = ?
+              AND ({' OR '.join(['topic LIKE ?' for _ in config.AUTO_SEED_REQUIRED_TERMS])})
+            """,
+            (
+                channel,
+                *INVENTORY_STATUSES,
+                config.AUTO_SEED_BRAND_FILTER,
+                *[f"%{term}%" for term in config.AUTO_SEED_REQUIRED_TERMS],
+            ),
         ).fetchone()
     return int(row["n"])
 
@@ -61,6 +83,8 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
     for topic, content_type, brand_key in KEYWORDS:
         if created >= max_seeds:
             break
+        if not _matches_focus(topic, brand_key):
+            continue
         if _normalize(topic) in existing:
             continue
 
@@ -84,10 +108,10 @@ def run_stock(channel: str = "selfhosted", target: int | None = None) -> int:
     queued는 이미 발행 예약으로 빠져나간 물량이므로 새 재고 계산에서 제외한다.
     """
     target = target or (config.DAILY_PUBLISH_TARGET * config.STOCK_BUFFER_DAYS)
-    current = _inventory_count()
+    current = _inventory_count(channel)
     missing = max(0, target - current)
     if missing == 0:
-        print(f"  재고 충분: inventory={current} / target={target}")
+        print(f"  목표 주제 재고 충분: channel={channel} inventory={current} / target={target}")
         return 0
-    print(f"  재고 보충 필요: inventory={current} / target={target}, seed={missing}")
+    print(f"  목표 주제 재고 보충 필요: channel={channel} inventory={current} / target={target}, seed={missing}")
     return run(channel=channel, max_seeds=missing)

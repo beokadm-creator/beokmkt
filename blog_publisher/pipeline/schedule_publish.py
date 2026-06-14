@@ -17,6 +17,17 @@ import config
 from db import db
 
 
+def _matches_focus(post) -> bool:
+    brand_filter = (config.AUTO_SEED_BRAND_FILTER or "").strip()
+    if brand_filter and post["category"] != brand_filter:
+        return False
+    terms = config.AUTO_SEED_REQUIRED_TERMS
+    if not terms:
+        return True
+    text = f"{post['topic'] or ''} {post['title'] or ''}"
+    return any(term in text for term in terms)
+
+
 def _idem_key(post) -> str:
     raw = f"{post['channel']}|{post['title']}|{post['id']}"
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
@@ -52,6 +63,8 @@ def run_once() -> int:
     now = datetime.now(timezone.utc)
     queued = 0
     for i, post in enumerate(reviewed):
+        if not _matches_focus(post):
+            continue
         # 글 간 간격 + 지터로 분산
         offset_min = random.randint(
             i * config.PUBLISH_SPACING_MIN,

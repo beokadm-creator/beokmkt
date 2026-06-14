@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-06-15 — 목표 주제 재고 고정 및 비목표 큐 격리
+
+발행기는 정상 동작했지만 실제 운영 재고가 블로그명(`비오케이솔루션 학회 운영 사무국 명찰 출력 발행`)과 어긋난 주제로 남아 있었다. 자동 시드와 재고 집계를 목표 주제 기준으로 고정하고, 관리자 대시보드가 전체 재고와 목표 주제 재고를 분리해서 보여주도록 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/keyword_bank.py` | 학회 명찰·사무국·접수·출력 중심 키워드 20개를 자동 시드 우선순위로 추가 |
+| `blog_publisher/config.py` | `BLOG_FOCUS_NAME`, `AUTO_SEED_BRAND_FILTER`, `AUTO_SEED_REQUIRED_TERMS` 기본값 추가 |
+| `blog_publisher/tools/auto_seed.py` | `stock_seed`가 채널별·목표 주제 재고만 세고, 비목표 키워드는 자동 생성하지 않도록 변경 |
+| `blog_publisher/pipeline/schedule_publish.py` | `reviewed` 글 중 목표 주제와 맞는 글만 발행 큐에 넣도록 제한 |
+| `blog_publisher/db/db.py`, `archive_local_posts.py` | 미공개 draft/reviewed/queued 글을 삭제하지 않고 `archived`로 격리하는 `--quarantine` 추가 |
+| `status_report.py`, `sync_pipeline_snapshot.mjs`, `server/index.mjs`, `DashboardPage.tsx` | 목표 주제 재고(`focus_inventory`)와 채널별 분포를 상태/관리자 UI에 노출 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+운영 상태 정리:
+- 비목표 예약 글 #56과 미공개 비목표 draft 19건을 삭제 없이 `archived`로 격리
+- 목표 주제 selfhosted draft 15건 신규 시드(#94~#108)
+- 네이버/티스토리는 외부 자동 시드 차단 설정 때문에 재고 0 유지
+
+검증:
+- `python3 -m compileall -q blog_publisher` PASS
+- `node --check server/index.mjs`, `node --check blog_publisher/tools/sync_pipeline_snapshot.mjs` PASS
+- `npx tsc --noEmit` PASS
+- `python3 blog_publisher/run.py quality_selftest`, `verify_public 10` PASS
+- `npm run build:spa` PASS
+- `python3 blog_publisher/run.py status`에서 `focus_inventory=15`, `queued=0`, `needs_human=0`, `failed=0` 확인
+
+---
+
 ## 2026-06-15 — 관리자 품질 보강 대상 미리보기 정합성 개선
 
 관리자 대시보드의 `quality_items`가 클라우드 스냅샷에서는 본문 excerpt/preview를 포함하지만 로컬 API에서는 빠져 있어 실행 위치에 따라 운영자가 보는 정보가 달랐다. 품질 보강 대상 목록에서 상세를 열기 전에도 실제 본문 일부를 바로 읽고 판단할 수 있도록 로컬 API와 UI를 맞췄다.

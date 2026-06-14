@@ -62,6 +62,9 @@ type OpsStats = {
   reviewed_target: number
   inventory_target?: number
   inventory?: number
+  focus_name?: string
+  focus_inventory?: number
+  focus_inventory_by_channel?: Record<string, number>
   reviewed: number
   queued: number
   queued_due: number
@@ -296,6 +299,8 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
   const staleTotal = Object.values(ops.stale ?? {}).reduce((sum, n) => sum + n, 0)
   const inventoryTarget = ops.inventory_target ?? ops.reviewed_target
   const inventory = ops.inventory ?? ops.reviewed
+  const focusInventory = ops.focus_inventory ?? inventory
+  const focusInventoryLow = focusInventory < inventoryTarget
   const inventoryLow = inventory < inventoryTarget
   const stockLow = ops.reviewed < ops.reviewed_target
   const dueBlocked = ops.queued_due > 0 && ops.publishing === 0
@@ -306,7 +311,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
   const searchAlert = search ? !search.ok : false
   const sessionHealth = ops.session_health ?? []
   const sessionAlert = sessionHealth.some((session) => !session.ok)
-  const active = inventoryLow || dueBlocked || staleTotal > 0 || snapshotStale || gateAlert || searchAlert || sessionAlert
+  const active = inventoryLow || focusInventoryLow || dueBlocked || staleTotal > 0 || snapshotStale || gateAlert || searchAlert || sessionAlert
   const snapshotAgeMin = typeof ops.snapshot_age_sec === 'number' ? Math.round(ops.snapshot_age_sec / 60) : null
   const cells = [
     {
@@ -340,6 +345,12 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
       value: `${inventory}/${inventoryTarget}`,
       sub: inventoryLow ? '목표 미달' : '목표 충족',
       alert: inventoryLow,
+    },
+    {
+      label: '목표 주제',
+      value: `${focusInventory}/${inventoryTarget}`,
+      sub: focusInventoryLow ? (ops.focus_name ?? '주제 재고 부족') : '주제 충족',
+      alert: focusInventoryLow,
     },
     {
       label: '검토완료',
@@ -378,7 +389,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
           {active ? '확인 필요' : '정상'}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-9">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-10">
         {cells.map((cell) => (
           <div
             key={cell.label}
@@ -404,6 +415,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
 function LocalOpsPanel({ active }: { active: boolean }) {
   const commands = [
     { label: '대상 확인', command: 'cd blog_publisher && python3 run.py needs_human' },
+    { label: '검색 설정 확인', command: 'cd blog_publisher && grep -E "^(SEARCH_PROVIDER|TAVILY_API_KEY|NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)=" .env' },
     { label: '발행 전 품질 셀프테스트', command: 'cd blog_publisher && python3 run.py quality_selftest' },
     { label: '이미지 자산 감사', command: 'cd blog_publisher && python3 run.py image_audit' },
     { label: '공개 품질 검증', command: 'cd blog_publisher && python3 run.py verify_public 20' },
@@ -424,6 +436,53 @@ function LocalOpsPanel({ active }: { active: boolean }) {
         </div>
         <span className={['rounded-md border px-2 py-1 text-xs', active ? 'border-amber-800 text-amber-200' : 'border-zinc-800 text-zinc-400'].join(' ')}>
           {active ? '조치 필요' : '대기'}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {commands.map((item) => (
+          <div key={item.label} className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+            <div className="text-xs font-medium text-zinc-400">{item.label}</div>
+            <code className="mt-2 block overflow-x-auto whitespace-nowrap text-xs text-zinc-200">{item.command}</code>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SearchRecoveryPanel({ search }: { search?: OpsStats['search_health'] }) {
+  if (!search || search.ok) return null
+  const commands = [
+    {
+      label: '현재 설정 확인',
+      command: 'cd blog_publisher && grep -E "^(SEARCH_PROVIDER|TAVILY_API_KEY|NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)=" .env',
+    },
+    {
+      label: '일반 검색 연결',
+      command: 'cd blog_publisher && printf "\\nSEARCH_PROVIDER=tavily\\nTAVILY_API_KEY=<키 입력>\\n" >> .env',
+    },
+    {
+      label: '생성 재개 확인',
+      command: 'cd blog_publisher && python3 run.py generate && python3 run.py status',
+    },
+    {
+      label: '대시보드 반영',
+      command: 'cd blog_publisher && python3 run.py sync_snapshot',
+    },
+  ]
+
+  return (
+    <div className="rounded-xl border border-amber-900/60 bg-amber-950/15 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-amber-200">신규 원고 생성 중단</div>
+          <div className="mt-1 text-xs leading-5 text-zinc-500">
+            {search.reason || '검색/근거 수집 설정이 없어 근거 기반 생성이 중단됩니다.'}
+            {' '}품질 게이트가 켜진 상태에서는 검색 출처 없이 새 글을 만들지 않습니다.
+          </div>
+        </div>
+        <span className="rounded-md border border-amber-800 px-2 py-1 text-xs text-amber-200">
+          검색 연결 필요
         </span>
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -910,6 +969,8 @@ export default function DashboardPage() {
       </div>
 
       <OpsReadinessPanel ops={data?.ops} />
+
+      <SearchRecoveryPanel search={data?.ops?.search_health} />
 
       <LocalOpsPanel active={totalFailures > 0} />
 
