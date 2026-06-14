@@ -14,10 +14,10 @@ import config
 from db import db
 
 STATUSES = [
-    "draft", "generating", "reviewing", "reviewed",
+    "draft", "generating", "factchecking", "reviewing", "reviewed",
     "queued", "publishing", "published", "needs_human", "failed", "archived",
 ]
-INVENTORY_STATUSES = ("draft", "generating", "reviewing", "reviewed")
+INVENTORY_STATUSES = ("draft", "generating", "factchecking", "reviewing", "reviewed")
 
 
 def report() -> dict[str, int]:
