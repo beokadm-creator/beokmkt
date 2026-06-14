@@ -43,10 +43,11 @@
 - 자체 블로그 `render/template.html`·`style.css`에 콜아웃 박스/비교표/요약카드 등 디자인 컴포넌트 추가.
 - 검증: 실제 1건 렌더해서 브라우저로 본다.
 
-### ⬜ Phase C — 전 채널 이미지 (효과 큼, 자산 필요)
-- 현재 이미지는 hong 브랜드만(`tools/image_bank.py`). beok 글은 이미지 0개 → 시각적으로 비어 있음.
-- **막힘**: beoksolution.com의 실제 이미지 URL을 모름. 사용자에게 자산 URL을 받거나 사이트에서 수집해야 함.
-- 받으면 hong과 동일 구조로 beok 이미지뱅크 구성, 전 채널 본문에 주입.
+### ◐ Phase C — 전 채널 이미지 (부분 완료, 추가 자산 필요)
+- `beoksolution.com` 공개 사이트에서 실제 이미지 자산을 수집한 결과 현재 확인 가능한 자산은 `https://beoksolution.com/img/logo.png`와 `favicon.svg`뿐이다.
+- `tools/image_bank.py`에 beok 로고를 실제 브랜드 이미지로 등록했고, beok 글의 본문 이미지·자체 블로그 `featured_image`로 연결했다.
+- 검증: 실제 자체 블로그 글 `구글 서치콘솔 홈페이지 등록 방법` 공개 HTML에서 `beoksolution.com/img/logo.png`, `summary-card`, `soft-cta` 노출 확인.
+- 남은 일: 서비스 화면, 관리자 화면, 예약/결제/알림톡/AI 자동화 등 **실제 제품 이미지 URL**이 추가되면 hong처럼 섹션별 이미지 매칭으로 확장.
 
 ### ⬜ Phase D — 네이버 현실적 천장 (마지막)
 - SmartEditor는 inline CSS·div·CTA를 벗긴다. 페이스트 HTML로 "디자인"은 불가.

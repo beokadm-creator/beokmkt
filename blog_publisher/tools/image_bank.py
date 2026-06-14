@@ -1,7 +1,7 @@
 """
-홍커뮤니케이션(hong) 브랜드 이미지 뱅크.
+브랜드 이미지 뱅크.
 
-이미지는 직접 다운로드하지 않고 hongcomm.kr 원본 경로를 참조한다.
+이미지는 직접 다운로드하지 않고 원본 공개 경로를 참조한다.
 블로그 본문 H2 섹션마다 컨텍스트에 맞는 이미지를 자동 삽입.
 """
 from __future__ import annotations
@@ -94,12 +94,24 @@ _HONG_CONFERENCE: list[dict] = [
     },
 ]
 
+_BEOK_BRAND: list[dict] = [
+    {
+        "url": "https://beoksolution.com/img/logo.png",
+        "alt": "비오케이솔루션 홈페이지 제작 운영 서비스 로고",
+        "keywords": {
+            "홈페이지", "제작", "구독", "운영", "SEO", "예약", "결제",
+            "알림톡", "AI", "자동화", "문의폼", "반응형", "서비스",
+        },
+    },
+]
+
 # ---------------------------------------------------------------------------
 # 공개 API
 # ---------------------------------------------------------------------------
 
 _SOLUTION_KW = {kw for img in _HONG_SOLUTION for kw in img["keywords"]}
 _CONF_KW = {kw for img in _HONG_CONFERENCE for kw in img["keywords"]}
+_BEOK_KW = {kw for img in _BEOK_BRAND for kw in img["keywords"]}
 
 
 def _score(img: dict, text: str) -> int:
@@ -115,11 +127,37 @@ def pick_image(pool: list[dict], context_text: str = "") -> dict:
     return scored[0]
 
 
-def inject_images(body: str) -> str:
+def featured_image(brand_key: str, context_text: str = "") -> dict:
+    """브랜드 대표 이미지. 없으면 {}."""
+    if brand_key == "beok":
+        return pick_image(_BEOK_BRAND, context_text)
+    if brand_key == "hong":
+        pool = _HONG_SOLUTION + _HONG_CONFERENCE
+        return pick_image(pool, context_text)
+    return {}
+
+
+def inject_images(body: str, brand_key: str = "hong") -> str:
     """
-    본문 H2 섹션 직후에 hongcomm.kr 이미지를 삽입한다.
-    솔루션/시스템 키워드 섹션 → solution 이미지, 나머지 → conference 이미지.
+    본문 H2 섹션 직후에 브랜드 이미지를 삽입한다.
+    hong은 섹션별 컨텍스트 이미지, beok은 실제 공개 자산(로고) 1회를 대표 이미지로 삽입.
     """
+    if brand_key == "beok":
+        img = featured_image("beok", body)
+        if not img or img["url"] in body:
+            return body
+        blocks = body.split("\n\n")
+        out: list[str] = []
+        inserted = False
+        for blk in blocks:
+            out.append(blk)
+            if not inserted and blk.startswith("## "):
+                out.append(f"![{img['alt']}]({img['url']})")
+                inserted = True
+        if not inserted:
+            out.insert(0, f"![{img['alt']}]({img['url']})")
+        return "\n\n".join(out)
+
     solution_cycle = itertools.cycle(_HONG_SOLUTION)
     conference_cycle = itertools.cycle(_HONG_CONFERENCE)
 

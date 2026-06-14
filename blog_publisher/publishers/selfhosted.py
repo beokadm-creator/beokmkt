@@ -44,12 +44,16 @@ class SelfHostedPublisher:
 
         tags = _loads(post.get("tags"))
         from tools.category_map import pick_category
+        from tools.image_bank import featured_image
+
+        image = featured_image(post.get("category", ""), f"{post.get('topic', '')} {post.get('title', '')}")
 
         payload = {
             "title": post["title"],
             "content": content,
             "status": "published",
             "tags": tags,
+            "featured_image": image.get("url") or None,
             # posts.category는 브랜드 키 → 검색용 세분 카테고리로 변환해 발행
             "category": pick_category(post.get("category", ""), post.get("topic", "")),
             "seo_title": post.get("seo_title") or post["title"],

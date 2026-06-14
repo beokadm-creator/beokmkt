@@ -175,9 +175,9 @@ def compose_article(
         final_title = seo_data.get("seo_title") or title
         meta = seo_data.get("meta_description") or outline.get("meta_description", "")
         tags = seo_data.get("tags", [])
-        if brand_key == "hong":
+        if brand_key in {"hong", "beok"}:
             from tools.image_bank import inject_images
-            body_text = inject_images(body_text)
+            body_text = inject_images(body_text, brand_key=brand_key)
         elif engine == "naver":
             body_text = seo.apply_image_markers(body_text, seo_data.get("image_markers", []))
     except Exception as e:  # noqa: BLE001

@@ -24,6 +24,7 @@ const IMAGE_POOL = {
     { url: 'https://hongcomm.kr/img/page/a1.png', alt: '맞춤 시스템 화면 예시', tags: ['시스템', '소프트웨어', '개발', '관리자', '대시보드'] },
     { url: 'https://hongcomm.kr/img/page/a5.png', alt: '결제 연동 시스템 화면', tags: ['결제', 'API', '연동', '시스템'] },
     { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 관리 마스터 컨트롤러', tags: ['관리', '관리자', '운영', '시스템'] },
+    { url: 'https://beoksolution.com/img/logo.png', alt: '비오케이솔루션 홈페이지 제작 운영 서비스 로고', tags: ['홈페이지', '제작', '구독', '운영', 'SEO', '예약', '결제', '알림톡', 'AI', '자동화'] },
   ],
 }
 
