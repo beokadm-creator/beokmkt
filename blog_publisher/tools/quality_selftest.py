@@ -172,7 +172,17 @@ def _test_selfhosted_renderer() -> list[str]:
     issues += _assert_contains(
         "selfhosted",
         html,
-        ["summary-card", "summary-decision", 'class="toc"', "soft-cta", "table-wrap", "<img ", "content-callout"],
+        [
+            "summary-card",
+            "summary-decision",
+            "service-proof",
+            "비오케이솔루션 실무 점검 범위",
+            'class="toc"',
+            "soft-cta",
+            "table-wrap",
+            "<img ",
+            "content-callout",
+        ],
     )
     if "<article" in html or "<h1" in html:
         issues.append("selfhosted: 저장 fragment에 article/h1 포함")
@@ -189,7 +199,7 @@ const html = await convertForTistory(source)
 const quality = validateTistoryHtml(html)
 const issues = []
 if (!quality.ok) issues.push(...quality.reasons)
-for (const token of ['<h2', '<ul', '<ol', '<table', '<blockquote', '<img ', '<strong', '운영 체크포인트', '비오케이솔루션']) {{
+for (const token of ['<h2', '<ul', '<ol', '<table', '<blockquote', '<img ', '<strong', '운영 체크포인트', '비오케이솔루션', '데이터 검수', '현장 재발행']) {{
   if (!html.includes(token)) issues.push(`티스토리: ${{token}} 누락`)
 }}
 if (html.includes('[이미지:')) issues.push('티스토리: 이미지 텍스트 마커 노출')
@@ -336,8 +346,8 @@ def run() -> bool:
         print(f"\n결과: FAIL ({len(issues)}건)")
         return False
     print("[OK] phase-a generation: 600~1000자 프롬프트·1500 토큰·섹션 thinking·한자 재시도/제거 유지")
-    print("[OK] selfhosted renderer: summary/toc/cta/table/image/callout 유지")
-    print("[OK] tistory adapter: h2/list/table/callout/image/strong/CTA 유지")
+    print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
+    print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")
     print("[OK] channel rewriter: 티스토리 얇은 글/한자/금칙톤/의미위험 차단")
     print("[OK] channel rewriter: 티스토리 재작성 실패 시 원문 발행 차단")
     print("\n결과: PASS")

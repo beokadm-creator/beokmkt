@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-06-15 — Phase B 자체/티스토리 실무 점검 범위 보강
+
+학회 명찰 글에서 독자가 바로 확인해야 하는 운영 범위가 본문 끝 CTA에만 묻히지 않도록, 자체 블로그와 티스토리 변환 결과에 “비오케이솔루션 실무 점검 범위” 블록을 deterministic하게 추가했다. 데이터 검수, 출력 기준, 현장 재발행, 사후 정리를 같은 구조로 노출해 광고 문구가 아니라 사무국 운영 기준으로 읽히게 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/render/renderer.py` | 학회/명찰/사무국 글에 `service-proof` 섹션 자동 삽입 |
+| `blog_publisher/render/style.css` | 자체 블로그용 실무 점검 범위 레이아웃/반응형 스타일 추가 |
+| `src/spa/pages/PublicBlogPostPage.tsx` | 공개 상세 화면의 renderer fragment 클래스 매핑에 `service-proof` 스타일 추가 |
+| `executors/naver-blog-worker/tistory-html-adapter.mjs` | 티스토리 HTML 변환 시 학회 명찰 글에 실무 점검 범위 인라인 HTML 보강, 검증 기준 추가 |
+| `blog_publisher/tools/quality_selftest.py` | selfhosted/tistory 산출물에 실무 점검 범위가 유지되는지 회귀테스트 추가 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `node --check executors/naver-blog-worker/tistory-html-adapter.mjs`, `channel-rewriter.mjs` PASS
+- `python3 -m compileall -q blog_publisher` PASS
+- `npx tsc --noEmit` PASS
+- `python3 blog_publisher/run.py verify_public 10` PASS
+- `npm run build:spa` PASS
+
+---
+
 ## 2026-06-15 — 목표 주제 재고 고정 및 비목표 큐 격리
 
 발행기는 정상 동작했지만 실제 운영 재고가 블로그명(`비오케이솔루션 학회 운영 사무국 명찰 출력 발행`)과 어긋난 주제로 남아 있었다. 자동 시드와 재고 집계를 목표 주제 기준으로 고정하고, 관리자 대시보드가 전체 재고와 목표 주제 재고를 분리해서 보여주도록 보강했다.

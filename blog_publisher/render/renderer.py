@@ -158,6 +158,32 @@ def _toc_html(toc: list[tuple[str, str]]) -> str:
     return f'<nav class="toc"><strong>목차</strong><ol>{items}</ol></nav>'
 
 
+def _service_proof_html(post: dict) -> str:
+    topic = f"{post.get('topic', '')} {post.get('title', '')}"
+    if not any(token in topic for token in ("학회", "명찰", "사무국", "참가자", "접수")):
+        return ""
+    items = [
+        ("데이터 검수", "참가자 이름, 소속, 역할, 등록 구분, 식별 코드를 출력 전 기준 파일로 정리합니다."),
+        ("출력 기준", "명찰 크기, 줄바꿈, QR·바코드 인식, 여분 수량을 샘플 출력으로 확인합니다."),
+        ("현장 재발행", "오탈자, 역할 변경, 분실 요청을 승인 기준과 출력 기록으로 나누어 처리합니다."),
+        ("사후 정리", "미수령자, 현장 등록자, 변경 요청 기록을 행사 종료 후 정산 자료와 맞춥니다."),
+    ]
+    item_html = "".join(
+        '<li>'
+        f'<strong>{html.escape(title)}</strong>'
+        f'<span>{html.escape(desc)}</span>'
+        '</li>'
+        for title, desc in items
+    )
+    return (
+        '<section class="service-proof" aria-label="비오케이솔루션 실무 점검 범위">'
+        '<div class="proof-kicker">비오케이솔루션 실무 점검 범위</div>'
+        '<p>명찰 출력은 인쇄물이 아니라 접수 운영의 일부입니다. 사무국이 놓치기 쉬운 기준을 데이터부터 현장 재발행까지 한 흐름으로 점검합니다.</p>'
+        f'<ul>{item_html}</ul>'
+        '</section>'
+    )
+
+
 def _plain_text(value: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", value or "")).strip()
 
@@ -254,6 +280,7 @@ def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]
     )
     return (
         f'{_summary_card(post, toc, source_md)}\n'
+        f'{_service_proof_html(post)}\n'
         f'{_toc_html(toc)}\n'
         f'<div class="content">\n{content_html}\n</div>\n'
         f'{_cta_html(post)}\n'
