@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-14 — Phase C 이미지 자산 도달성 감사
+
+beoksolution.com 공개 페이지를 확인한 결과 현재 직접 노출된 이미지 자산은 `https://beoksolution.com/img/logo.png`뿐이었다. 학회/명찰 실사 이미지는 beoksolution.com에 공개되어 있지 않아 기존 검증된 카드/홍커뮤니케이션 명찰 이미지를 유지하되, 깨진 이미지 URL을 발행 전에 잡기 위한 감사 명령을 추가했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/image_asset_audit.py` | 이미지 뱅크의 공개 URL을 실제 요청해 HTTP 상태, content-type, 응답 가능 여부를 검사 |
+| `blog_publisher/run.py` | `python3 run.py image_audit` 명령 추가 |
+| `blog_publisher/ops/crontab.example` | 매일 05:41 이미지 자산 감사 실행 |
+| `src/spa/pages/DashboardPage.tsx` | 로컬 조치 패널에 `이미지 자산 감사` 명령 추가 |
+
+검증:
+- `python3 run.py image_audit` PASS
+- beoksolution.com 직접 이미지 후보는 로고 1개만 확인
+
+---
+
 ## 2026-06-14 — Phase B 렌더러/티스토리 품질 셀프테스트
 
 티스토리/자체 블로그 디자인 품질은 공개 발행 후에야 드러나는 문제가 많아, 발행 전 회귀 검증 명령을 추가했다. 외부 발행·LLM 호출 없이 실제 렌더러와 티스토리 HTML 어댑터를 돌려 리치 HTML 구성요소가 유지되는지 확인한다.

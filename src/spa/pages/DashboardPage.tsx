@@ -223,6 +223,7 @@ function LocalOpsPanel({ active }: { active: boolean }) {
   const commands = [
     { label: '대상 확인', command: 'cd blog_publisher && python3 run.py needs_human' },
     { label: '발행 전 품질 셀프테스트', command: 'cd blog_publisher && python3 run.py quality_selftest' },
+    { label: '이미지 자산 감사', command: 'cd blog_publisher && python3 run.py image_audit' },
     { label: '공개 품질 검증', command: 'cd blog_publisher && python3 run.py verify_public 20' },
     { label: '멈춘 작업 복구', command: 'cd blog_publisher && python3 run.py recover' },
     { label: '발행 워커 1회', command: 'cd blog_publisher && python3 run.py publish' },
