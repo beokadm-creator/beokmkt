@@ -20,6 +20,7 @@ from urllib.parse import quote, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from db import db
+from utils.notify import notify
 
 
 FORBIDDEN_TONE = (
@@ -201,6 +202,9 @@ def run(limit: int = 20) -> bool:
             print(f"      - {issue}")
 
     print(f"\n결과: {ok_count}/{len(results)} 통과")
+    if ok_count != len(results):
+        failed = len(results) - ok_count
+        notify(f"공개 발행물 품질 검증 실패: {failed}/{len(results)}건 확인 필요", level="warn")
     return ok_count == len(results)
 
 

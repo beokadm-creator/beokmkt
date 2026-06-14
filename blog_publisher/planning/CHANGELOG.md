@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-14 — 공개 품질 검증 운영 자동화 연결
+
+`verify_public`이 수동 도구로만 남지 않도록 운영 자동화에 연결했다. published 공개 URL의 실제 HTML 품질이 깨지면 정기 점검 로그와 알림에서 드러나도록 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/verify_public_posts.py` | 공개 품질 검증 실패 시 `utils.notify`로 경고 알림 발송 |
+| `blog_publisher/ops/crontab.example` | 매시 17분 `python3 run.py verify_public 20` 실행 추가 |
+| `blog_publisher/ops/newsyslog-blog.conf` | `/tmp/blog-verify.log` 로테이션 추가 |
+| `src/spa/pages/DashboardPage.tsx` | 로컬 큐 조치 패널에 `공개 품질 검증` 명령 추가 |
+
+검증:
+- `python3 run.py verify_public 12` → published 공개 글 12/12 통과
+- 대시보드 SPA 빌드 후 배포 예정
+
+---
+
 ## 2026-06-14 — 공개 URL 검증 도구와 published 품질 재분류
 
 운영자가 "발행 URL이 생겼다"와 "실제 공개 산출물이 품질 기준을 통과했다"를 분리해 볼 수 있도록 로컬 검증 명령을 추가했다. 실제 공개 HTML을 읽어 자체/티스토리/네이버별 최소 품질 신호를 점검한다.
