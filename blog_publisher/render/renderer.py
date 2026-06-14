@@ -184,6 +184,67 @@ def _service_proof_html(post: dict) -> str:
     )
 
 
+def _conference_badge_context(post: dict) -> bool:
+    topic = f"{post.get('topic', '')} {post.get('title', '')}"
+    return any(token in topic for token in ("학회", "명찰", "사무국", "참가자", "접수", "재발행"))
+
+
+def _operation_flow_html(post: dict) -> str:
+    if not _conference_badge_context(post):
+        return ""
+    steps = [
+        ("1", "명단 확정", "참가자 최종 파일, 역할 구분, 등록 상태, QR·바코드 열을 하나의 기준으로 잠급니다."),
+        ("2", "샘플 출력", "긴 소속명, 줄바꿈, 색상, 절단선, 코드 스캔 결과를 실제 출력물로 확인합니다."),
+        ("3", "현장 배치", "접수대, 재발행 창구, 여분 명찰, 목걸이 줄, 승인 담당자를 같은 동선 안에 둡니다."),
+        ("4", "기록 정리", "수정 요청, 재출력 시간, 미수령자, 현장 등록자를 행사 후 정산 자료로 남깁니다."),
+    ]
+    items = "".join(
+        '<li>'
+        f'<span class="flow-num">{num}</span>'
+        '<div>'
+        f'<strong>{html.escape(title)}</strong>'
+        f'<p>{html.escape(desc)}</p>'
+        '</div>'
+        '</li>'
+        for num, title, desc in steps
+    )
+    return (
+        '<section class="operation-flow" aria-label="학회 명찰 운영 흐름">'
+        '<div class="flow-kicker">사무국 운영 흐름</div>'
+        '<h2>명찰 발행은 데이터 확정부터 현장 기록까지 이어집니다</h2>'
+        f'<ol>{items}</ol>'
+        '</section>'
+    )
+
+
+def _ops_comparison_html(post: dict) -> str:
+    if not _conference_badge_context(post):
+        return ""
+    rows = [
+        ("명단 파일", "담당자별 파일이 흩어져 있음", "최종 기준 파일 1개와 수정 로그 유지"),
+        ("출력 검수", "전체 출력 후 오류를 현장에서 발견", "샘플 출력으로 표기·코드·케이스 삽입 확인"),
+        ("재발행", "요청이 오면 바로 재출력", "승인자·수정 사유·출력 시간을 남긴 뒤 처리"),
+        ("행사 후 정리", "미수령·변경 내역이 사라짐", "정산 자료와 다음 행사 기준으로 재사용"),
+    ]
+    body = "".join(
+        '<tr>'
+        f'<td>{html.escape(label)}</td>'
+        f'<td>{html.escape(risk)}</td>'
+        f'<td>{html.escape(standard)}</td>'
+        '</tr>'
+        for label, risk, standard in rows
+    )
+    return (
+        '<section class="ops-comparison" aria-label="명찰 운영 방식 비교">'
+        '<h2>현장 혼잡을 줄이는 운영 기준 비교</h2>'
+        '<div class="table-wrap"><table>'
+        '<thead><tr><th>항목</th><th>흔한 문제</th><th>권장 기준</th></tr></thead>'
+        f'<tbody>{body}</tbody>'
+        '</table></div>'
+        '</section>'
+    )
+
+
 def _plain_text(value: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", value or "")).strip()
 
@@ -281,6 +342,8 @@ def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]
     return (
         f'{_summary_card(post, toc, source_md)}\n'
         f'{_service_proof_html(post)}\n'
+        f'{_operation_flow_html(post)}\n'
+        f'{_ops_comparison_html(post)}\n'
         f'{_toc_html(toc)}\n'
         f'<div class="content">\n{content_html}\n</div>\n'
         f'{_cta_html(post)}\n'

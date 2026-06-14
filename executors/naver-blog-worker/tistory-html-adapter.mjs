@@ -353,6 +353,8 @@ function normalizeTistoryHtml(html) {
   out = ensureTistoryLeadSummary(out)
   out = ensureTistoryDecisionChecklist(out)
   out = ensureTistoryServiceProof(out)
+  out = ensureTistoryOperationFlow(out)
+  out = ensureTistoryOpsComparison(out)
   out = ensureTistoryCta(out)
   return out.trim()
 }
@@ -389,6 +391,16 @@ function isConferenceBadgeContent(html) {
 function hasServiceProof(html) {
   const text = plainTextFromHtml(html)
   return /실무\s*점검\s*범위/.test(text) || (/데이터\s*검수/.test(text) && /사후\s*정리/.test(text))
+}
+
+function hasOperationFlow(html) {
+  const text = plainTextFromHtml(html)
+  return /사무국\s*운영\s*흐름|명찰\s*발행은\s*데이터\s*확정부터/.test(text)
+}
+
+function hasOpsComparison(html) {
+  const text = plainTextFromHtml(html)
+  return /현장\s*혼잡을\s*줄이는\s*운영\s*기준\s*비교|흔한\s*문제\s*권장\s*기준/.test(text)
 }
 
 function extractHeadingTexts(html, max = 4) {
@@ -469,6 +481,56 @@ function ensureTistoryServiceProof(html) {
   return `${html}\n${proof}`
 }
 
+function ensureTistoryOperationFlow(html) {
+  if (!html.trim() || !isConferenceBadgeContent(html) || hasOperationFlow(html)) return html
+  const steps = [
+    ['1', '명단 확정', '참가자 최종 파일, 역할 구분, 등록 상태, QR·바코드 열을 하나의 기준으로 잠급니다.'],
+    ['2', '샘플 출력', '긴 소속명, 줄바꿈, 색상, 절단선, 코드 스캔 결과를 실제 출력물로 확인합니다.'],
+    ['3', '현장 배치', '접수대, 재발행 창구, 여분 명찰, 목걸이 줄, 승인 담당자를 같은 동선 안에 둡니다.'],
+    ['4', '기록 정리', '수정 요청, 재출력 시간, 미수령자, 현장 등록자를 행사 후 정산 자료로 남깁니다.'],
+  ]
+  const items = steps.map(([num, title, desc]) => [
+    `<li style="display:flex;gap:12px;margin:0 0 10px;padding:14px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:12px;background:#ffffff;list-style:none;">`,
+    `<span style="display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;font-size:13px;font-weight:800;">${num}</span>`,
+    `<span style="display:block;">`,
+    `<strong style="display:block;margin:0 0 4px;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">${title}</strong>`,
+    `<span style="display:block;color:${DESIGN_SYSTEM.colors.textLight};font-size:14px;line-height:1.65;">${desc}</span>`,
+    `</span>`,
+    `</li>`,
+  ].join('')).join('')
+  const flow = [
+    `<section style="margin:28px 0;padding:18px 20px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:14px;background:${DESIGN_SYSTEM.colors.highlight};">`,
+    `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;color:${DESIGN_SYSTEM.colors.accent};font-weight:800;">사무국 운영 흐름</p>`,
+    `<h2 style="margin:0 0 14px;padding:0;border:0;background:transparent;font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">명찰 발행은 데이터 확정부터 현장 기록까지 이어집니다</h2>`,
+    `<ol style="margin:0;padding:0;">${items}</ol>`,
+    `</section>`,
+  ].join('')
+  return `${html}\n${flow}`
+}
+
+function ensureTistoryOpsComparison(html) {
+  if (!html.trim() || !isConferenceBadgeContent(html) || hasOpsComparison(html)) return html
+  const rows = [
+    ['명단 파일', '담당자별 파일이 흩어져 있음', '최종 기준 파일 1개와 수정 로그 유지'],
+    ['출력 검수', '전체 출력 후 오류를 현장에서 발견', '샘플 출력으로 표기·코드·케이스 삽입 확인'],
+    ['재발행', '요청이 오면 바로 재출력', '승인자·수정 사유·출력 시간을 남긴 뒤 처리'],
+    ['행사 후 정리', '미수령·변경 내역이 사라짐', '정산 자료와 다음 행사 기준으로 재사용'],
+  ]
+  const body = rows.map(([label, risk, standard]) => (
+    `<tr><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${label}</td><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${risk}</td><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${standard}</td></tr>`
+  )).join('')
+  const comparison = [
+    `<section style="margin:28px 0;">`,
+    `<h2 style="margin:0 0 14px;padding:14px 18px;border-left:5px solid ${DESIGN_SYSTEM.colors.point};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">현장 혼잡을 줄이는 운영 기준 비교</h2>`,
+    `<table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:14px;">`,
+    `<thead><tr><th style="padding:12px 14px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">항목</th><th style="padding:12px 14px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">흔한 문제</th><th style="padding:12px 14px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">권장 기준</th></tr></thead>`,
+    `<tbody>${body}</tbody>`,
+    `</table>`,
+    `</section>`,
+  ].join('')
+  return `${html}\n${comparison}`
+}
+
 function ensureTistoryCta(html) {
   if (!html.trim() || hasCtaText(html)) return html
   const conference = isConferenceBadgeContent(html)
@@ -502,6 +564,8 @@ function tistoryHtmlQuality(html) {
     hasBrandedCta: /비오케이솔루션/.test(text.slice(-1000)),
     hasDecisionChecklist: hasDecisionChecklist(value),
     hasServiceProof: hasServiceProof(value),
+    hasOperationFlow: hasOperationFlow(value),
+    hasOpsComparison: hasOpsComparison(value),
   }
 }
 
@@ -522,6 +586,8 @@ function validateTistoryHtml(html) {
   if (!quality.hasBrandedCta) reasons.push('비오케이솔루션 CTA 없음')
   if (!quality.hasDecisionChecklist) reasons.push('운영 체크포인트 없음')
   if (isConferenceBadgeContent(html) && !quality.hasServiceProof) reasons.push('실무 점검 범위 없음')
+  if (isConferenceBadgeContent(html) && !quality.hasOperationFlow) reasons.push('사무국 운영 흐름 없음')
+  if (isConferenceBadgeContent(html) && !quality.hasOpsComparison) reasons.push('운영 기준 비교표 없음')
   return { ok: reasons.length === 0, reasons, quality }
 }
 

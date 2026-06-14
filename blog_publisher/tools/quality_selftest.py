@@ -177,6 +177,10 @@ def _test_selfhosted_renderer() -> list[str]:
             "summary-decision",
             "service-proof",
             "비오케이솔루션 실무 점검 범위",
+            "operation-flow",
+            "사무국 운영 흐름",
+            "ops-comparison",
+            "현장 혼잡을 줄이는 운영 기준 비교",
             'class="toc"',
             "soft-cta",
             "table-wrap",
@@ -199,7 +203,7 @@ const html = await convertForTistory(source)
 const quality = validateTistoryHtml(html)
 const issues = []
 if (!quality.ok) issues.push(...quality.reasons)
-for (const token of ['<h2', '<ul', '<ol', '<table', '<blockquote', '<img ', '<strong', '운영 체크포인트', '비오케이솔루션', '데이터 검수', '현장 재발행']) {{
+for (const token of ['<h2', '<ul', '<ol', '<table', '<blockquote', '<img ', '<strong', '운영 체크포인트', '비오케이솔루션', '데이터 검수', '현장 재발행', '사무국 운영 흐름', '현장 혼잡을 줄이는 운영 기준 비교']) {{
   if (!html.includes(token)) issues.push(`티스토리: ${{token}} 누락`)
 }}
 if (html.includes('[이미지:')) issues.push('티스토리: 이미지 텍스트 마커 노출')
