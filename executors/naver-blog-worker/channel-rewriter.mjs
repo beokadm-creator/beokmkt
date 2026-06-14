@@ -180,6 +180,7 @@ function tistoryRewriteQuality(html, sourceChars = 0) {
 function validateTistoryRewrite(html, sourceChars = 0) {
   const quality = tistoryRewriteQuality(html, sourceChars)
   const reasons = []
+  const plain = stripToPlainText(html)
   if (quality.chars < quality.minChars) reasons.push(`본문 짧음(${quality.chars}/${quality.minChars}자)`)
   if (quality.h2 < 3) reasons.push(`h2 부족(${quality.h2})`)
   if (quality.listItems < 4) reasons.push(`목록 항목 부족(${quality.listItems})`)
@@ -187,6 +188,9 @@ function validateTistoryRewrite(html, sourceChars = 0) {
   if ((quality.tables + quality.callouts + quality.bolds + quality.images) < 3) reasons.push('구조 강조 부족')
   if (!quality.hasLeadSummary) reasons.push('첫머리 요약 없음')
   if (!quality.hasCta) reasons.push('마지막 상담 CTA 없음')
+  if (hasHanzi(plain)) reasons.push('한자/중문자 혼입')
+  if (hasForbiddenTone(plain)) reasons.push('금칙 톤 포함')
+  if (hasTistorySemanticRisk(plain)) reasons.push('의미 반전 위험 문장 포함')
   return { ok: reasons.length === 0, reasons, quality }
 }
 

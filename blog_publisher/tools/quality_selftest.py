@@ -117,8 +117,73 @@ process.exit(issues.length ? 1 : 0)
     return [f"tistory: adapter quality selftest failed\n{output}"]
 
 
+def _test_channel_rewriter_gate() -> list[str]:
+    good_html = """
+<p>핵심 요약: 학회 운영 사무국은 명찰 출력 전 데이터 기준, 출력 순서, 현장 재발행 기준을 함께 확인해야 합니다.</p>
+<ul>
+  <li><strong>명단 기준 파일</strong>을 하나로 고정합니다.</li>
+  <li><strong>QR 코드</strong> 스캔 정상 여부를 샘플로 확인합니다.</li>
+  <li><strong>재발행 로그</strong>를 남겨 중복 출력을 막습니다.</li>
+  <li><strong>소모품 수량</strong>을 접수 시작 전 다시 확인합니다.</li>
+</ul>
+<h2>무엇을 먼저 확인해야 하나</h2>
+<p>사무국은 이름, 소속, 직함, 등록 구분, 식별 코드를 같은 기준으로 정리해야 합니다. 파일이 여러 개로 갈라지면 현장에서는 어느 항목이 최종인지 판단하기 어렵습니다.</p>
+<h2>왜 출력 전 샘플이 필요한가</h2>
+<table><tbody><tr><th>점검 항목</th><th>확인 기준</th></tr><tr><td>이름</td><td>오탈자와 띄어쓰기 확인</td></tr><tr><td>코드</td><td>스캔 후 참가자 정보 연결 확인</td></tr></tbody></table>
+<p>샘플 출력은 전체 출력 전에 줄바꿈, 여백, 절단선, 케이스 삽입 상태를 확인하는 과정입니다.</p>
+<h2>어떻게 현장 재발행을 관리하나</h2>
+<blockquote>현장 재발행은 빠른 처리보다 같은 기준을 유지하는 것이 중요합니다.</blockquote>
+<p>재발행 요청이 들어오면 수정 사유, 승인 담당자, 출력 시간을 남겨야 합니다. 이 기록은 행사 후 미수령자와 당일 등록자를 정리하는 근거가 됩니다.</p>
+<h2>상담 전 체크리스트</h2>
+<p>비오케이솔루션은 학회 운영 사무국의 명찰 출력, 참가자 데이터 정리, 현장 재발행 기준을 함께 점검합니다. 운영 상담이 필요하면 행사 규모와 출력 방식부터 문의해 주세요.</p>
+<p>상담 전에는 참가자 수, 등록 구분, 현장 등록 가능 여부, 명찰 크기, 출력 장비, QR 또는 바코드 사용 여부를 정리해 두면 좋습니다. 이 정보가 있어야 출력 템플릿과 접수 동선을 함께 검토할 수 있습니다.</p>
+<p>특히 학회 행사는 발표자, 좌장, 초청자, 운영진처럼 서로 다른 표기가 필요한 그룹이 많습니다. 사무국이 그룹별 표기 규칙을 먼저 정해 두면 명찰 발행 직전의 수정 요청을 줄일 수 있습니다.</p>
+<p>비오케이솔루션은 명찰 출력만 따로 보지 않고 참가자 데이터, 접수 확인, 재발행 승인, 행사 후 정산 자료까지 연결된 흐름으로 점검합니다. 이 기준을 갖추면 현장 접수대의 응대 속도와 참가자 경험이 함께 안정됩니다.</p>
+"""
+    thin_html = "<p>핵심 요약: 명찰을 출력합니다. 상담 문의 주세요.</p><h2>안내</h2><p>짧은 글입니다.</p>"
+    hanzi_html = good_html.replace("명찰 출력", "名札 출력", 1)
+    hype_html = good_html.replace("운영 상담이 필요하면", "운영 꿀팁이 필요하면", 1)
+    semantic_risk_html = good_html.replace(
+        "사무국은 이름, 소속, 직함, 등록 구분, 식별 코드를 같은 기준으로 정리해야 합니다.",
+        "핵심은 단순히 명찰 출력 기능에 있습니다.",
+        1,
+    )
+
+    script = f"""
+import {{ validateTistoryRewrite }} from './channel-rewriter.mjs'
+const cases = [
+  ['good', {good_html!r}, true],
+  ['thin', {thin_html!r}, false],
+  ['hanzi', {hanzi_html!r}, false],
+  ['hype', {hype_html!r}, false],
+  ['semantic-risk', {semantic_risk_html!r}, false],
+]
+const failures = []
+for (const [name, html, expected] of cases) {{
+  const result = validateTistoryRewrite(html, 900)
+  if (result.ok !== expected) {{
+    failures.push(`${{name}} expected ${{expected}} got ${{result.ok}}: ${{result.reasons.join(', ')}}`)
+  }}
+}}
+console.log(JSON.stringify({{ ok: failures.length === 0, failures }}))
+process.exit(failures.length ? 1 : 0)
+"""
+    proc = subprocess.run(
+        ["node", "--input-type=module", "-e", script],
+        cwd=WORKER_DIR,
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    if proc.returncode == 0:
+        return []
+    output = "\n".join(part for part in [proc.stdout.strip(), proc.stderr.strip()] if part)
+    return [f"rewriter: tistory quality gate selftest failed\n{output}"]
+
+
 def run() -> bool:
-    issues = _test_selfhosted_renderer() + _test_tistory_adapter()
+    issues = _test_selfhosted_renderer() + _test_tistory_adapter() + _test_channel_rewriter_gate()
     print("=== Phase B 품질 셀프테스트 ===")
     if issues:
         for issue in issues:
@@ -127,6 +192,7 @@ def run() -> bool:
         return False
     print("[OK] selfhosted renderer: summary/toc/cta/table/image/callout 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/CTA 유지")
+    print("[OK] channel rewriter: 티스토리 얇은 글/한자/금칙톤/의미위험 차단")
     print("\n결과: PASS")
     return True
 
