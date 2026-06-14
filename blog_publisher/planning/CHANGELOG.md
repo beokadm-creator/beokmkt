@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-15 — 반복·무이미지 운영 글 자동 발행 차단
+
+네이버/티스토리/자체 블로그에 같은 날 같은 본문이 반복 발행되고, 학회·명찰 운영 글이 이미지 없이 공개되는 문제를 발행 직전 게이트로 막았다. 홍커뮤니케이션은 검색/시드/브랜드 맥락 대상에 포함하고, beok 학회 글은 hongcomm.kr의 공개 시스템·현장 이미지를 우선 사용한다. 기존 공개 글은 즉시 삭제하지 않고 URL별 삭제/비공개 후보를 감사 명령으로 산출한다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/content_quality.py` | 운영 글 본문 길이, 이미지 유무, 당일 동일/고유사 본문, 네이버 이미지 자동발행 미검증 차단 규칙 추가 |
+| `blog_publisher/pipeline/publish.py` | 발행 직전 품질 게이트에 `publish_blockers` 연결 |
+| `blog_publisher/pipeline/generate.py` | SEO 실패 여부와 무관하게 beok/hong 비네이버 글에 이미지 주입 |
+| `blog_publisher/tools/image_bank.py` | beok 학회/명찰 문맥에서 로고보다 hongcomm.kr 시스템·현장 이미지 우선 |
+| `blog_publisher/config.py`, `tools/auto_seed.py`, `tools/status_report.py` | 홍커뮤니케이션/MICE/국제회의/동시통역/포트폴리오를 기본 검색·시드 대상에 포함, 브랜드 필터 미설정 재고 계산 보정 |
+| `blog_publisher/tools/audit_published_cleanup.py`, `run.py` | `python3 blog_publisher/run.py cleanup_audit` 추가. 중복·무이미지·테스트 제목 공개 글 삭제/비공개 후보 출력 |
+
+검증:
+- `python3 -m compileall -q blog_publisher`, `python3 blog_publisher/run.py selftest`, `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py image_audit` 25/25 PASS
+- `publish_blockers`가 #115/#116/#117의 짧은 본문·무이미지·당일 중복·네이버 이미지 미검증을 차단 사유로 감지
+- `python3 blog_publisher/run.py cleanup_audit 80`에서 공개 삭제/비공개 후보 41건 산출
+
+---
+
 ## 2026-06-15 — 관리자 운영 명령 복사 UX 추가
 
 대시보드가 필요한 CLI 명령을 보여주고는 있었지만, 운영자가 긴 명령을 직접 드래그해야 했다. 세션 복구·검색 복구·품질 점검·로컬 큐 조치 명령을 공통 `CommandBlock`으로 통합하고, 각 명령에 복사 버튼을 붙였다.

@@ -26,19 +26,18 @@ def _focus_inventory_by_channel() -> dict[str, int]:
         return {}
     placeholders = ",".join("?" for _ in INVENTORY_STATUSES)
     like_clause = " OR ".join("topic LIKE ?" for _ in terms)
-    params = (
-        *INVENTORY_STATUSES,
-        config.AUTO_SEED_BRAND_FILTER,
-        *[f"%{term}%" for term in terms],
-    )
+    where = [f"status IN ({placeholders})", f"({like_clause})"]
+    params: list = [*INVENTORY_STATUSES, *[f"%{term}%" for term in terms]]
+    brand_filter = (config.AUTO_SEED_BRAND_FILTER or "").strip()
+    if brand_filter:
+        where.insert(1, "category = ?")
+        params.insert(len(INVENTORY_STATUSES), brand_filter)
     with db.connect() as conn:
         rows = conn.execute(
             f"""
             SELECT channel, COUNT(*) AS n
             FROM posts
-            WHERE status IN ({placeholders})
-              AND category = ?
-              AND ({like_clause})
+            WHERE {' AND '.join(where)}
             GROUP BY channel
             """,
             params,

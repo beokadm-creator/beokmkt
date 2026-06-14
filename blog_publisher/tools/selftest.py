@@ -114,6 +114,9 @@ def _install_mocks():
     # 발행 mock (네트워크 없이 성공 URL 반환)
     from pipeline import publish
 
+    config.AUTO_SEED_REQUIRED_TERMS = []
+    publish.publish_blockers = lambda post: []
+
     class MockPublisher:
         name = "mock"
 

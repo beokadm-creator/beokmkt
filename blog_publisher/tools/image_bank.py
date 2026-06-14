@@ -127,11 +127,6 @@ _BEOK_BRAND: list[dict] = [
 
 _BEOK_CONFERENCE: list[dict] = [
     {
-        "url": "https://beoksolution.com/img/logo.png",
-        "alt": "비오케이솔루션 학회 운영 사무국 명찰 출력 지원 로고",
-        "keywords": {"비오케이솔루션", "학회", "명찰", "사무국", "출력", "발행", "접수", "재발행"},
-    },
-    {
         "url": "https://hongcomm.kr/img/page/b2.png",
         "alt": "학회 현장 모바일 디지털 명찰 시스템 화면",
         "keywords": {"학회", "명찰", "디지털", "모바일", "QR", "바코드", "현장", "체크인"},
@@ -145,6 +140,16 @@ _BEOK_CONFERENCE: list[dict] = [
         "url": "https://hongcomm.kr/img/page/2.jpg",
         "alt": "고속 명찰 자동 출력 장비 운영 현장",
         "keywords": {"학회", "명찰", "장비", "출력기", "프린터", "재발행", "현장"},
+    },
+    {
+        "url": "https://hongcomm.kr/img/page/a1.png",
+        "alt": "학술대회 등록 시스템 화면",
+        "keywords": {"학회", "학술대회", "등록", "접수", "참가자", "시스템"},
+    },
+    {
+        "url": "https://hongcomm.kr/img/page/6.jpg",
+        "alt": "행사 마스터 컨트롤러 통합 운영 시스템",
+        "keywords": {"학회", "행사", "운영", "관리", "현장", "시스템"},
     },
 ]
 

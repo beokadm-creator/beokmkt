@@ -145,12 +145,12 @@ ALLOW_EXTERNAL_AUTO_SEED = os.getenv("ALLOW_EXTERNAL_AUTO_SEED", "false").lower(
 # 현재 블로그 운영명: "비오케이솔루션 학회 운영 사무국 명찰 출력 발행".
 # 자동 재고/상태 집계는 이 기본 초점과 맞는 글만 재고로 인정한다.
 BLOG_FOCUS_NAME = os.getenv("BLOG_FOCUS_NAME", "비오케이솔루션 학회 운영 사무국 명찰 출력 발행")
-AUTO_SEED_BRAND_FILTER = os.getenv("AUTO_SEED_BRAND_FILTER", "beok")
+AUTO_SEED_BRAND_FILTER = os.getenv("AUTO_SEED_BRAND_FILTER", "")
 AUTO_SEED_REQUIRED_TERMS = [
     term.strip()
     for term in os.getenv(
         "AUTO_SEED_REQUIRED_TERMS",
-        "학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드",
+        "학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드,홍커뮤니케이션,MICE,국제회의,컨퍼런스,동시통역,포트폴리오,레퍼런스",
     ).split(",")
     if term.strip()
 ]

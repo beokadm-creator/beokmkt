@@ -48,22 +48,26 @@ def _matches_focus(topic: str = "", brand_key: str = "") -> bool:
 
 def _inventory_count(channel: str) -> int:
     placeholders = ",".join("?" for _ in INVENTORY_STATUSES)
+    where = [
+        "channel = ?",
+        f"status IN ({placeholders})",
+    ]
+    params: list = [channel, *INVENTORY_STATUSES]
+    brand_filter = (config.AUTO_SEED_BRAND_FILTER or "").strip()
+    if brand_filter:
+        where.append("category = ?")
+        params.append(brand_filter)
+    if config.AUTO_SEED_REQUIRED_TERMS:
+        where.append(f"({' OR '.join(['topic LIKE ?' for _ in config.AUTO_SEED_REQUIRED_TERMS])})")
+        params.extend(f"%{term}%" for term in config.AUTO_SEED_REQUIRED_TERMS)
     with db.connect() as conn:
         row = conn.execute(
             f"""
             SELECT COUNT(*) AS n
             FROM posts
-            WHERE channel = ?
-              AND status IN ({placeholders})
-              AND category = ?
-              AND ({' OR '.join(['topic LIKE ?' for _ in config.AUTO_SEED_REQUIRED_TERMS])})
+            WHERE {' AND '.join(where)}
             """,
-            (
-                channel,
-                *INVENTORY_STATUSES,
-                config.AUTO_SEED_BRAND_FILTER,
-                *[f"%{term}%" for term in config.AUTO_SEED_REQUIRED_TERMS],
-            ),
+            params,
         ).fetchone()
     return int(row["n"])
 

@@ -224,7 +224,10 @@ def _brand_hint(brand_key: str) -> str:
         if not b:
             return ""
         return prompts.OUTLINE_BRAND_HINT.format(
-            brand_name=b["name"], brand_url=b["url"]
+            brand_name=b["name"],
+            brand_url=b["url"],
+            service_summary=b.get("service_summary", ""),
+            contact=b.get("contact", ""),
         )
     except Exception:  # noqa: BLE001
         return ""
@@ -365,14 +368,15 @@ def compose_article(
         final_title = seo_data.get("seo_title") or title
         meta = seo_data.get("meta_description") or outline.get("meta_description", "")
         tags = seo_data.get("tags", [])
-        if engine == "naver":
-            body_text = _sanitize_naver_body(body_text)
-        elif brand_key in {"hong", "beok"}:
-            from tools.image_bank import inject_images
-            body_text = inject_images(body_text, brand_key=brand_key)
     except Exception as e:  # noqa: BLE001
         print(f"[seo] 최적화 실패(원고 유지): {e}", flush=True)
         seo_data, final_title, meta, tags = {}, title, outline.get("meta_description", ""), []
+
+    if engine == "naver":
+        body_text = _sanitize_naver_body(body_text)
+    elif brand_key in {"hong", "beok"}:
+        from tools.image_bank import inject_images
+        body_text = inject_images(body_text, brand_key=brand_key)
 
     final_title = _strip_run_meta_text(final_title)
     meta = _strip_run_meta_text(meta)

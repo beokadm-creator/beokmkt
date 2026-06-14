@@ -17,6 +17,7 @@ import config
 from db import db
 from publishers import PUBLISHERS
 from publishers.base import FatalError, NeedsHumanError, RetryableError
+from tools.content_quality import publish_blockers
 from utils.notify import notify
 
 LOCK_PATH = Path(__file__).resolve().parents[1] / "db" / "publish.lock"
@@ -57,6 +58,9 @@ def _assert_publish_quality_gate(post) -> None:
         raise NeedsHumanError(
             f"사실검증 미통과 grounding_ratio={ratio}; 기준={config.MIN_GROUNDING_RATIO}. 자동 발행 금지."
         )
+    blockers = publish_blockers(post)
+    if blockers:
+        raise NeedsHumanError("발행 전 품질 게이트 차단: " + " / ".join(blockers))
 
 
 def _publish_claimed_post(post) -> dict:

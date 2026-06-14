@@ -124,6 +124,8 @@ OUTLINE_USER = """\
 OUTLINE_BRAND_HINT = """\
 
 [브랜드 맥락] 이 글은 {brand_name}({brand_url})의 서비스를 자연스럽게 소개해 문의를 유도하는 것이 최종 목적이다.
+서비스 맥락: {service_summary}
+연락/CTA: {contact}
 마지막 섹션(결론/맺음말)에 독자에게 실질적 도움이 되는 내용과 함께 {brand_name} 서비스를 자연스럽게 한 번 언급하라.
 강매·광고 투의 문구 금지. 독자가 유용하다고 느끼는 방식으로만.
 """
