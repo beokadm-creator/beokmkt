@@ -19,11 +19,11 @@ type ListResponse = { items: BlogPost[]; total: number }
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const CONFERENCE_IMAGES = [
-  'https://hongcomm.kr/img/page/c1.jpg',
-  'https://hongcomm.kr/img/page/2.jpg',
-  'https://hongcomm.kr/img/page/b2.png',
-  'https://hongcomm.kr/img/page/a1.png',
-  'https://hongcomm.kr/img/page/6.jpg',
+  { url: 'https://hongcomm.kr/img/page/c1.jpg', alt: '학회 현장 지류 명찰 자동 출력 시스템' },
+  { url: 'https://hongcomm.kr/img/page/2.jpg', alt: '고속 명찰 자동 출력 장비 운영 현장' },
+  { url: 'https://hongcomm.kr/img/page/b2.png', alt: '모바일 디지털 명찰 시스템 화면' },
+  { url: 'https://hongcomm.kr/img/page/a1.png', alt: '학술대회 등록 시스템 화면' },
+  { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 마스터 컨트롤러 통합 운영 시스템' },
 ]
 
 const focusTopics = [
@@ -67,7 +67,8 @@ function stableImageIndex(post: BlogPost) {
 }
 
 function displayImage(post: BlogPost) {
-  return isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : post.featured_image
+  if (post.featured_image) return { url: post.featured_image, alt: post.title }
+  return isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
 }
 
 export default function PublicBlogPage() {
@@ -76,6 +77,7 @@ export default function PublicBlogPage() {
   const posts = useMemo(() => data?.items ?? [], [data])
   const featured = posts[0]
   const articlePosts = featured ? posts.slice(1, 7) : posts.slice(0, 6)
+  const featuredImage = featured ? displayImage(featured) : null
 
   useEffect(() => {
     fetch('/api/blog-posts?status=published&limit=50')
@@ -201,8 +203,8 @@ export default function PublicBlogPage() {
                 className="group mt-8 grid gap-5 rounded-lg border border-zinc-800 bg-zinc-900/55 p-6 transition hover:border-yellow-300/70 hover:bg-zinc-900 md:grid-cols-[0.85fr_1.15fr]"
               >
                 <div className="aspect-[16/10] overflow-hidden rounded-md border border-zinc-800 bg-zinc-950">
-                  {displayImage(featured) ? (
-                    <img src={displayImage(featured) || ''} alt={featured.title} className="h-full w-full object-cover" />
+                  {featuredImage ? (
+                    <img src={featuredImage.url} alt={featuredImage.alt} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-500">비오케이솔루션 운영 인사이트</div>
                   )}

@@ -5,11 +5,11 @@ import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type Beoksolu
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const CONFERENCE_IMAGES = [
-  'https://hongcomm.kr/img/page/c1.jpg',
-  'https://hongcomm.kr/img/page/2.jpg',
-  'https://hongcomm.kr/img/page/b2.png',
-  'https://hongcomm.kr/img/page/a1.png',
-  'https://hongcomm.kr/img/page/6.jpg',
+  { url: 'https://hongcomm.kr/img/page/c1.jpg', alt: '학회 현장 지류 명찰 자동 출력 시스템' },
+  { url: 'https://hongcomm.kr/img/page/2.jpg', alt: '고속 명찰 자동 출력 장비 운영 현장' },
+  { url: 'https://hongcomm.kr/img/page/b2.png', alt: '모바일 디지털 명찰 시스템 화면' },
+  { url: 'https://hongcomm.kr/img/page/a1.png', alt: '학술대회 등록 시스템 화면' },
+  { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 마스터 컨트롤러 통합 운영 시스템' },
 ]
 
 type TocItem = {
@@ -99,6 +99,11 @@ function stableImageIndex(post: Pick<BlogPost, 'id' | 'title' | 'category'>) {
     hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0
   }
   return Math.abs(hash) % CONFERENCE_IMAGES.length
+}
+
+function displayImage(post: BlogPost) {
+  if (post.featured_image) return { url: post.featured_image, alt: post.title }
+  return isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
 }
 
 type BlogPost = {
@@ -232,11 +237,12 @@ export default function PublicBlogPostPage() {
     const category = displayCategory(post)
     const contentStats = enhanceContent(normalizeRenderedContent(post.content || ''))
     const wordCount = wordCountForJsonLd(post.content || '')
+    const seoImage = displayImage(post)
     applySeo({
       title: post.seo_title || post.title,
       description,
       canonical,
-      image: post.featured_image || undefined,
+      image: seoImage?.url,
       type: 'article',
       keywords: [category, ...(post.tags ?? [])].filter(Boolean),
       publishedTime: post.published_at ?? post.created_at,
@@ -256,7 +262,7 @@ export default function PublicBlogPostPage() {
           wordCount,
           timeRequired: `PT${contentStats.readingMinutes}M`,
           keywords: (post.tags ?? []).join(', '),
-          image: post.featured_image ? [post.featured_image] : undefined,
+          image: seoImage ? [seoImage.url] : undefined,
           author: {
             '@type': 'Organization',
             name: '비오케이솔루션',
@@ -316,7 +322,7 @@ export default function PublicBlogPostPage() {
   const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
   const content = enhanceContent(normalizeRenderedContent(post.content || '<p>본문이 없습니다.</p>'))
   const categoryLabel = displayCategory(post)
-  const heroImage = isConferenceBadgePost(post) ? CONFERENCE_IMAGES[stableImageIndex(post)] : post.featured_image
+  const heroImage = displayImage(post)
 
   return (
     <div className="min-h-screen overflow-hidden bg-zinc-950 text-white">
@@ -351,8 +357,8 @@ export default function PublicBlogPostPage() {
 
             {heroImage ? (
             <img
-              src={heroImage}
-              alt={post.title}
+              src={heroImage.url}
+              alt={heroImage.alt}
               className="mt-8 w-full rounded-2xl border border-zinc-800 object-cover"
               loading="eager"
             />

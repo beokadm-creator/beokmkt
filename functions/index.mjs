@@ -5359,6 +5359,17 @@ function publicFallbackImage(post = {}) {
   return null
 }
 
+function publicDisplayImage(post = {}) {
+  const featured = typeof post.featured_image === 'string' ? post.featured_image.trim() : ''
+  if (featured) {
+    return {
+      url: featured,
+      alt: post.title || '비오케이솔루션 블로그 대표 이미지',
+    }
+  }
+  return publicFallbackImage(post)
+}
+
 function blogPostBodyHtml(post, extras = {}) {
   const title = escapeHtml(post.title || 'Untitled')
   const excerpt = escapeHtml(post.excerpt || '')
@@ -5372,8 +5383,7 @@ function blogPostBodyHtml(post, extras = {}) {
   const rawRenderedContent = content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join('')
   const reading = enhanceBlogContentForReading(rawRenderedContent)
   const renderedContent = reading.html
-  const fallbackImage = publicFallbackImage(post)
-  const displayImage = fallbackImage || (post.featured_image ? { url: post.featured_image, alt: title } : null)
+  const displayImage = publicDisplayImage(post)
   const tocHtml = reading.toc.slice(0, 12).map((item) => `
               <a href="#${escapeHtml(item.id)}" style="display:block;margin:${item.level === 3 ? '0 0 8px 12px' : '0 0 8px'};padding:6px 8px;border-radius:6px;color:#a1a1aa;text-decoration:none;font-size:12px;line-height:1.55;">${escapeHtml(item.text)}</a>`).join('')
 
@@ -5450,7 +5460,7 @@ function blogPostBodyHtml(post, extras = {}) {
 }
 
 function blogListBodyHtml(posts, baseUrl) {
-  const leadImage = publicFallbackImage(posts[0] || {}) || (posts[0]?.featured_image ? { url: posts[0].featured_image, alt: posts[0].title || '비오케이솔루션 블로그 대표 이미지' } : null)
+  const leadImage = publicDisplayImage(posts[0] || {})
   const items = posts
     .slice(0, 12)
     .map((post) => {
@@ -5460,8 +5470,7 @@ function blogListBodyHtml(posts, baseUrl) {
       const date = post.published_at || post.created_at || ''
       const href = `${baseUrl}/blog/${encodeURIComponent(slug)}`
       const sub = `<span style="display:inline-block;font-size:0.75rem;background:#27272a;color:#a1a1aa;padding:2px 10px;border-radius:999px;margin-right:6px;">${escapeHtml(post.subcategory || publicDisplayCategory(post))}</span>`
-      const fallbackImage = publicFallbackImage(post)
-      const image = fallbackImage || (post.featured_image ? { url: post.featured_image, alt: title } : null)
+      const image = publicDisplayImage(post)
       return [
         `<li style="min-width:0;border:1px solid #27272a;border-radius:12px;background:rgba(24,24,27,.54);overflow:hidden;">`,
         image ? `<a href="${escapeHtml(href)}" style="display:block;aspect-ratio:16/10;background:#18181b;overflow:hidden;"><img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt || title)}" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover;"></a>` : '',
@@ -5517,6 +5526,7 @@ function blogPostingJsonLd(post, baseUrl) {
   const url = `${baseUrl}/blog/${encodeURIComponent(post.slug || post.id)}`
   const articleText = stripHtml(post.content || '')
   const displayCategory = publicDisplayCategory(post)
+  const displayImage = publicDisplayImage(post)
   const keywords = [displayCategory, ...(Array.isArray(post.tags) ? post.tags : [])].filter(Boolean)
   const schema = {
     '@context': 'https://schema.org',
@@ -5533,7 +5543,7 @@ function blogPostingJsonLd(post, baseUrl) {
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     wordCount: articleText ? articleText.split(/\s+/).length : undefined,
   }
-  if (post.featured_image) schema.image = post.featured_image
+  if (displayImage?.url) schema.image = displayImage.url
   schema.articleSection = displayCategory
   if (keywords.length > 0) {
     schema.keywords = keywords.join(', ')
@@ -5782,7 +5792,7 @@ app.get('/blog/:slug', async (req, res) => {
       description: seoDesc,
       canonicalUrl,
       ogType: 'article',
-      ogImage: post.featured_image || '',
+      ogImage: publicDisplayImage(post)?.url || '',
       jsonLd,
       bodyHtml: blogPostBodyHtml(post, { relatedHtml: relatedPostsHtml(relatedPosts, baseUrl) }),
       publishedTime: post.published_at || post.created_at || '',

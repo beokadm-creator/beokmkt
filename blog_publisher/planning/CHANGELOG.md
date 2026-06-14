@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-15 — 공개 블로그 대표 이미지 보존
+
+학회/명찰 글이면 공개 블로그 UI가 실제 `featured_image`를 무시하고 hongcomm 대체 이미지를 강제로 보여주던 문제를 수정했다. 발행 원고가 가진 대표 이미지를 사용자 화면, SSR HTML, OG/JSON-LD 메타에서 우선 보존하고, 대표 이미지가 없을 때만 학회 운영 대체 이미지를 사용한다.
+
+| 대상 | 내용 |
+|---|---|
+| `src/spa/pages/PublicBlogPage.tsx` | 목록 대표 글 이미지 선택을 `{url, alt}` 구조로 변경하고 `featured_image` 우선 적용 |
+| `src/spa/pages/PublicBlogPostPage.tsx` | 상세 hero 이미지와 SEO/JSON-LD image가 같은 선택 정책을 쓰도록 보정 |
+| `functions/index.mjs` | SSR 목록/상세/OG/BlogPosting JSON-LD에서 `publicDisplayImage()`로 대표 이미지 우선 정책 통일 |
+| `functions/ssr-template.mjs` | `npm run build:spa` 산출물 갱신 |
+
+검증:
+- `npx tsc --noEmit` PASS
+- `node --check functions/index.mjs` PASS
+- `npm run build:spa` PASS
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py verify_public 10`, `needs_human`, `status` PASS
+- 자체/티스토리/네이버 단건 실발행 후 공개 URL 검증 완료: selfhosted #42, tistory #87, naver #88
+
+---
+
 ## 2026-06-15 — 티스토리 재작성 실패 시 원문 발행 차단
 
 Phase B 품질 목표에서 티스토리는 리치 HTML 품질뿐 아니라 자체 블로그와 다른 독립 문서로 재작성되는 것이 중요하다. 기존에는 재작성 AI가 없거나 품질 기준을 통과하지 못하면 원문 폴백을 티스토리 어댑터가 예쁘게 변환해 발행할 수 있었다. 이 경우 보기에는 괜찮아도 중복 문서 회피 목적이 깨지므로 기본값에서 발행을 중단하도록 했다.
