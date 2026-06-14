@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-06-15 — 근거 0건 자동 생성 차단 및 검색 상태 운영 노출
+
+네이버 신규 실발행 검증 중 검색/근거 수집이 0건인 상태에서 내부 기능을 추정한 원고가 만들어지는 문제가 확인됐다. 해당 원고는 발행하지 않고 보관했으며, 근거 없는 원고가 다시 발행 경로로 들어가지 않도록 생성·팩트체크 게이트를 강화했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/pipeline/generate.py` | 운영 run tag 제거 범위를 평문 패턴까지 확대하고, 생성 후 title/meta/body 안전망 추가. 개행 보존 버그 수정 |
+| `blog_publisher/pipeline/generate.py` | `MIN_GROUNDING_RATIO > 0`에서 검색 출처 0건이면 원고 생성을 중단 |
+| `blog_publisher/pipeline/factcheck.py` | evidence facts가 0건이면 LLM 평가 없이 grounding 0.0으로 탈락 |
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs`, `server/index.mjs` | `ops.search_health` 추가: 일반 검색/Tavily, 네이버 SERP 키 상태 노출 |
+| `src/spa/pages/DashboardPage.tsx` | 운영 준비도에 `검색/근거` 셀 추가 |
+
+운영 정리:
+- 네이버 검증용 id 86은 근거 0건으로 발행하지 않고 `archived` 처리
+- 패치 전 cron이 만든 근거 0건 draft id 41은 본문 제거 및 재생성 대기 처리
+- 패치 전 생성 프로세스 중단 후 stuck 상태 복구
+
+검증:
+- `python3 -m compileall -q blog_publisher` PASS
+- `python3 blog_publisher/run.py selftest`, `quality_selftest` PASS
+- `node --check server/index.mjs`, `node --check blog_publisher/tools/sync_pipeline_snapshot.mjs`, `npx tsc --noEmit` PASS
+- `npm run build:spa`, `npm run lint -- .` PASS(0 errors / 기존 warnings)
+- `python3 blog_publisher/run.py sync_snapshot`에서 `search_health.ok=false` 및 미설정 사유 확인
+- `python3 blog_publisher/run.py verify_public 10`, `needs_human` PASS
+- Firebase Hosting/Functions 배포 후 `/api/pipeline/stats`에서 `ops.search_health` 반영 확인
+
+---
+
 ## 2026-06-15 — 배포 관리자 품질 항목 상세 미리보기 보강
 
 배포된 관리자 대시보드는 로컬 SQLite를 직접 읽을 수 없기 때문에 품질 항목을 눌렀을 때 본문 원인을 확인하지 못할 수 있었다. 로컬 스냅샷에 제한된 미리보기 HTML을 함께 싣고, Firebase 함수가 스냅샷에서 상세 항목을 찾도록 보강했다.

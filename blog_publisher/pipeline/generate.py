@@ -31,6 +31,18 @@ _HANZI_RE = _re.compile(r"[一-鿿㐀-䶿]")
 _RUN_META_RE = _re.compile(
     r"\s*[\(\[][^)\]]*(?:실제\s*발행\s*검증|실발행\s*검증|검증\s*\d{4}[-_]\d{4}|\d{4}[-_]\d{4}\s*검증)[^)\]]*[\)\]]\s*"
 )
+_RUN_DATE_TAG_RE = _re.compile(r"(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?:[-_][0-9A-Za-z가-힣]+)?")
+_RUN_META_INLINE_RE = _re.compile(
+    r"(?:네이버|티스토리|자체|selfhosted|naver|tistory)?\s*"
+    r"(?:(?:실제|신규)\s*)?(?:발행\s*)?(?:품질\s*)?검증\s*"
+    r"(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?:[-_][0-9A-Za-z가-힣]+)?",
+    _re.IGNORECASE,
+)
+_RUN_META_PHRASE_RE = _re.compile(
+    r"(?:네이버|티스토리|자체|selfhosted|naver|tistory)?\s*"
+    r"(?:(?:실제|신규)\s*)?(?:발행\s*)?(?:품질\s*)?검증",
+    _re.IGNORECASE,
+)
 
 
 def _lock_path() -> Path:
@@ -106,11 +118,23 @@ def _strip_hanzi(text: str) -> str:
     return out
 
 
+def _strip_run_meta_text(text: str) -> str:
+    """운영 run tag/검증 메타가 공개 산출물 소재로 새는 것을 막는다."""
+    cleaned = _RUN_META_RE.sub(" ", text or "")
+    cleaned = _RUN_META_INLINE_RE.sub(" ", cleaned)
+    cleaned = _RUN_DATE_TAG_RE.sub(" ", cleaned)
+    cleaned = _RUN_META_PHRASE_RE.sub(" ", cleaned)
+    cleaned = _re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = _re.sub(r"\n[ \t]+", "\n", cleaned)
+    cleaned = _re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = _re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    cleaned = _re.sub(r"\s+([,.!?])", r"\1", cleaned)
+    return cleaned or (text or "").strip()
+
+
 def _content_topic(topic: str) -> str:
     """운영 run tag/검증 메타가 LLM 본문 소재로 새는 것을 막는다."""
-    cleaned = _RUN_META_RE.sub(" ", topic or "")
-    cleaned = _re.sub(r"\s{2,}", " ", cleaned).strip()
-    return cleaned or (topic or "").strip()
+    return _strip_run_meta_text(topic)
 
 
 def _channel_rules(engine: str) -> str:
@@ -271,6 +295,10 @@ def generate_article(
     serp = collect.analyze_serp(engine, plan["primary_keyword"])
     _log_stage(topic, "source_collect")
     sources = collect.collect(ev.search_queries(plan))
+    if not sources and config.MIN_GROUNDING_RATIO > 0:
+        raise RuntimeError(
+            "근거 출처 0건: 검색 공급자/키워드/출처 수집을 확인해야 하므로 자동 생성 중단"
+        )
     # ③ 근거팩(커버리지는 타깃 SERP 반영)
     _log_stage(topic, "evidence_pack")
     evidence = ev.build_evidence_pack(llm, public_topic, content_type, plan, sources, serp=serp)
@@ -345,6 +373,10 @@ def compose_article(
     except Exception as e:  # noqa: BLE001
         print(f"[seo] 최적화 실패(원고 유지): {e}", flush=True)
         seo_data, final_title, meta, tags = {}, title, outline.get("meta_description", ""), []
+
+    final_title = _strip_run_meta_text(final_title)
+    meta = _strip_run_meta_text(meta)
+    body_text = _strip_run_meta_text(body_text)
 
     return {
         "title": final_title,

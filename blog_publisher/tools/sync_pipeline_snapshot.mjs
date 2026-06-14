@@ -29,6 +29,17 @@ function readEnvNumber(key, fallback) {
   }
 }
 
+function readEnvString(key, fallback = '') {
+  try {
+    const text = readFileSync(ENV_PATH, 'utf8')
+    const match = text.match(new RegExp(`^${key}=([^\\n#]*)`, 'm'))
+    if (!match) return fallback
+    return String(match[1]).trim().replace(/^["']|["']$/g, '')
+  } catch {
+    return process.env[key] || fallback
+  }
+}
+
 function qualityGateStatus() {
   const minGrounding = readEnvNumber('MIN_GROUNDING_RATIO', 0.9)
   const minReviewScore = readEnvNumber('MIN_REVIEW_SCORE', 80)
@@ -37,6 +48,24 @@ function qualityGateStatus() {
     min_review_score: minReviewScore,
     enforced: minGrounding > 0 && minReviewScore > 0,
     ok: minGrounding >= 0.9 && minReviewScore >= 80,
+  }
+}
+
+function searchHealthStatus() {
+  const provider = readEnvString('SEARCH_PROVIDER', '').toLowerCase()
+  const tavilyKey = readEnvString('TAVILY_API_KEY', '')
+  const naverClientId = readEnvString('NAVER_CLIENT_ID', '')
+  const naverClientSecret = readEnvString('NAVER_CLIENT_SECRET', '')
+  const generalOk = provider === 'tavily' && Boolean(tavilyKey)
+  const naverSerpOk = Boolean(naverClientId && naverClientSecret)
+  return {
+    provider: provider || null,
+    general_search_ok: generalOk,
+    naver_serp_ok: naverSerpOk,
+    ok: generalOk,
+    reason: generalOk
+      ? null
+      : 'SEARCH_PROVIDER/TAVILY_API_KEY 미설정: 신규 원고 근거 수집 불가',
   }
 }
 
@@ -511,6 +540,7 @@ async function collectSnapshot() {
         stale,
         stuck_threshold_min: stuckThresholdMin,
         quality_gate: qualityGateStatus(),
+        search_health: searchHealthStatus(),
         session_health: channelSessionHealth(),
       },
       needs_human_posts,

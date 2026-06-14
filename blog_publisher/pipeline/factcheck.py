@@ -49,6 +49,14 @@ def run_once(batch: int = 5) -> tuple[int, int]:
 
         try:
             evidence = json.loads(post["evidence"]) if post["evidence"] else {}
+            if not evidence.get("facts"):
+                db.save_grounding(post["id"], 0.0)
+                db.claim(post["id"], "factchecking", "draft")
+                db.mark_review_failed(post["id"], ["no_evidence_facts"])
+                db.save_body(post["id"], "", to_status="draft")
+                db.save_grounding(post["id"], 0.0)
+                failed += 1
+                continue
             result = check(llm, post["body"], evidence)
         except Exception as e:  # noqa: BLE001
             db.claim(post["id"], "factchecking", "draft")

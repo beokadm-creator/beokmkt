@@ -77,6 +77,13 @@ type OpsStats = {
     enforced: boolean
     ok: boolean
   }
+  search_health?: {
+    provider: string | null
+    general_search_ok: boolean
+    naver_serp_ok: boolean
+    ok: boolean
+    reason: string | null
+  }
   session_health?: {
     channel: string
     exists: boolean
@@ -292,9 +299,11 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
   const snapshotStale = ops.snapshot_stale === true
   const gate = ops.quality_gate
   const gateAlert = gate ? !gate.ok || !gate.enforced : false
+  const search = ops.search_health
+  const searchAlert = search ? !search.ok : false
   const sessionHealth = ops.session_health ?? []
   const sessionAlert = sessionHealth.some((session) => !session.ok)
-  const active = inventoryLow || dueBlocked || staleTotal > 0 || snapshotStale || gateAlert || sessionAlert
+  const active = inventoryLow || dueBlocked || staleTotal > 0 || snapshotStale || gateAlert || searchAlert || sessionAlert
   const snapshotAgeMin = typeof ops.snapshot_age_sec === 'number' ? Math.round(ops.snapshot_age_sec / 60) : null
   const cells = [
     {
@@ -308,6 +317,12 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
       value: gate ? (gate.ok ? '정상' : '확인') : '미측정',
       sub: gate ? `grounding ${gate.min_grounding_ratio} · review ${gate.min_review_score}` : '스냅샷 갱신 필요',
       alert: gateAlert,
+    },
+    {
+      label: '검색/근거',
+      value: search ? (search.ok ? '정상' : '확인') : '미측정',
+      sub: search ? `${search.provider ?? '없음'} · naver ${search.naver_serp_ok ? 'on' : 'off'}` : '스냅샷 갱신 필요',
+      alert: searchAlert,
     },
     {
       label: '채널 세션',
@@ -360,7 +375,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
           {active ? '확인 필요' : '정상'}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-9">
         {cells.map((cell) => (
           <div
             key={cell.label}
