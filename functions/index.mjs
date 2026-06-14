@@ -4941,6 +4941,8 @@ function normalizeRenderedBlogContent(html = '') {
   return String(html || '')
     .replace(/<article\b[^>]*>\s*<header\b[\s\S]*?<\/header>/i, '')
     .replace(/<\/article>\s*$/i, '')
+    .replace(/<h1\b([^>]*)>/gi, '<h2$1>')
+    .replace(/<\/h1>/gi, '</h2>')
     .trim()
 }
 
@@ -4949,6 +4951,18 @@ function publicDisplayCategory(post = {}) {
   const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.category ?? ''} ${tags}`
   if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) return '학회운영'
   return post.category || '운영 글'
+}
+
+function publicFallbackImage(post = {}) {
+  const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
+  const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.category ?? ''} ${tags}`
+  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) {
+    return {
+      url: 'https://hongcomm.kr/img/page/c1.jpg',
+      alt: '학회 현장 지류 명찰 자동 출력 시스템',
+    }
+  }
+  return null
 }
 
 function blogPostBodyHtml(post, extras = {}) {
@@ -4962,6 +4976,8 @@ function blogPostBodyHtml(post, extras = {}) {
   const category = escapeHtml(publicDisplayCategory(post))
   const tags = Array.isArray(post.tags) ? post.tags : []
   const renderedContent = content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join('')
+  const fallbackImage = publicFallbackImage(post)
+  const displayImage = fallbackImage || (post.featured_image ? { url: post.featured_image, alt: title } : null)
 
   return `
 <div style="min-height:100vh;background:#09090b;color:#fff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;word-break:keep-all;overflow-wrap:break-word;">
@@ -4986,6 +5002,8 @@ function blogPostBodyHtml(post, extras = {}) {
             <a href="https://beoksolution.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:6px;background:#09090b;color:#fff;text-decoration:none;font-weight:800;font-size:14px;border:1px solid #3f3f46;">비오케이솔루션 보기</a>
           </div>
         </section>
+
+        ${displayImage ? `<img src="${escapeHtml(displayImage.url)}" alt="${escapeHtml(displayImage.alt)}" loading="eager" style="display:block;width:100%;height:auto;margin:30px 0 0;border:1px solid #27272a;border-radius:8px;object-fit:cover;">` : ''}
 
         <div style="margin-top:34px;">${renderedContent}</div>
 

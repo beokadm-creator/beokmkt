@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-14 — 공개 URL 검증 도구와 published 품질 재분류
+
+운영자가 "발행 URL이 생겼다"와 "실제 공개 산출물이 품질 기준을 통과했다"를 분리해 볼 수 있도록 로컬 검증 명령을 추가했다. 실제 공개 HTML을 읽어 자체/티스토리/네이버별 최소 품질 신호를 점검한다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/verify_public_posts.py` | 로컬 SQLite의 `published` 글을 공개 URL로 재조회해 HTTP 200, 본문 길이, 이미지, h1/h2, 금칙어, 취소선, 자체 블로그 중복 header를 검사 |
+| `blog_publisher/run.py` | `python3 run.py verify_public [limit]` 명령 추가 |
+| `functions/index.mjs`, `src/spa/pages/PublicBlogPage.tsx`, `src/spa/pages/PublicBlogPostPage.tsx` | 학회/명찰 글에 검증된 명찰 출력 이미지를 공개 렌더링 fallback으로 표시. 저장 본문 내부 h1은 h2로 낮춤 |
+| 실DB | 공개 금칙어가 남아 있던 티스토리 id=18을 `published`에서 `needs_human`으로 격리. 삭제/외부 수정은 하지 않고 수동 확인 대상으로 분리 |
+
+검증:
+- `python3 run.py verify_public 12` → published 공개 글 12/12 통과
+- 자체 블로그 오래된 학회/명찰 글: h1 1개, 이미지 1개 이상 확인
+- 네이버 공개 글: 빈 zero-width 취소선은 실패로 보지 않고, 보이는 취소선만 실패 처리하도록 검사 기준 조정
+- Firebase Functions/Hosting 배포 완료
+
+---
+
 ## 2026-06-14 — beok 학회/명찰 이미지 풀 보강
 
 Phase C의 막힘 지점이던 beok 실제 이미지 자산을 재점검했다. `beoksolution.com` 공개 사이트와 sitemap 기준으로 수집 가능한 이미지는 로고 1개뿐이었다. 학회/명찰 글에는 이미 공개 도달성이 확인된 hongcomm.kr의 실제 명찰·출력 시스템 이미지를 beok 학회운영 컨텍스트에 연결했다.

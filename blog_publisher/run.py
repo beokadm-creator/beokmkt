@@ -11,6 +11,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py schedule
   python run.py publish
   python run.py status         # 파이프라인 상태별 건수 리포트
+  python run.py verify_public  # published 공개 URL 실제 HTML 품질 검증
   python run.py loop           # 데모용: 한 번에 전체 흐름
 
   # 도구(직접 실행)
@@ -112,6 +113,11 @@ def main() -> None:
     elif cmd == "status":
         from tools import status_report
         status_report.report()
+
+    elif cmd == "verify_public":
+        from tools import verify_public_posts
+        limit = int(sys.argv[2]) if len(sys.argv) > 2 else 20
+        raise SystemExit(0 if verify_public_posts.run(limit) else 1)
 
     elif cmd == "needs_human":          # 수동 처리 대기 목록(감사 J4)
         rows = db.fetch_by_status("needs_human", limit=100)

@@ -4,17 +4,24 @@ import { applySeo } from '../lib/seo'
 import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
+const CONFERENCE_BADGE_IMAGE = 'https://hongcomm.kr/img/page/c1.jpg'
 
 function normalizeRenderedContent(html: string) {
   return String(html || '')
     .replace(/<article\b[^>]*>\s*<header\b[\s\S]*?<\/header>/i, '')
     .replace(/<\/article>\s*$/i, '')
+    .replace(/<h1\b([^>]*)>/gi, '<h2$1>')
+    .replace(/<\/h1>/gi, '</h2>')
     .trim()
 }
 
-function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+function isConferenceBadgePost(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
   const haystack = `${post.title} ${post.category} ${(post.tags ?? []).join(' ')}`
-  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) return '학회운영'
+  return /학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)
+}
+
+function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+  if (isConferenceBadgePost(post)) return '학회운영'
   return post.category || '운영 글'
 }
 
@@ -146,6 +153,7 @@ export default function PublicBlogPostPage() {
   const publishedLabel = new Date(post.published_at ?? post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
   const contentHtml = normalizeRenderedContent(post.content || '<p>본문이 없습니다.</p>')
   const categoryLabel = displayCategory(post)
+  const heroImage = isConferenceBadgePost(post) ? CONFERENCE_BADGE_IMAGE : post.featured_image
 
   return (
     <div className="min-h-screen overflow-hidden bg-zinc-950 text-white">
@@ -176,9 +184,9 @@ export default function PublicBlogPostPage() {
               </div>
             </section>
 
-            {post.featured_image ? (
+            {heroImage ? (
             <img
-              src={post.featured_image}
+              src={heroImage}
               alt={post.title}
               className="mt-8 w-full rounded-2xl border border-zinc-800 object-cover"
               loading="eager"

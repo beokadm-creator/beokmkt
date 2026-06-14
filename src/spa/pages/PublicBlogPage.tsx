@@ -18,6 +18,7 @@ type BlogPost = {
 type ListResponse = { items: BlogPost[]; total: number }
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
+const CONFERENCE_BADGE_IMAGE = 'https://hongcomm.kr/img/page/c1.jpg'
 
 const focusTopics = [
   { label: '명단 데이터', desc: '이름, 소속, 직함, 등록 구분, QR 식별값을 출력 전 같은 기준으로 검수합니다.' },
@@ -40,10 +41,18 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString('ko-KR')
 }
 
-function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+function isConferenceBadgePost(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
   const haystack = `${post.title} ${post.category} ${(post.tags ?? []).join(' ')}`
-  if (/학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)) return '학회운영'
+  return /학회|명찰|사무국|재발행|참가자|바코드|QR/i.test(haystack)
+}
+
+function displayCategory(post: Pick<BlogPost, 'category' | 'title' | 'tags'>) {
+  if (isConferenceBadgePost(post)) return '학회운영'
   return post.category || '블로그'
+}
+
+function displayImage(post: BlogPost) {
+  return isConferenceBadgePost(post) ? CONFERENCE_BADGE_IMAGE : post.featured_image
 }
 
 export default function PublicBlogPage() {
@@ -177,8 +186,8 @@ export default function PublicBlogPage() {
                 className="group mt-8 grid gap-5 rounded-lg border border-zinc-800 bg-zinc-900/55 p-6 transition hover:border-yellow-300/70 hover:bg-zinc-900 md:grid-cols-[0.85fr_1.15fr]"
               >
                 <div className="aspect-[16/10] overflow-hidden rounded-md border border-zinc-800 bg-zinc-950">
-                  {featured.featured_image ? (
-                    <img src={featured.featured_image} alt={featured.title} className="h-full w-full object-cover" />
+                  {displayImage(featured) ? (
+                    <img src={displayImage(featured) || ''} alt={featured.title} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-500">비오케이솔루션 운영 인사이트</div>
                   )}
