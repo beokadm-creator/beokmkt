@@ -13,6 +13,7 @@
 |---|---|
 | `src/spa/pages/PublicBlogPostPage.tsx` | 본문 h2/h3 자동 anchor 및 목차 생성, 읽기 시간/소제목/이미지/표 신호 추가 |
 | `src/spa/pages/PublicBlogPostPage.tsx` | 데스크톱 사이드바를 `ARTICLE MAP` + 비오케이솔루션 운영 신뢰 패널로 분리 |
+| `functions/index.mjs` | 실제 공개 URL을 담당하는 SSR 블로그 글 HTML에도 동일한 읽기 시간/목차/ARTICLE MAP 반영 |
 | `server/index.mjs` | Express 5에서 production SPA fallback의 `app.get('*')`가 서버 시작을 깨뜨리는 문제를 `app.use` fallback으로 수정 |
 | `functions/ssr-template.mjs` | SPA 빌드 산출 템플릿 갱신 |
 
@@ -20,6 +21,7 @@
 - `npx tsc --noEmit` PASS
 - `npm run build:spa` PASS
 - `node --check server/index.mjs` PASS
+- `node --check functions/index.mjs` PASS
 - `npm run lint -- .` 0 errors / 기존 warnings 유지
 - 로컬 production 서버에서 실제 공개 글 렌더링 확인: desktop/mobile 모두 H1, 읽기 시간, ARTICLE MAP, 목차 8개 렌더, 수평 overflow 없음
 

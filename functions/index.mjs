@@ -5160,6 +5160,39 @@ function normalizeRenderedBlogContent(html = '') {
     .trim()
 }
 
+function blogHeadingId(text = '', index = 0) {
+  const normalized = stripHtml(text)
+    .replace(/[^\w가-힣\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 46)
+  return normalized ? `section-${normalized}-${index}` : `section-${index}`
+}
+
+function enhanceBlogContentForReading(html = '') {
+  const toc = []
+  let index = 0
+  const body = String(html || '').replace(/<h([23])\b([^>]*)>([\s\S]*?)<\/h\1>/gi, (match, levelRaw, attrs, inner) => {
+    const text = stripHtml(inner)
+    if (!text) return match
+    index += 1
+    const existingId = String(attrs || '').match(/\sid=["']([^"']+)["']/i)?.[1]
+    const id = existingId || blogHeadingId(text, index)
+    toc.push({ id, text, level: Number(levelRaw) })
+    if (existingId) return match
+    return `<h${levelRaw}${attrs} id="${escapeHtml(id)}">${inner}</h${levelRaw}>`
+  })
+  const plain = stripHtml(body)
+  return {
+    html: body,
+    toc,
+    chars: plain.length,
+    readingMinutes: Math.max(1, Math.ceil(plain.length / 650)),
+    images: (body.match(/<img\b/gi) || []).length,
+    tables: (body.match(/<table\b/gi) || []).length,
+  }
+}
+
 function publicDisplayCategory(post = {}) {
   const tags = Array.isArray(post.tags) ? post.tags.join(' ') : ''
   const haystack = `${post.title ?? ''} ${post.topic ?? ''} ${post.category ?? ''} ${tags}`
@@ -5204,9 +5237,13 @@ function blogPostBodyHtml(post, extras = {}) {
   const date = formatKoreanDate(post.published_at || post.created_at || '')
   const category = escapeHtml(publicDisplayCategory(post))
   const tags = Array.isArray(post.tags) ? post.tags : []
-  const renderedContent = content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join('')
+  const rawRenderedContent = content.includes('<') ? content : content.split(/\n{2,}/).map((p) => `<p>${escapeHtml(p)}</p>`).join('')
+  const reading = enhanceBlogContentForReading(rawRenderedContent)
+  const renderedContent = reading.html
   const fallbackImage = publicFallbackImage(post)
   const displayImage = fallbackImage || (post.featured_image ? { url: post.featured_image, alt: title } : null)
+  const tocHtml = reading.toc.slice(0, 12).map((item) => `
+              <a href="#${escapeHtml(item.id)}" style="display:block;margin:${item.level === 3 ? '0 0 8px 12px' : '0 0 8px'};padding:6px 8px;border-radius:6px;color:#a1a1aa;text-decoration:none;font-size:12px;line-height:1.55;">${escapeHtml(item.text)}</a>`).join('')
 
   return `
 <div style="min-height:100vh;background:#09090b;color:#fff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;word-break:keep-all;overflow-wrap:break-word;">
@@ -5223,6 +5260,8 @@ function blogPostBodyHtml(post, extras = {}) {
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
             <span style="display:inline-flex;padding:7px 12px;border-radius:6px;background:rgba(250,204,21,.12);color:#fde68a;border:1px solid rgba(250,204,21,.3);font-size:12px;font-weight:800;">${category}</span>
             ${date ? `<time style="color:#a1a1aa;font-size:13px;font-weight:700;">${escapeHtml(date)}</time>` : ''}
+            <span style="display:inline-flex;padding:7px 12px;border-radius:6px;border:1px solid #3f3f46;color:#d4d4d8;font-size:12px;font-weight:700;">읽기 ${reading.readingMinutes}분</span>
+            <span style="display:inline-flex;padding:7px 12px;border-radius:6px;border:1px solid #3f3f46;color:#d4d4d8;font-size:12px;font-weight:700;">소제목 ${reading.toc.length}</span>
           </div>
           <h1 style="margin:0;max-width:900px;color:#fff;font-size:clamp(38px,5vw,60px);line-height:1.08;font-weight:1000;">${title}</h1>
           ${excerpt ? `<p style="margin:24px 0 0;max-width:760px;color:#d4d4d8;font-size:19px;line-height:1.85;">${excerpt}</p>` : ''}
@@ -5242,6 +5281,16 @@ function blogPostBodyHtml(post, extras = {}) {
       </article>
 
       <aside style="position:sticky;top:28px;display:block;">
+        <div style="display:grid;gap:16px;">
+        <div style="padding:26px;border:1px solid #27272a;border-radius:8px;background:rgba(24,24,27,.82);box-shadow:0 24px 60px rgba(0,0,0,.28);backdrop-filter:blur(18px);">
+          <p style="margin:0;color:#fde68a;font-size:12px;font-weight:800;letter-spacing:.18em;">ARTICLE MAP</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;text-align:center;">
+            <div style="padding:11px 8px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;"><b style="display:block;color:#fff;font-size:18px;">${reading.readingMinutes}</b><span style="color:#71717a;font-size:11px;">분</span></div>
+            <div style="padding:11px 8px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;"><b style="display:block;color:#fff;font-size:18px;">${reading.images}</b><span style="color:#71717a;font-size:11px;">이미지</span></div>
+            <div style="padding:11px 8px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;"><b style="display:block;color:#fff;font-size:18px;">${reading.tables}</b><span style="color:#71717a;font-size:11px;">표</span></div>
+          </div>
+          ${tocHtml ? `<nav style="margin-top:18px;padding-top:16px;border-top:1px solid #27272a;"><p style="margin:0 0 12px;color:#71717a;font-size:12px;font-weight:800;">본문 목차</p><div style="max-height:280px;overflow:auto;">${tocHtml}</div></nav>` : ''}
+        </div>
         <div style="padding:26px;border:1px solid #27272a;border-radius:8px;background:rgba(24,24,27,.82);box-shadow:0 24px 60px rgba(0,0,0,.28);backdrop-filter:blur(18px);">
           <p style="margin:0;color:#fde68a;font-size:12px;font-weight:800;letter-spacing:.18em;">BOK SOLUTION</p>
           <h2 style="margin:12px 0 0;color:#fff;font-size:28px;line-height:1.16;font-weight:1000;">학회 운영 사무국 명찰 출력</h2>
@@ -5253,6 +5302,7 @@ function blogPostBodyHtml(post, extras = {}) {
             <div style="padding:13px;border-radius:6px;background:rgba(9,9,11,.72);border:1px solid #27272a;">공개 발행 URL 품질 확인</div>
           </div>
           <a href="${KAKAO_CHAT_URL}" target="_blank" rel="noopener" style="margin-top:20px;display:flex;width:100%;box-sizing:border-box;justify-content:center;padding:14px 18px;border-radius:6px;background:#fde047;color:#09090b;text-decoration:none;font-size:14px;font-weight:800;">운영 상담하기</a>
+        </div>
         </div>
       </aside>
     </div>
