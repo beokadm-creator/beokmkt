@@ -1,0 +1,76 @@
+"""
+자체 블로그 어댑터 — 가장 안정적인 채널.
+
+API/DB로 직접 넣으므로 거의 깨지지 않는다. '신뢰 채널'로 취급한다.
+Firebase 블로그 API 기준: POST {SELFHOST_API_URL}{SELFHOST_POST_PATH}
+인증: X-API-Key 헤더.
+"""
+from __future__ import annotations
+
+import json
+
+import requests
+
+import config
+from publishers.base import FatalError, RetryableError
+
+
+def _loads(val):
+    if not val:
+        return []
+    try:
+        return json.loads(val) if isinstance(val, str) else val
+    except (ValueError, TypeError):
+        return []
+
+
+class SelfHostedPublisher:
+    name = "selfhosted"
+
+    def publish(self, post) -> str:
+        content = post["body"]
+        if config.SELFHOST_RENDER_HTML:
+            from render.renderer import render_body
+
+            content = render_body({
+                "title": post["title"],
+                "body": post["body"],
+                "meta_desc": post.get("meta_desc", ""),
+                "tags": _loads(post.get("tags")),
+                "canonical_url": post.get("canonical_url", ""),
+                "lang": post.get("locale", "ko"),
+                "source_url": post.get("source_url", ""),
+            })
+
+        tags = _loads(post.get("tags"))
+        payload = {
+            "title": post["title"],
+            "content": content,
+            "status": "published",
+            "tags": tags,
+            "seo_title": post.get("seo_title") or post["title"],
+            "seo_description": post.get("meta_desc", ""),
+            "language": post.get("locale", "ko"),
+            "ai_generate": False,
+        }
+
+        endpoint = f"{config.SELFHOST_API_URL}{config.SELFHOST_POST_PATH}"
+        try:
+            resp = requests.post(
+                endpoint,
+                headers={"X-API-Key": config.SELFHOST_API_KEY},
+                json=payload,
+                timeout=30,
+            )
+        except requests.RequestException as e:
+            raise RetryableError(f"네트워크 오류: {e}") from e
+
+        if resp.status_code in (200, 201):
+            data = resp.json().get("data", {})
+            slug = data.get("slug") or data.get("id", "")
+            return f"{config.SELFHOST_API_URL}/blog/{slug}" if slug else ""
+        if resp.status_code in (401, 403):
+            raise FatalError(f"인증 실패: {resp.status_code}")
+        if resp.status_code >= 500:
+            raise RetryableError(f"서버 오류: {resp.status_code}")
+        raise FatalError(f"발행 거부: {resp.status_code} {resp.text[:200]}")

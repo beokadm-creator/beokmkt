@@ -26,11 +26,28 @@ const CHANNEL_GUIDES = {
 - 제목도 원래 제목과 다르게 새로 작성`,
 }
 
+// <img> 태그를 마크다운 이미지로 변환(스트리핑 과정에서 살아남게).
+function imgTagsToMarkdown(html) {
+  return String(html ?? '').replace(/<img\b[^>]*>/gi, (tag) => {
+    const src = (tag.match(/src=["']([^"']+)["']/i) || [])[1] || ''
+    const alt = (tag.match(/alt=["']([^"']*)["']/i) || [])[1] || ''
+    return src ? `\n\n![${alt}](${src})\n\n` : ''
+  })
+}
+
+// 마크다운 이미지 ![alt](src) → <img> 태그(발행 직전 복원).
+function markdownImagesToHtml(html) {
+  return String(html ?? '').replace(
+    /!\[([^\]]*)\]\(([^)\s]+)\)/g,
+    (_m, alt, src) => `<img src="${src}" alt="${alt}" style="max-width:100%;height:auto;border-radius:8px;margin:16px 0;">`
+  )
+}
+
 function stripToPlainText(html) {
-  return String(html ?? '')
+  return imgTagsToMarkdown(String(html ?? ''))
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<figure[\s\S]*?<\/figure>/gi, ' ')
+    .replace(/<figcaption[\s\S]*?<\/figcaption>/gi, ' ')
     .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n\n## $1\n')
     .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '\n\n### $1\n')
     .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '\n- $1')
@@ -96,7 +113,8 @@ function buildSourceFooter(canonicalUrl) {
 async function rewriteForChannel({ title, html, channel, canonicalUrl = '' }) {
   const fallback = {
     title,
-    html: `${html}${buildSourceFooter(canonicalUrl)}`,
+    // 폴백(재작성 미수행)에서도 마크다운 이미지는 <img>로 복원해 소실 방지
+    html: `${markdownImagesToHtml(html)}${buildSourceFooter(canonicalUrl)}`,
     rewritten: false,
   }
 
@@ -114,7 +132,8 @@ async function rewriteForChannel({ title, html, channel, canonicalUrl = '' }) {
 - 문장, 문단 구성, 소제목, 표현을 원문과 70% 이상 다르게 작성 (단순 동의어 치환 금지)
 - 원문에 없는 사실, 수치, 통계를 만들어내지 말 것
 - 분량은 원문의 80~120% 수준 유지
-- 허용 태그: h2, h3, p, ul, ol, li, strong, blockquote 만 사용 (인라인 스타일, class 금지)
+- 허용 태그: h2, h3, p, ul, ol, li, strong, blockquote, img 사용 (인라인 스타일, class 금지)
+- 본문의 이미지 마크다운 ![설명](url) 은 src/alt를 변경·삭제하지 말고 자연스러운 위치에 그대로 유지할 것 (재작성된 흐름에 맞게 위치만 조정 가능)
 - 반드시 JSON만 출력: { "title": "...", "html": "..." }
 
 ${guide}`
@@ -126,11 +145,13 @@ ${guide}`
     ])
     const parsed = extractJson(response)
     const newTitle = typeof parsed?.title === 'string' && parsed.title.trim() ? parsed.title.trim() : title
-    const newHtml = typeof parsed?.html === 'string' && parsed.html.trim() ? parsed.html.trim() : ''
+    let newHtml = typeof parsed?.html === 'string' && parsed.html.trim() ? parsed.html.trim() : ''
     if (!newHtml || stripToPlainText(newHtml).length < plainText.length * 0.5) {
       console.warn(`[channel-rewriter] ${channel} 재작성 결과가 비정상적으로 짧아 원문 사용`)
       return fallback
     }
+    // 모델이 마크다운으로 남긴 이미지를 <img>로 복원(어댑터가 인식하도록)
+    newHtml = markdownImagesToHtml(newHtml)
     return {
       title: newTitle,
       html: `${newHtml}${buildSourceFooter(canonicalUrl)}`,

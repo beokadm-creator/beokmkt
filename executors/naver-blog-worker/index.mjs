@@ -27,6 +27,24 @@ const STORAGE_PATH = path.resolve(
 const WRITE_URL = 'https://blog.naver.com/PostWrite.naver'
 const LOGIN_URL = 'https://nid.naver.com/nidlogin.login'
 
+// 멱등성: 발행 성공 기록(post_id+platform). 재시도 시 중복 발행 방지.
+const PUBLISHED_LOG = path.resolve('./.session/published-log.json')
+
+async function loadPublishedLog() {
+  try { return JSON.parse(await fs.readFile(PUBLISHED_LOG, 'utf-8')) } catch { return {} }
+}
+async function recordPublished(key, url) {
+  if (!key) return
+  try {
+    const logData = await loadPublishedLog()
+    logData[key] = { url: url || '', at: new Date().toISOString() }
+    await fs.mkdir(path.dirname(PUBLISHED_LOG), { recursive: true })
+    const tmp = PUBLISHED_LOG + '.tmp'
+    await fs.writeFile(tmp, JSON.stringify(logData, null, 2))
+    await fs.rename(tmp, PUBLISHED_LOG)   // 원자적 교체
+  } catch (e) { log('warn', `발행 로그 기록 실패(무시): ${e.message}`) }
+}
+
 class WorkerError extends Error {
   constructor(code, message, details = null) {
     super(message)
@@ -155,7 +173,7 @@ async function publishToNaver({ title, content_html, tags, link, canonical_url }
   const storageState = await loadStorageState()
   const browser = await chromium.launch({ headless: HEADLESS, slowMo: SLOW_MO })
   try {
-    const context = await chromium.newContext({
+    const context = await browser.newContext({
       storageState,
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       viewport: { width: 1366, height: 900 },
@@ -294,6 +312,16 @@ async function handlePublish(req, res, platform) {
     log('info', `content_html length=${(body.content_html || '').length} preview=${(body.content_html || '').slice(0, 100)}`)
   }
 
+  // 멱등성: 이미 발행된 post_id+platform이면 재발행하지 않고 기존 URL 반환
+  const dedupKey = postId ? `${platform}:${postId}` : ''
+  if (dedupKey) {
+    const logData = await loadPublishedLog()
+    if (logData[dedupKey]) {
+      log('warn', `중복 발행 차단 [${dedupKey}] → 기존 URL 반환: ${logData[dedupKey].url}`)
+      return sendJson(res, 200, { ok: true, platform, url: logData[dedupKey].url, deduped: true })
+    }
+  }
+
   try {
     let result
     if (platform === 'tistory') {
@@ -310,6 +338,7 @@ async function handlePublish(req, res, platform) {
     }
 
     log('info', `✅ 발행 성공 [${platform}] → ${result.url || '(URL 없음)'}`)
+    if (dedupKey) await recordPublished(dedupKey, result.url)
     if (postId) await reportResultToMain(postId, platform, { status: 'success', url: result.url, published_at: result.published_at })
     return sendJson(res, 200, { ok: true, platform, ...result })
   } catch (e) {
@@ -332,7 +361,12 @@ async function handlePublishAll(req, res) {
   log('info', `다중 플랫폼 발행 요청 post_id=${postId} platforms=[${platforms.join(',')}]`)
 
   const results = {}
+  const pubLog = postId ? await loadPublishedLog() : {}
   for (const platform of platforms) {
+    if (postId && pubLog[`${platform}:${postId}`]) {
+      results[platform] = { ok: true, url: pubLog[`${platform}:${postId}`].url, deduped: true }
+      continue
+    }
     try {
       let r
       if (platform === 'tistory') r = await publishToTistory(body)
@@ -340,6 +374,7 @@ async function handlePublishAll(req, res) {
       else if (platform === 'twitter') r = await publishToTwitter(body)
       else { results[platform] = { ok: false, error: 'unsupported' }; continue }
       results[platform] = { ok: true, ...r }
+      if (postId) await recordPublished(`${platform}:${postId}`, r.url)
       if (postId) await reportResultToMain(postId, platform, { status: 'success', url: r.url, published_at: r.published_at })
     } catch (e) {
       const code = e instanceof WorkerError ? e.code : (e instanceof TistoryError ? e.code : 'UNKNOWN')

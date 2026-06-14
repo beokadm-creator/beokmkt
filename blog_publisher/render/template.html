@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="{meta_description}">
+<link rel="canonical" href="{canonical_url}">
+<meta name="robots" content="index,follow">
+<!-- Open Graph -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{meta_description}">
+<meta property="og:url" content="{canonical_url}">
+<meta property="og:image" content="{og_image}">
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{meta_description}">
+<!-- Article JSON-LD (SEO 구조화 데이터) -->
+<script type="application/ld+json">
+{json_ld}
+</script>
+<style>
+{css}
+</style>
+</head>
+<body>
+<div class="wrap">
+<article>
+  <header>
+    <h1>{title}</h1>
+    <div class="meta">
+      <time datetime="{published_iso}">{published_human}</time> · {author}
+    </div>
+  </header>
+  {toc}
+  <div class="content">
+{content_html}
+  </div>
+  <div class="tags">{tags_html}</div>
+  {source_footer}
+</article>
+</div>
+</body>
+</html>

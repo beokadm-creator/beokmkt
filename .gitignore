@@ -58,3 +58,13 @@ next-env.d.ts
 executors/naver-blog-worker/node_modules/
 executors/naver-blog-worker/.session/
 tmp/
+
+# blog_publisher (Python 파이프라인) — 런타임 산출물/비밀은 커밋 제외
+blog_publisher/**/__pycache__/
+blog_publisher/**/*.pyc
+blog_publisher/db/blog.db
+blog_publisher/db/blog.db-shm
+blog_publisher/db/blog.db-wal
+blog_publisher/db/.fuse_hidden*
+blog_publisher/db/backups/
+**/*.tmp

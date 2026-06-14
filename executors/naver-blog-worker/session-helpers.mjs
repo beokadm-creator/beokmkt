@@ -13,7 +13,11 @@ async function persistSession(context, storagePath) {
   if (!storagePath) return false
   try {
     await ensureDir(storagePath)
-    await context.storageState({ path: storagePath })
+    // 원자적 저장: 임시파일에 먼저 쓰고 rename으로 교체(크래시 시 손상 방지)
+    const tmp = `${storagePath}.tmp`
+    const state = await context.storageState()
+    await fs.writeFile(tmp, JSON.stringify(state))
+    await fs.rename(tmp, storagePath)
     return true
   } catch {
     return false

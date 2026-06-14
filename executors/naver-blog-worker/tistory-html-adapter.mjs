@@ -39,7 +39,7 @@ function stripHtmlToStructured(html) {
 
   tagPositions.sort((a, b) => a.index - b.index)
   for (const tp of tagPositions) {
-    blocks.push({ tag: tp.tag, text: tp.text })
+    blocks.push({ tag: tp.tag, text: tp.text, raw: tp.raw })
   }
 
   if (blocks.length === 0) {
@@ -56,7 +56,12 @@ function stripHtmlToStructured(html) {
   }
 
   return blocks.map(b => {
-    if (b.tag === 'img') return `[이미지: ${b.text || '사진'}]`
+    if (b.tag === 'img') {
+      // 이미지를 텍스트 마커가 아니라 실제 <img>로 보존(원본 src/alt 유지)
+      const src = (String(b.raw || '').match(/src=["']([^"']+)["']/i) || [])[1] || ''
+      const alt = (String(b.raw || '').match(/alt=["']([^"']*)["']/i) || [])[1] || ''
+      return src ? `<img src="${src}" alt="${alt}">` : ''
+    }
     if (b.tag === 'a') return `${b.text}`
     return b.text
   }).filter(t => t).join('\n')
