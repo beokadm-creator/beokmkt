@@ -87,6 +87,7 @@ function hasVisibleStrike(html = '') {
 
 function publicQualityAction(channel, issues = []) {
   const issueText = issues.join(' ')
+  if (/캐시|CDN|Hosting/i.test(issueText)) return '본문은 수정됨. Hosting/CDN 캐시 만료 또는 재배포 후 공개 품질 재검증'
   if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
     return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
   }
@@ -138,7 +139,26 @@ async function inspectPublicPost(row) {
     if (!/PostView\.naver|blog\.naver\.com\/[^/?#]+\/\d+/.test(url)) issues.push('네이버 공개 URL 형식 아님')
     if (status === 200 && chars < 500) issues.push(`본문 짧음(${chars}자)`)
   }
-  return { id: row.id, channel, title, url, status, chars, images, h1, h2, issues, action: issues.length ? publicQualityAction(channel, issues) : null }
+  let cache_bust_ok = false
+  let cache_bust_url = null
+  if (channel === 'selfhosted' && issues.length > 0 && url && !url.includes('?')) {
+    cache_bust_url = `${url}?v=public-quality-${encodeURIComponent(String(row.id ?? Date.now()))}`
+    try {
+      const bust = await fetch(cache_bust_url, {
+        headers: { 'user-agent': 'Mozilla/5.0 public-post-verifier/1.0' },
+        signal: AbortSignal.timeout(15000),
+      })
+      const bustHtml = await bust.text()
+      const bustContent = stripPublicNonContent(bustHtml)
+      const bustText = publicPlainText(bustHtml)
+      const bustForbidden = PUBLIC_FORBIDDEN_TONE.filter((word) => bustContent.includes(word) || bustText.includes(word))
+      cache_bust_ok = bust.status === 200 && bustForbidden.length === 0
+      if (cache_bust_ok) issues.push('캐시 우회 URL은 정상(Hosting/CDN 캐시 잔존 의심)')
+    } catch {
+      // 캐시 우회 확인은 보조 신호다. 실패해도 원래 공개 품질 이슈를 유지한다.
+    }
+  }
+  return { id: row.id, channel, title, url, status, chars, images, h1, h2, issues, cache_bust_ok, cache_bust_url, action: issues.length ? publicQualityAction(channel, issues) : null }
 }
 
 async function collectPublicQuality(db, limit = 20) {

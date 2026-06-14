@@ -183,6 +183,7 @@ function publicQualityIssues({ channel = '', title = '', url = '', html = '', st
 
 function publicQualityAction(channel, issues = []) {
   const issueText = issues.join(' ')
+  if (/캐시|CDN|Hosting/i.test(issueText)) return '본문은 수정됨. Hosting/CDN 캐시 만료 또는 재배포 후 공개 품질 재검증'
   if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
     return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
   }
@@ -205,11 +206,32 @@ async function fetchPublicQualityItem(item) {
     })
     const html = await res.text()
     const measured = publicQualityIssues({ ...item, html, status: res.status })
+    let cache_bust_ok = false
+    let cache_bust_url = null
+    if (item.channel === 'selfhosted' && measured.issues.length > 0 && item.url && !String(item.url).includes('?')) {
+      cache_bust_url = `${item.url}?v=public-quality-${encodeURIComponent(String(item.id ?? Date.now()))}`
+      const bust = await fetch(cache_bust_url, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(6000),
+        headers: {
+          'user-agent': 'Mozilla/5.0 beok-public-quality/1.0',
+          accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      }).catch(() => null)
+      if (bust?.ok) {
+        const bustHtml = await bust.text().catch(() => '')
+        const bustMeasured = publicQualityIssues({ ...item, html: bustHtml, status: bust.status })
+        cache_bust_ok = bustMeasured.issues.length === 0
+        if (cache_bust_ok) measured.issues.push('캐시 우회 URL은 정상(Hosting/CDN 캐시 잔존 의심)')
+      }
+    }
     return {
       ...item,
       status: res.status,
       ...measured,
       ok: measured.issues.length === 0,
+      cache_bust_ok,
+      cache_bust_url,
       action: measured.issues.length ? publicQualityAction(item.channel, measured.issues) : null,
     }
   } catch (error) {

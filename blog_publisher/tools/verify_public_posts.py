@@ -42,6 +42,8 @@ class CheckResult:
     h1: int
     h2: int
     issues: list[str]
+    cache_bust_ok: bool = False
+    cache_bust_url: str | None = None
 
 
 def _db_path() -> Path:
@@ -150,6 +152,18 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
         if status == 200 and chars < 500:
             issues.append(f"본문 짧음({chars}자)")
 
+    cache_bust_url = None
+    cache_bust_ok = False
+    if channel == "selfhosted" and issues and url and "?" not in url:
+        cache_bust_url = f"{url}?v=public-quality-{post['id']}"
+        bust_status, bust_html = _fetch(cache_bust_url)
+        bust_content = _strip_non_content(bust_html)
+        bust_text = _plain_text(bust_html)
+        bust_forbidden = [word for word in FORBIDDEN_TONE if word in bust_content or word in bust_text]
+        cache_bust_ok = bust_status == 200 and not bust_forbidden
+        if cache_bust_ok:
+            issues.append("캐시 우회 URL은 정상(Hosting/CDN 캐시 잔존 의심)")
+
     return CheckResult(
         post_id=int(post["id"]),
         channel=channel,
@@ -162,6 +176,8 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
         h1=h1,
         h2=h2,
         issues=issues,
+        cache_bust_ok=cache_bust_ok,
+        cache_bust_url=cache_bust_url,
     )
 
 
@@ -200,6 +216,8 @@ def run(limit: int = 20) -> bool:
         print(f"      {result.url}")
         for issue in result.issues:
             print(f"      - {issue}")
+        if result.cache_bust_ok and result.cache_bust_url:
+            print(f"      캐시 우회 확인: {result.cache_bust_url}")
 
     print(f"\n결과: {ok_count}/{len(results)} 통과")
     if ok_count != len(results):

@@ -104,6 +104,8 @@ type PipelineStats = {
       h1: number
       h2: number
       issues: string[]
+      cache_bust_ok?: boolean
+      cache_bust_url?: string | null
       action?: string | null
     }[]
   }
@@ -408,6 +410,13 @@ function PublicQualityPanel({ data }: { data?: PipelineStats['public_quality'] }
                   </span>
                 ))}
               </div>
+              {item.cache_bust_ok && item.cache_bust_url ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-sky-900/50 bg-sky-950/20 px-2 py-1 text-[11px] text-sky-200">
+                  <span>캐시 우회 정상</span>
+                  <span className="text-sky-400/70">기본 URL 캐시 잔존 가능</span>
+                  <span className="font-mono text-sky-100">{item.cache_bust_url}</span>
+                </div>
+              ) : null}
               {item.action ? (
                 <div className="mt-2 rounded-md border border-amber-900/50 bg-amber-950/15 px-2 py-1 text-[11px] text-amber-200">
                   {item.action}
