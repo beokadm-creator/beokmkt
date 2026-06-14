@@ -21,17 +21,18 @@ import AiProvidersPage from './pages/settings/AiProvidersPage'
 import PlatformAccountsPage from './pages/settings/PlatformAccountsPage'
 import { useAuth } from './lib/auth'
 
-export default function App() {
+// 렌더 중 컴포넌트를 생성하지 않도록 모듈 스코프로 분리(react-hooks/static-components).
+// 훅은 컴포넌트 본문에서 직접 호출한다.
+function RequireAuth() {
   const auth = useAuth()
   const location = useLocation()
+  if (!auth.isReady) return <div className="px-6 py-6 text-sm text-zinc-500">로딩 중…</div>
+  if (!auth.user) return <Navigate to={`/login?from=${encodeURIComponent(location.pathname + location.search)}`} replace />
+  if (!auth.isAdmin) return <Navigate to="/login" replace />
+  return <Outlet />
+}
 
-  function RequireAuth() {
-    if (!auth.isReady) return <div className="px-6 py-6 text-sm text-zinc-500">로딩 중…</div>
-    if (!auth.user) return <Navigate to={`/login?from=${encodeURIComponent(location.pathname + location.search)}`} replace />
-    if (!auth.isAdmin) return <Navigate to="/login" replace />
-    return <Outlet />
-  }
-
+export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/blog/" replace />} />

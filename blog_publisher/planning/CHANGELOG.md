@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-06-14 — 프론트 lint 정리 (npm run lint 통과)
+
+| 대상 | 내용 |
+|---|---|
+| `eslint.config.mjs` | 빌드 산출물/외부 런타임 ignore 추가(`dist/** .next/** functions/** server/** executors/** scripts/** blog_publisher/**`) → dist 미니파이 번들이 lint되던 설정 문제 해결 |
+| `eslint.config.mjs` | 설정파일(`*.config.{js,cjs,mjs}`)은 require/익명 export 허용. `react-hooks/set-state-in-effect`는 warn으로(흔한 로딩 패턴 false-positive, 가시성 유지) |
+| `src/spa/App.tsx` | `RequireAuth`를 렌더 내부 정의 → 모듈 스코프로 분리(훅 직접 호출). `react-hooks/static-components` 에러 해소(동작 동일) |
+
+검증: `eslint .` → **0 errors / 15 warnings (exit 0)**, `tsc --noEmit` App.tsx 타입 에러 없음.
+남은 15 warnings: `@next/next/no-img-element`(img→next/image 권고) + `set-state-in-effect`(warn). 빌드 비차단, 점진 개선 대상.
+
+---
+
 ## 2026-06-14 — 후속: 섹션 보정 · 멱등성 강화 · 운영 자동화
 
 감사 후 운영 중 발견된 항목 + 운영 자동화 고정.
