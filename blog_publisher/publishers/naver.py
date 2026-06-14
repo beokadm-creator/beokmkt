@@ -11,7 +11,7 @@ import json
 import requests
 
 import config
-from publishers.base import FatalError, RetryableError
+from publishers.base import FatalError, NeedsHumanError, RetryableError
 
 
 def _loads(val):
@@ -71,5 +71,19 @@ class NaverPublisher:
             raise FatalError(
                 f"네이버 세션 만료. executors/naver-blog-worker 에서 "
                 f"npm run login 으로 재로그인 후 워커를 재시작하세요."
+            )
+        if code in {
+            "PASTE_STRUCTURE_LOST",
+            "PASTE_CONTENT_INCOMPLETE",
+            "PASTE_IMAGE_LOST",
+            "PASTE_TABLE_MARKDOWN_LEAK",
+            "NAVER_RICH_CONTENT_UNSUPPORTED",
+            "NAVER_PUBLIC_QUALITY_FAILED",
+            "PUBLISH_URL_NOT_FOUND",
+            "NAVER_PUBLIC_CHECK_FAILED",
+        }:
+            raise NeedsHumanError(
+                f"네이버 자동 발행 중단[{code}]: {msg}. "
+                "같은 원고를 재시도하면 중복 발행 또는 구조가 깨진 글이 나갈 수 있어 수동 확인으로 격리합니다."
             )
         raise RetryableError(f"네이버 발행 실패[{code}]: {msg}")

@@ -19,6 +19,10 @@ class FatalError(Exception):
     """복구 불가(인증 영구 실패, 정책 위반 등). 즉시 격리."""
 
 
+class NeedsHumanError(Exception):
+    """자동 재시도하면 중복/저품질 위험이 큰 실패. 수동 확인 큐로 즉시 격리."""
+
+
 @runtime_checkable
 class Publisher(Protocol):
     name: str

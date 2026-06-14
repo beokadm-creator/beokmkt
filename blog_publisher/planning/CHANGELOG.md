@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-06-15 — 채널별 실발행 검증과 네이버 구조손실 재시도 차단
+
+자체 블로그·티스토리·네이버를 각각 1건씩 실제 발행 경로로 실행했다. 자체 블로그와 티스토리는 공개 URL 200 응답과 이미지/표 보존을 확인했고, 네이버는 SmartEditor에 긴 리치 원고를 붙여넣는 과정에서 이미지·표 구조가 깨지는 것을 확인해 자동 발행을 차단했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/publishers/base.py` | `NeedsHumanError` 추가. 재시도보다 수동 확인이 안전한 실패를 상태머신에서 구분 |
+| `blog_publisher/db/db.py` | `mark_needs_human()` 추가 |
+| `blog_publisher/pipeline/publish.py` | `NeedsHumanError` 발생 시 즉시 `needs_human` 격리 및 알림 |
+| `blog_publisher/publishers/naver.py` | `PASTE_STRUCTURE_LOST`, `NAVER_RICH_CONTENT_UNSUPPORTED`, URL 미회수/공개 품질 실패를 재시도 금지 수동 확인으로 분류 |
+| `blog_publisher/publishers/tistory.py` | 저장 후 공개 URL 미확인(`TISTORY_PUBLIC_URL_NOT_FOUND`)은 중복 위험 때문에 수동 확인으로 분류 |
+| `executors/naver-blog-worker/index.mjs` | 네이버 자동 발행 전 이미지/HTML 표/마크다운 표 잔존을 감지하면 `NAVER_RICH_CONTENT_UNSUPPORTED`로 조기 중단 |
+| `blog_publisher/tools/status_report.py` | 채널별 inventory/queued/published/needs_human/failed 요약 추가 |
+
+실측:
+- 자체 블로그 id 43 → `https://beokmkt.web.app/blog/협회-단체-홈페이지-제작-시-필수-고려-사항-및-예산-가이드` HTTP 200, img/table 확인
+- 티스토리 id 66 → `https://beoksolution.tistory.com/24` HTTP 200, img/table 확인
+- 네이버 id 67 → `PASTE_STRUCTURE_LOST`, 덤프에서 이미지 0개·table 0개·마크다운 표 노출 확인. 자동 재시도 중단 후 `needs_human` 격리
+- 현재 채널별 상태: naver inventory=0 queued=0 published=6 needs_human=1, selfhosted inventory=15 queued=3 published=20, tistory published=9 queued=0
+
+검증:
+- `python3 -m compileall blog_publisher` PASS
+- `node --check` PASS: `index.mjs`, `naver-html-adapter.mjs`, `channel-rewriter.mjs`
+- `NeedsHumanError` 분류 런타임 테스트 PASS
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+
+---
+
 ## 2026-06-15 — 핵심 파이프라인 LaunchAgent 고정
 
 macOS `crontab` 적용이 반환되지 않는 환경을 다시 확인했다. 이미 품질 점검과 스냅샷 동기화는 LaunchAgent로 안정화했으므로, 생성·팩트체크·검수·스케줄·발행·복구·백업도 LaunchAgent로 분리해 운영 자동화의 주체를 macOS 서비스로 고정했다.

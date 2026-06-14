@@ -620,6 +620,29 @@ function stripHtmlText(html) {
     .trim()
 }
 
+function hasMarkdownTableLeak(html) {
+  return String(html || '')
+    .split(/\r?\n/)
+    .some((line) => /^\s*\|.+\|\s*$/.test(line) || /^\s*\|?\s*:?-{3,}:?\s*\|/.test(line))
+}
+
+function assertNaverAutoPublishable(html) {
+  const imageCount = (String(html || '').match(/<img\b/gi) || []).length
+  const tableCount = (String(html || '').match(/<table\b/gi) || []).length
+  const markdownTableLeak = hasMarkdownTableLeak(html)
+  const reasons = []
+  if (imageCount > 0) reasons.push(`이미지 ${imageCount}개`)
+  if (tableCount > 0) reasons.push(`HTML 표 ${tableCount}개`)
+  if (markdownTableLeak) reasons.push('마크다운 표 문법 잔존')
+  if (!reasons.length) return
+  throw new WorkerError(
+    'NAVER_RICH_CONTENT_UNSUPPORTED',
+    `네이버 SmartEditor 자동 발행에서 구조 보존이 검증되지 않은 리치 원고입니다: ${reasons.join(', ')}. ` +
+      '이미지/표 보존 발행은 수동 확인 또는 전용 업로드 구현 후 진행하세요.',
+    { imageCount, tableCount, markdownTableLeak }
+  )
+}
+
 function hasVisibleStrike(html) {
   const matches = String(html || '').matchAll(/<(?:strike|s|del)\b[^>]*>([\s\S]*?)<\/(?:strike|s|del)>/gi)
   for (const match of matches) {
@@ -702,6 +725,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
   const publishTitle = rewritten.title
   const naverHtml = convertForNaver(rewritten.html)
   if (!naverHtml.trim()) throw new WorkerError('EMPTY_CONTENT', '변환된 본문이 비어있습니다.')
+  assertNaverAutoPublishable(naverHtml)
 
   const storageState = await loadStorageState()
   const browser = await chromium.launch({ headless: HEADLESS, slowMo: SLOW_MO })

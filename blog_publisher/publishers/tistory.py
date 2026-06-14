@@ -10,7 +10,7 @@ import json
 import requests
 
 import config
-from publishers.base import FatalError, RetryableError
+from publishers.base import FatalError, NeedsHumanError, RetryableError
 
 
 def _loads(val):
@@ -67,5 +67,10 @@ class TistoryPublisher:
             raise FatalError(
                 f"티스토리 세션 만료. executors/naver-blog-worker 에서 "
                 f"npm run tistory-auth 으로 재인증 후 워커를 재시작하세요."
+            )
+        if code in {"TISTORY_PUBLIC_URL_NOT_FOUND"}:
+            raise NeedsHumanError(
+                f"티스토리 자동 발행 결과 확인 실패[{code}]: {msg}. "
+                "저장 버튼 이후 공개 URL을 못 찾은 상태라 재시도하면 중복 발행 위험이 있어 수동 확인으로 격리합니다."
             )
         raise RetryableError(f"티스토리 발행 실패[{code}]: {msg}")

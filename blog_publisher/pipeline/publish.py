@@ -16,7 +16,7 @@ from pathlib import Path
 import config
 from db import db
 from publishers import PUBLISHERS
-from publishers.base import FatalError, RetryableError
+from publishers.base import FatalError, NeedsHumanError, RetryableError
 from utils.notify import notify
 
 LOCK_PATH = Path(__file__).resolve().parents[1] / "db" / "publish.lock"
@@ -79,6 +79,11 @@ def run_once(batch: int = 5) -> dict:
                     notify(f"수동 발행 필요: id={post['id']} ({post['channel']}) — {e}", "error")
                 else:
                     stats["retried"] += 1
+
+            except NeedsHumanError as e:
+                db.mark_needs_human(post["id"], str(e), attempts=post["attempts"] + 1)
+                stats["needs_human"] += 1
+                notify(f"수동 발행 필요: id={post['id']} ({post['channel']}) — {e}", "error")
 
             except FatalError as e:
                 db.mark_failed(post["id"], str(e))

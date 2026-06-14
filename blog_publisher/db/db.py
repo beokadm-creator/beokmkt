@@ -371,6 +371,24 @@ def mark_failed(post_id: int, error: str) -> None:
         )
 
 
+def mark_needs_human(post_id: int, error: str, attempts: int | None = None) -> None:
+    """자동 재시도보다 수동 확인이 안전한 글을 즉시 수동 큐로 보낸다."""
+    now = _iso(_utcnow())
+    with connect() as conn:
+        if attempts is None:
+            conn.execute(
+                "UPDATE posts SET status = 'needs_human', last_error = ?, updated_at = ? "
+                "WHERE id = ?",
+                (error, now, post_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE posts SET status = 'needs_human', attempts = ?, "
+                "last_error = ?, updated_at = ? WHERE id = ?",
+                (attempts, error, now, post_id),
+            )
+
+
 def archive_posts(post_ids: list[int], reason: str = "operator_reviewed") -> int:
     """수동 검토가 끝난 실패/보류 글을 삭제하지 않고 운영 큐에서 분리한다."""
     if not post_ids:

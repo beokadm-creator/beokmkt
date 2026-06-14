@@ -31,10 +31,37 @@ def report() -> dict[str, int]:
         next_queued = conn.execute(
             "SELECT MIN(next_run_at) AS next_run_at FROM posts WHERE status = 'queued'",
         ).fetchone()["next_run_at"]
+        channel_rows = conn.execute(
+            """
+            SELECT channel, status, COUNT(*) AS n
+            FROM posts
+            WHERE status IN (
+              'draft', 'generating', 'factchecking', 'reviewing', 'reviewed',
+              'queued', 'publishing', 'published', 'needs_human', 'failed'
+            )
+            GROUP BY channel, status
+            ORDER BY channel, status
+            """
+        ).fetchall()
 
     print("=== 파이프라인 상태 ===")
     for s in STATUSES:
         print(f"  {s:12} {counts[s]:>5}")
+
+    by_channel: dict[str, dict[str, int]] = {}
+    for row in channel_rows:
+        by_channel.setdefault(row["channel"], {})[row["status"]] = int(row["n"])
+
+    print("\n=== 채널별 현황 ===")
+    for channel in sorted(by_channel):
+        row = by_channel[channel]
+        inventory = sum(row.get(s, 0) for s in INVENTORY_STATUSES)
+        active_queue = row.get("queued", 0) + row.get("publishing", 0)
+        print(
+            f"  {channel:10} inventory={inventory:>3} "
+            f"queued={active_queue:>3} published={row.get('published', 0):>3} "
+            f"needs_human={row.get('needs_human', 0):>3} failed={row.get('failed', 0):>3}"
+        )
 
     buffer_target = config.DAILY_PUBLISH_TARGET * config.STOCK_BUFFER_DAYS
     inventory = sum(counts[s] for s in INVENTORY_STATUSES)
