@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-14 — beok 학회/명찰 이미지 풀 보강
+
+Phase C의 막힘 지점이던 beok 실제 이미지 자산을 재점검했다. `beoksolution.com` 공개 사이트와 sitemap 기준으로 수집 가능한 이미지는 로고 1개뿐이었다. 학회/명찰 글에는 이미 공개 도달성이 확인된 hongcomm.kr의 실제 명찰·출력 시스템 이미지를 beok 학회운영 컨텍스트에 연결했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/image_bank.py` | beok 학회/명찰 컨텍스트용 실제 이미지 풀 추가: 모바일 디지털 명찰, 지류 명찰 자동 출력, 고속 명찰 출력 장비 |
+| `blog_publisher/tools/image_bank.py` | `featured_image('beok', ...)`가 학회/명찰/QR/재발행/현장 문맥이면 실제 학회운영 이미지를 우선 선택 |
+| `blog_publisher/tools/image_bank.py` | beok 본문 이미지 삽입도 학회운영 문맥에서는 SVG 정보카드 대신 실제 명찰 운영 이미지를 최대 3장 삽입 |
+| `blog_publisher/tools/image_bank.py` | 조사 결합(`프린터와` 등)에도 매칭되도록 이미지 점수 계산을 부분 문자열까지 확장 |
+
+검증:
+- `beoksolution.com/img/logo.png` 200 image/png
+- `hongcomm.kr/img/page/b2.png` 200 image/png
+- `hongcomm.kr/img/page/c1.jpg` 200 image/jpeg
+- `hongcomm.kr/img/page/2.jpg` 200 image/jpeg
+- 샘플 beok 명찰 글: 이미지 3장 삽입(`b2.png`, `c1.jpg`, `2.jpg`)
+- `python3 -m py_compile blog_publisher/tools/image_bank.py`, `python3 run.py selftest` PASS
+
+---
+
 ## 2026-06-14 — 자체 블로그 본문 구조/카테고리 보정
 
 자체 블로그 공개 상세에서 페이지가 이미 제목/메타를 렌더링하는데, 저장된 `content` 안에도 `<article><header><h1>`이 들어가 중복 제목이 생길 수 있는 구조를 정리했다. 또한 학회·명찰 글이 `홈페이지제작`으로 표시되는 카테고리 매핑 문제를 보정했다.

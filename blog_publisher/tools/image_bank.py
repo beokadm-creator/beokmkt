@@ -125,18 +125,37 @@ _BEOK_BRAND: list[dict] = [
     },
 ]
 
+_BEOK_CONFERENCE: list[dict] = [
+    {
+        "url": "https://hongcomm.kr/img/page/b2.png",
+        "alt": "학회 현장 모바일 디지털 명찰 시스템 화면",
+        "keywords": {"학회", "명찰", "디지털", "모바일", "QR", "바코드", "현장", "체크인"},
+    },
+    {
+        "url": "https://hongcomm.kr/img/page/c1.jpg",
+        "alt": "학회 현장 지류 명찰 자동 출력 시스템",
+        "keywords": {"학회", "명찰", "현장", "출력", "지류", "재발행", "사무국"},
+    },
+    {
+        "url": "https://hongcomm.kr/img/page/2.jpg",
+        "alt": "고속 명찰 자동 출력 장비 운영 현장",
+        "keywords": {"학회", "명찰", "장비", "출력기", "프린터", "재발행", "현장"},
+    },
+]
+
 # ---------------------------------------------------------------------------
 # 공개 API
 # ---------------------------------------------------------------------------
 
 _SOLUTION_KW = {kw for img in _HONG_SOLUTION for kw in img["keywords"]}
 _CONF_KW = {kw for img in _HONG_CONFERENCE for kw in img["keywords"]}
-_BEOK_KW = {kw for img in _BEOK_BRAND for kw in img["keywords"]}
+_BEOK_KW = {kw for img in (_BEOK_BRAND + _BEOK_CONFERENCE) for kw in img["keywords"]}
+_BEOK_CONFERENCE_KW = {kw for img in _BEOK_CONFERENCE for kw in img["keywords"]}
 
 
 def _score(img: dict, text: str) -> int:
     words = set(re.findall(r"[가-힣A-Za-z]+", text))
-    return sum(1 for kw in img["keywords"] if kw in words)
+    return sum(1 for kw in img["keywords"] if kw in words or kw in (text or ""))
 
 
 def pick_image(pool: list[dict], context_text: str = "") -> dict:
@@ -147,9 +166,15 @@ def pick_image(pool: list[dict], context_text: str = "") -> dict:
     return scored[0]
 
 
+def _is_beok_conference_context(context_text: str = "") -> bool:
+    return any(kw in (context_text or "") for kw in _BEOK_CONFERENCE_KW)
+
+
 def featured_image(brand_key: str, context_text: str = "") -> dict:
     """브랜드 대표 이미지. 없으면 {}."""
     if brand_key == "beok":
+        if _is_beok_conference_context(context_text):
+            return pick_image(_BEOK_CONFERENCE, context_text)
         return pick_image(_BEOK_BRAND, context_text)
     if brand_key == "hong":
         pool = _HONG_SOLUTION + _HONG_CONFERENCE
@@ -167,7 +192,8 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
         out: list[str] = []
         used: set[str] = set()
         inserted = 0
-        card_pool = [img for img in _BEOK_BRAND if img["url"].endswith(".svg")]
+        conference_context = _is_beok_conference_context(body)
+        card_pool = _BEOK_CONFERENCE if conference_context else [img for img in _BEOK_BRAND if img["url"].endswith(".svg")]
         for index, blk in enumerate(blocks):
             out.append(blk)
             if not blk.startswith("## ") or inserted >= 3:
