@@ -100,10 +100,52 @@ def _toc_html(toc: list[tuple[str, str]]) -> str:
     return f'<nav class="toc"><strong>목차</strong><ol>{items}</ol></nav>'
 
 
+def _plain_text(value: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", value or "")).strip()
+
+
+def _reading_minutes(text: str) -> int:
+    # 한국어 기준 대략 1분 650자. 너무 작게 보이지 않게 최소 1분.
+    return max(1, round(len(_plain_text(text)) / 650))
+
+
+def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str:
+    desc = (post.get("meta_desc") or "").strip()
+    bullets = [title for _hid, title in toc[:3]]
+    if not desc and not bullets:
+        return ""
+    bullet_html = "".join(f"<li>{html.escape(item)}</li>" for item in bullets)
+    desc_html = f"<p>{html.escape(desc)}</p>" if desc else ""
+    minutes = _reading_minutes(source_md)
+    list_html = f"<ul>{bullet_html}</ul>" if bullet_html else ""
+    return (
+        '<section class="summary-card" aria-label="글 요약">'
+        '<div class="summary-kicker">핵심 요약</div>'
+        f"{desc_html}"
+        f"{list_html}"
+        f'<div class="summary-meta">예상 읽기 시간 {minutes}분 · 실무 체크용</div>'
+        '</section>'
+    )
+
+
+def _cta_html(post: dict) -> str:
+    category = post.get("category") or ""
+    if "AI" in category or "예약" in category or "홈페이지" in category or not category:
+        return (
+            '<aside class="soft-cta">'
+            '<strong>홈페이지 제작·운영을 실제 업무와 연결해야 한다면</strong>'
+            '<p>비오케이솔루션은 홈페이지 제작, 예약·결제, 알림톡, AI 자동화까지 운영 흐름에 맞춰 설계합니다.</p>'
+            '<a href="https://beoksolution.com" target="_blank" rel="noopener">상담 문의하기</a>'
+            '</aside>'
+        )
+    return ""
+
+
 def _build_article_html(post: dict) -> tuple[str, str, str]:
     """(article_html, tags_html, json_ld_json) 반환."""
     title = post.get("title", "")
-    content_html, toc = _markdown_to_html(post.get("body", ""))
+    body_md = post.get("body", "")
+    content_html, toc = _markdown_to_html(body_md)
     published = post.get("published_at") or datetime.now(timezone.utc)
     tags = post.get("tags", []) or []
 
@@ -127,8 +169,10 @@ def _build_article_html(post: dict) -> tuple[str, str, str]:
         f' · {html.escape(post.get("author", "BEOK"))}\n'
         f'    </div>\n'
         f'  </header>\n'
+        f'  {_summary_card(post, toc, body_md)}\n'
         f'  {_toc_html(toc)}\n'
         f'  <div class="content">\n{content_html}\n  </div>\n'
+        f'  {_cta_html(post)}\n'
         f'  <div class="tags">{tags_html}</div>\n'
         f'  {source_footer}\n'
         f'</article>'

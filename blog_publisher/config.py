@@ -22,12 +22,12 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
 # 모델 실험 절차는 planning/02-검수게이트-모델운영-정책.md §3.4 참고.
 # 개요는 품질 민감 -> 마지막에 건드린다. 본문부터 낮춰 통과율을 본다.
 MODEL_OUTLINE = os.getenv("MODEL_OUTLINE", "glm-4.6")   # 개요: 추론 ON, 짧은 출력
-MODEL_SECTION = os.getenv("MODEL_SECTION", "glm-4.5")   # 본문: thinking OFF, 짧게
+MODEL_SECTION = os.getenv("MODEL_SECTION", "glm-4.5")   # 본문: thinking ON, 구조/깊이 우선
 MODEL_REVIEW = os.getenv("MODEL_REVIEW", "glm-4.5")     # 검수: 저온, 짧게
 
 # 단계별 출력 토큰 상한(기획 01 §3.1)
 MAX_TOKENS_OUTLINE = int(os.getenv("MAX_TOKENS_OUTLINE", "600"))
-MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "700"))
+MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1500"))  # 리치 구조(목록·표·강조) 허용
 MAX_TOKENS_SEO    = int(os.getenv("MAX_TOKENS_SEO",     "300"))
 MAX_TOKENS_REVIEW = int(os.getenv("MAX_TOKENS_REVIEW",  "300"))
 

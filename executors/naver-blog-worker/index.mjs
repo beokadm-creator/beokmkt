@@ -132,6 +132,26 @@ async function pasteHtmlIntoEditor(page, html) {
     return text.replace(/\s+/g, ' ').includes(probe)
   }
 
+  // 텍스트 존재만으로는 평문 붕괴(제목/목록/이미지 소실)를 못 잡는다.
+  // 원본 HTML의 구조량과 에디터 실제 구조를 비교해 '리치 paste가 살았는지' 검증한다.
+  const expectedImages = (html.match(/<img\b/gi) || []).length
+  const expectedBlocks = (html.match(/<(h2|h3|p|li)\b/gi) || []).length
+  const editorStructureOk = async () => {
+    const actual = await page.evaluate(() => {
+      const inTitle = (el) => !!el.closest('.se-title-text, .se-documentTitle')
+      const paragraphs = Array.from(document.querySelectorAll('.se-text-paragraph'))
+        .filter((p) => !inTitle(p) && (p.textContent || '').trim().length > 0).length
+      const images = document.querySelectorAll('.se-component.se-image img, .se-image img, .se-module-image img').length
+      return { paragraphs, images }
+    }).catch(() => ({ paragraphs: 0, images: 0 }))
+    // 이미지가 있던 글인데 에디터에 0개면 평문으로 붕괴된 것
+    if (expectedImages >= 1 && actual.images === 0) return false
+    // 블록이 여럿이던 글이 본문 문단 1개 이하로 뭉개졌으면 붕괴
+    if (expectedBlocks >= 5 && actual.paragraphs <= 1) return false
+    return true
+  }
+  const editorOk = async () => (await editorHasProbe()) && (await editorStructureOk())
+
   // Strategy 1: Clipboard API + Ctrl/Cmd+V
   // newContext에 clipboard-write 권한 부여 후 사용. headless에서도 동작.
   const clipOk = await page.evaluate(async (htmlPayload) => {
@@ -149,20 +169,21 @@ async function pasteHtmlIntoEditor(page, html) {
     const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
     await page.keyboard.press(`${modifier}+KeyV`)
     await page.waitForTimeout(800)
-    if (await editorHasProbe()) return
-    log('warn', 'clipboard paste 후 본문 검증 실패 — 폴백 시도')
+    if (await editorOk()) return
+    log('warn', 'clipboard paste 후 구조 검증 실패 — 폴백 시도')
   }
 
   // Strategy 2: 합성 ClipboardEvent (clipboard-write 권한 불필요, SE3 paste 핸들러 직접 호출)
   // isTrusted=false를 에디터가 거부하면 조용히 실패할 수 있음 — 에러로 escalate
   log('warn', 'clipboard.write 실패 — 합성 ClipboardEvent 폴백 시도')
   const IFRAME_SELECTOR = 'iframe[id*="se2_editor"], iframe[title*="스마트에디터"], iframe#se2_editor'
+  // text/html만 설정한다. text/plain을 함께 주면 SmartEditor가 평문을 집어
+  // 제목·굵게·목록·이미지가 통째로 날아간다(구조 소실). HTML만 전달해 구조 보존.
   const syntheticOk = inIframe
     ? await page.frameLocator(IFRAME_SELECTOR).first().locator('body').evaluate((el, htmlPayload) => {
         try {
           const dt = new DataTransfer()
           dt.setData('text/html', htmlPayload)
-          dt.setData('text/plain', htmlPayload.replace(/<[^>]+>/g, ''))
           el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
           return true
         } catch { return false }
@@ -171,7 +192,6 @@ async function pasteHtmlIntoEditor(page, html) {
         try {
           const dt = new DataTransfer()
           dt.setData('text/html', htmlPayload)
-          dt.setData('text/plain', htmlPayload.replace(/<[^>]+>/g, ''))
           const el = document.activeElement || document.body
           el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
           return true
@@ -182,8 +202,8 @@ async function pasteHtmlIntoEditor(page, html) {
     log('warn', '합성 ClipboardEvent 실패 — 직접 입력 폴백 시도')
   } else {
     await page.waitForTimeout(800)
-    if (await editorHasProbe()) return
-    log('warn', '합성 ClipboardEvent 후 본문 검증 실패 — 직접 입력 폴백 시도')
+    if (await editorOk()) return
+    log('warn', '합성 ClipboardEvent 후 구조 검증 실패 — 직접 입력 폴백 시도')
   }
 
   const execOk = await page.evaluate((htmlPayload) => {
@@ -195,16 +215,16 @@ async function pasteHtmlIntoEditor(page, html) {
   }, html).catch(() => false)
   if (execOk) {
     await page.waitForTimeout(800)
-    if (await editorHasProbe()) return
-    log('warn', 'execCommand 후 본문 검증 실패 — plain text 입력 폴백 시도')
+    if (await editorOk()) return
+    log('warn', 'execCommand 후 구조 검증 실패')
   }
 
-  await smartEditorBody.click({ delay: 100 }).catch(() => {})
-  await page.keyboard.insertText(plainText || html.replace(/<[^>]+>/g, ''))
-  await page.waitForTimeout(800)
-  if (await editorHasProbe()) return
-
-  throw new WorkerError('PASTE_FAILED', 'SmartEditor 본문 입력 실패 (모든 입력 전략 후 본문 검증 실패)')
+  // 평문 타이핑 폴백은 제거했다. 모든 리치 전략이 구조 보존에 실패하면
+  // 제목/목록/이미지가 날아간 '쓰레기 글'을 발행하느니 needs_human으로 격리한다.
+  throw new WorkerError(
+    'PASTE_STRUCTURE_LOST',
+    'SmartEditor 본문 구조 입력 실패 (리치 paste 전략 모두 실패 — 평문 발행 차단)'
+  )
 }
 
 async function fillNaverTitle(page, title) {
@@ -230,7 +250,46 @@ async function fillNaverTitle(page, title) {
   throw new WorkerError('TITLE_INPUT_NOT_FOUND', '네이버 제목 입력 영역을 찾지 못했습니다.')
 }
 
-async function clickPublishButton(page) {
+// 발행 설정 레이어의 '주제' 선택 — best-effort. 실패해도 발행은 막지 않는다.
+async function selectNaverTheme(page, theme) {
+  if (!theme) return
+  try {
+    const openers = [
+      'button.selectbox_button',
+      'button[class*="category"]',
+      'button[class*="theme"]',
+      'button:has-text("주제")',
+    ]
+    let opened = false
+    for (const sel of openers) {
+      const btn = page.locator(sel).first()
+      if ((await btn.count()) > 0 && (await btn.isVisible().catch(() => false))) {
+        await btn.click({ timeout: 2000, force: true }).catch(() => {})
+        opened = true
+        break
+      }
+    }
+    if (!opened) {
+      log('warn', `네이버 주제 선택 UI 미발견 — 주제 미설정으로 진행 (${theme})`)
+      return
+    }
+    await page.waitForTimeout(500)
+    const option = page.locator(
+      `button:has-text("${theme}"), a:has-text("${theme}"), label:has-text("${theme}")`
+    ).last()
+    if ((await option.count()) > 0 && (await option.isVisible().catch(() => false))) {
+      await option.click({ timeout: 2000, force: true }).catch(() => {})
+      log('info', `네이버 주제 설정: ${theme}`)
+    } else {
+      log('warn', `네이버 주제 옵션 '${theme}' 미발견 — 미설정으로 진행`)
+    }
+    await page.waitForTimeout(300)
+  } catch (e) {
+    log('warn', `네이버 주제 설정 오류(무시): ${e.message}`)
+  }
+}
+
+async function clickPublishButton(page, theme = '') {
   await dismissEditorOverlays(page)
 
   const clickFirstVisible = async (selectors, label) => {
@@ -264,6 +323,9 @@ async function clickPublishButton(page) {
   await page.locator('.se-help-panel-close-button').first()
     .click({ timeout: 1000, force: true })
     .catch(() => {})
+
+  // 발행 설정 레이어가 열린 상태에서 주제 선택(검색 분류 신호)
+  await selectNaverTheme(page, theme)
 
   const confirmSelectors = [
     'button[class^="confirm_btn"]',
@@ -342,7 +404,7 @@ async function dismissDraftRestorePopup(page) {
   return false
 }
 
-async function publishToNaver({ post_id, title, content_html, tags, link, canonical_url }) {
+async function publishToNaver({ post_id, title, content_html, tags, link, canonical_url, topic_theme }) {
   // 유사문서 필터 회피: 네이버용으로 구성/문체를 재작성 (실패 시 원문 + 출처 링크)
   log('info', '네이버용 콘텐츠 재작성 (AI) 시작…')
   const rewritten = await rewriteForChannel({
@@ -393,7 +455,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
       }
     }
 
-    await clickPublishButton(page)
+    await clickPublishButton(page, topic_theme)
     const publishedUrl = await capturePublishedUrl(page)
     if (!publishedUrl) {
       throw new WorkerError('PUBLISH_URL_NOT_FOUND', '네이버 발행 후 공개 글 URL을 확인하지 못했습니다.')

@@ -108,6 +108,19 @@ function publicBlogPath(post) {
   return `/blog/${encodeURIComponent(slug)}`
 }
 
+function actionForExternalIssue(channel, error = '') {
+  const msg = String(error ?? '')
+  if (channel === 'tistory' && /세션|login|auth|TISTORY/i.test(msg)) {
+    return '티스토리 재인증 후 워커 재시작'
+  }
+  if (channel === 'naver' && /404|삭제|품질|구조|PASTE|SmartEditor/i.test(msg)) {
+    return '네이버 공개상태·본문 품질 확인 후 재발행 판단'
+  }
+  if (/세션|login|auth/i.test(msg)) return '채널 세션 재인증'
+  if (/품질|review|grounding|구조/i.test(msg)) return '본문 품질 재검토'
+  return '원인 확인'
+}
+
 function slugifyBlogPost(value) {
   const slug = String(value ?? '')
     .trim()
@@ -1987,6 +2000,16 @@ app.get('/api/pipeline/stats', async (req, res) => {
   let published_this_week = 0
   const needs_human_posts = []
   const recent = []
+  const quality = {
+    measured_posts: 0,
+    avg_chars: 0,
+    with_images: 0,
+    weak_posts: 0,
+    avg_grounding: null,
+  }
+  let qualityChars = 0
+  let groundingSum = 0
+  let groundingCount = 0
 
   for (const post of posts) {
     const status = typeof post.status === 'string' ? post.status : 'draft'
@@ -1994,6 +2017,20 @@ app.get('/api/pipeline/stats', async (req, res) => {
     if (status in by_status) by_status[status] += 1
     if (channel in by_channel && status in by_channel[channel]) {
       by_channel[channel][status] += 1
+    }
+
+    const content = String(post.content ?? post.body ?? post.html ?? '')
+    const plain = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    if (status === 'published' || status === 'reviewed' || status === 'queued') {
+      quality.measured_posts += 1
+      qualityChars += plain.length
+      if (/<img\b/i.test(content) || typeof post.featured_image === 'string') quality.with_images += 1
+      if (plain.length > 0 && plain.length < 1800) quality.weak_posts += 1
+      const grounding = Number(post.grounding_ratio)
+      if (Number.isFinite(grounding)) {
+        groundingSum += grounding
+        groundingCount += 1
+      }
     }
 
     const updatedAt = serializeValue(post.updated_at ?? post.published_at ?? post.created_at) ?? null
@@ -2019,6 +2056,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
             topic: post.title ?? post.topic ?? '',
             channel: platform,
             last_error: result.error ?? null,
+            action: actionForExternalIssue(platform, result.error ?? ''),
             updated_at: serializeValue(result.updated_at ?? post.updated_at ?? post.created_at) ?? '',
           })
         }
@@ -2031,6 +2069,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         topic: post.title ?? post.topic ?? '',
         channel,
         last_error: post.last_error ?? null,
+        action: actionForExternalIssue(channel, post.last_error ?? ''),
         updated_at: updatedAt ?? '',
       })
     }
@@ -2073,6 +2112,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         topic: result.title ?? result.topic ?? '',
         channel: platform,
         last_error: result.error ?? null,
+        action: actionForExternalIssue(platform, result.error ?? ''),
         updated_at: updatedAt,
       })
     }
@@ -2086,11 +2126,15 @@ app.get('/api/pipeline/stats', async (req, res) => {
     })
   }
 
+  quality.avg_chars = quality.measured_posts ? Math.round(qualityChars / quality.measured_posts) : 0
+  quality.avg_grounding = groundingCount ? Math.round((groundingSum / groundingCount) * 100) / 100 : null
+
   ok(res, {
     by_status,
     by_channel,
     published_today,
     published_this_week,
+    quality,
     needs_human_posts,
     recent: recent
       .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime())

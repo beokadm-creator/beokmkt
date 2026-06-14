@@ -106,15 +106,16 @@ function extractHtmlFromResponse(text) {
 
 const DESIGN_SYSTEM = {
   colors: {
-    primary: '#1a1a2e',
-    secondary: '#16213e',
-    accent: '#0f3460',
-    point: '#e94560',
+    primary: '#172033',
+    secondary: '#26364f',
+    accent: '#176b87',
+    point: '#d45b3f',
     bg: '#ffffff',
-    text: '#2d2d2d',
-    textLight: '#666666',
-    border: '#e0e0e0',
-    highlight: '#fff3e0',
+    text: '#20242a',
+    textLight: '#5f6875',
+    border: '#d8dee8',
+    highlight: '#f6f8fb',
+    soft: '#fff7ed',
   },
   fonts: {
     body: '15px',
@@ -134,20 +135,23 @@ const SYSTEM_PROMPT = `당신은 HTML 디자이너입니다. 주어진 블로그
 
 디자인 규칙:
 - 모든 스타일은 인라인 style 속성으로 작성
-- h2: 왼쪽에 4px ${DESIGN_SYSTEM.colors.point} 보더, padding-left 16px, 배경 ${DESIGN_SYSTEM.colors.highlight}, font-size ${DESIGN_SYSTEM.fonts.h2}, font-weight 700, margin-top 32px
-- h3: font-size ${DESIGN_SYSTEM.fonts.h3}, font-weight 600, color ${DESIGN_SYSTEM.colors.accent}, border-bottom 1px solid ${DESIGN_SYSTEM.colors.border}
+- 첫 문단 또는 "결론 요약" 성격의 문단은 요약 카드처럼 border/padding/background를 주어 강조
+- h2: 왼쪽에 4px ${DESIGN_SYSTEM.colors.point} 보더, padding-left 16px, 배경 ${DESIGN_SYSTEM.colors.highlight}, font-size ${DESIGN_SYSTEM.fonts.h2}, font-weight 700, margin-top 36px, border-radius 8px
+- h3: font-size ${DESIGN_SYSTEM.fonts.h3}, font-weight 700, color ${DESIGN_SYSTEM.colors.accent}, border-bottom 1px solid ${DESIGN_SYSTEM.colors.border}
 - p: font-size ${DESIGN_SYSTEM.fonts.body}, line-height ${DESIGN_SYSTEM.fonts.lineHeight}, color ${DESIGN_SYSTEM.colors.text}, margin-bottom 16px
 - strong: color ${DESIGN_SYSTEM.colors.point}, font-weight 700
 - a: color ${DESIGN_SYSTEM.colors.accent}, text-decoration underline
-- ul/ol: padding-left 24px, margin-bottom 16px
+- ul/ol: padding-left 24px, margin 14px 0 18px, background ${DESIGN_SYSTEM.colors.highlight}, border 1px solid ${DESIGN_SYSTEM.colors.border}, border-radius 10px, padding-top 14px, padding-bottom 14px
 - li: margin-bottom 6px, line-height 1.7
 - table: width 100%, border-collapse collapse, margin 20px 0
 - th: background ${DESIGN_SYSTEM.colors.accent}, color white, padding 10px 14px, font-size 13px
 - td: padding 10px 14px, border-bottom 1px solid ${DESIGN_SYSTEM.colors.border}, font-size 14px
 - 짝수 tr: background #f8f9fa
 - img: max-width 100%, border-radius 8px, margin 16px 0
+- blockquote: margin 20px 0, padding 16px 18px, border-left 4px solid ${DESIGN_SYSTEM.colors.point}, background ${DESIGN_SYSTEM.colors.soft}, color ${DESIGN_SYSTEM.colors.text}
 - hr: border none, border-top 1px solid ${DESIGN_SYSTEM.colors.border}, margin 32px 0
 - CTA 버튼: display inline-block, background ${DESIGN_SYSTEM.colors.point}, color white, padding 12px 28px, border-radius 6px, text-decoration none, font-weight 600
+- 마지막 문의/상담 문단은 CTA 박스처럼 background ${DESIGN_SYSTEM.colors.primary}, color white, padding 18px, border-radius 12px로 처리
 - <html>, <head>, <body> 태그 금지, 본문 fragment만 출력`
 
 async function convertForTistory(html) {
@@ -178,6 +182,18 @@ function convertForTistoryFallback(html) {
   out = out.replace(/<style[\s\S]*?<\/style>/gi, '')
   out = out.replace(/ class="[^"]*"/gi, '')
   out = out.replace(/ class='[^']*'/gi, '')
+  out = out.replace(/<h2\b([^>]*)>/gi, `<h2$1 style="margin:36px 0 14px;padding:12px 16px;border-left:4px solid ${DESIGN_SYSTEM.colors.point};border-radius:8px;background:${DESIGN_SYSTEM.colors.highlight};font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:700;">`)
+  out = out.replace(/<h3\b([^>]*)>/gi, `<h3$1 style="margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid ${DESIGN_SYSTEM.colors.border};font-size:${DESIGN_SYSTEM.fonts.h3};line-height:1.5;color:${DESIGN_SYSTEM.colors.accent};font-weight:700;">`)
+  out = out.replace(/<p\b([^>]*)>/gi, `<p$1 style="margin:0 0 16px;font-size:${DESIGN_SYSTEM.fonts.body};line-height:${DESIGN_SYSTEM.fonts.lineHeight};color:${DESIGN_SYSTEM.colors.text};">`)
+  out = out.replace(/<strong\b([^>]*)>/gi, `<strong$1 style="color:${DESIGN_SYSTEM.colors.point};font-weight:700;">`)
+  out = out.replace(/<ul\b([^>]*)>/gi, `<ul$1 style="margin:16px 0 20px;padding:14px 18px 14px 34px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};">`)
+  out = out.replace(/<ol\b([^>]*)>/gi, `<ol$1 style="margin:16px 0 20px;padding:14px 18px 14px 34px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};">`)
+  out = out.replace(/<li\b([^>]*)>/gi, `<li$1 style="margin:0 0 8px;line-height:1.75;color:${DESIGN_SYSTEM.colors.text};">`)
+  out = out.replace(/<blockquote\b([^>]*)>/gi, `<blockquote$1 style="margin:20px 0;padding:16px 18px;border-left:4px solid ${DESIGN_SYSTEM.colors.point};border-radius:8px;background:${DESIGN_SYSTEM.colors.soft};color:${DESIGN_SYSTEM.colors.text};">`)
+  out = out.replace(/<table\b([^>]*)>/gi, `<table$1 style="width:100%;border-collapse:collapse;margin:22px 0;font-size:14px;">`)
+  out = out.replace(/<th\b([^>]*)>/gi, `<th$1 style="padding:11px 12px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">`)
+  out = out.replace(/<td\b([^>]*)>/gi, `<td$1 style="padding:11px 12px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};">`)
+  out = out.replace(/<img\b([^>]*)>/gi, `<img$1 style="max-width:100%;height:auto;border-radius:10px;margin:18px 0;">`)
   return out.trim()
 }
 

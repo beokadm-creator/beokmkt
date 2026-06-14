@@ -22,6 +22,23 @@ function log(level, ...args) {
   else console.log(prefix, ...args)
 }
 
+// 세션 만료를 즉시 알린다(Python utils/notify.py와 동일한 webhook 재사용).
+// 만료를 '발행 실패'로 뒤늦게 발견하는 대신 미리 재인증하도록 유도.
+const NOTIFY_WEBHOOK_URL = process.env.NOTIFY_WEBHOOK_URL || ''
+async function notify(message) {
+  log('warn', `알림: ${message}`)
+  if (!NOTIFY_WEBHOOK_URL) return
+  try {
+    await fetch(NOTIFY_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: `[WARN] ${message}` }),
+    })
+  } catch (e) {
+    log('warn', `webhook 전송 실패(무시): ${e.message}`)
+  }
+}
+
 async function probeSession(label, storagePath, testUrl, loginUrlPatterns = []) {
   const beforeSize = await snapshotSessionSize(storagePath)
   const browser = await chromium.launch({ headless: true })
@@ -66,6 +83,7 @@ async function main() {
     if (naverExists) {
       results.naver = await probeSession('naver', NAVER_STORAGE, NAVER_WRITE_URL, ['nid.naver.com'])
       log('info', `naver: ${results.naver.ok ? 'session refreshed ✓' : results.naver.expired ? '세션 만료 ✗ (재로그인 필요)' : 'failed ✗'} (${results.naver.before} → ${results.naver.after})`)
+      if (results.naver.expired) await notify('네이버 세션 만료 — `npm run login` 으로 재인증 필요')
     } else {
       log('info', 'naver: 세션 없음 (npm run login 필요)')
     }
@@ -79,6 +97,7 @@ async function main() {
     if (tistoryExists) {
       results.tistory = await probeSession('tistory', TISTORY_STORAGE, 'https://www.tistory.com/', ['accounts.kakao.com', 'tistory.com/auth'])
       log('info', `tistory: ${results.tistory.ok ? 'session refreshed ✓' : results.tistory.expired ? '세션 만료 ✗ (재로그인 필요)' : 'failed ✗'}`)
+      if (results.tistory.expired) await notify('티스토리 세션 만료 — `npm run tistory-auth` 으로 재인증 필요')
     } else {
       log('info', 'tistory: 세션 없음 (npm run tistory-auth 필요)')
     }

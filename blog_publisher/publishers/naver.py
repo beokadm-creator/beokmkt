@@ -31,11 +31,15 @@ class NaverPublisher:
         content_html = post.get("body", "")
         tags = _loads(post.get("tags"))
 
+        from tools.category_map import naver_theme
+
         payload = {
             "post_id": post.get("id"),          # 멱등성: 워커가 중복 발행 방지
             "title": post["title"],
             "content_html": content_html,
             "tags": tags,
+            # 네이버 고정 주제(검색 분류 신호) — 브랜드 키 기준
+            "topic_theme": naver_theme(post.get("category", "")),
             "canonical_url": post.get("canonical_url", ""),
             "link": post.get("canonical_url", ""),
         }

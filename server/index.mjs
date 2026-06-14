@@ -2058,6 +2058,15 @@ app.get('/api/dashboard', (req, res) => {
   res.redirect('/api/pipeline/stats')
 })
 
+function actionForExternalIssue(channel, error = '') {
+  const msg = String(error ?? '')
+  if (channel === 'tistory' && /세션|login|auth|TISTORY/i.test(msg)) return '티스토리 재인증 후 워커 재시작'
+  if (channel === 'naver' && /404|삭제|품질|구조|PASTE|SmartEditor/i.test(msg)) return '네이버 공개상태·본문 품질 확인 후 재발행 판단'
+  if (/세션|login|auth/i.test(msg)) return '채널 세션 재인증'
+  if (/품질|review|grounding|구조/i.test(msg)) return '본문 품질 재검토'
+  return '원인 확인'
+}
+
 app.get('/api/pipeline/stats', (req, res) => {
   let db
   try {
@@ -2095,23 +2104,46 @@ app.get('/api/pipeline/stats', (req, res) => {
     ).get()
 
     const needs_human_posts = db.prepare(
-      "SELECT id, topic, channel, last_error, updated_at FROM posts WHERE status='needs_human' ORDER BY updated_at DESC LIMIT 10"
+      "SELECT id, topic, title, channel, last_error, updated_at FROM posts WHERE status IN ('needs_human','failed') ORDER BY updated_at DESC LIMIT 10"
     ).all()
+      .map((post) => ({
+        ...post,
+        topic: post.title || post.topic || '',
+        action: actionForExternalIssue(post.channel, post.last_error || ''),
+      }))
 
     const recent = db.prepare(
       'SELECT id, topic, channel, status, published_url, updated_at FROM posts ORDER BY updated_at DESC LIMIT 10'
     ).all()
+
+    const qualityRow = db.prepare(
+      `SELECT
+        COUNT(*) AS measured_posts,
+        AVG(LENGTH(COALESCE(body, ''))) AS avg_chars,
+        SUM(CASE WHEN body LIKE '%<img%' OR body LIKE '%![](%' OR body LIKE '%![%' THEN 1 ELSE 0 END) AS with_images,
+        SUM(CASE WHEN LENGTH(COALESCE(body, '')) > 0 AND LENGTH(COALESCE(body, '')) < 1800 THEN 1 ELSE 0 END) AS weak_posts,
+        AVG(grounding_ratio) AS avg_grounding
+      FROM posts
+      WHERE status IN ('published','reviewed','queued')`
+    ).get()
 
     ok(res, {
       by_status,
       by_channel,
       published_today: todayRow?.n ?? 0,
       published_this_week: weekRow?.n ?? 0,
+      quality: {
+        measured_posts: qualityRow?.measured_posts ?? 0,
+        avg_chars: Math.round(qualityRow?.avg_chars ?? 0),
+        with_images: qualityRow?.with_images ?? 0,
+        weak_posts: qualityRow?.weak_posts ?? 0,
+        avg_grounding: qualityRow?.avg_grounding == null ? null : Math.round(qualityRow.avg_grounding * 100) / 100,
+      },
       needs_human_posts,
       recent,
     })
   } catch (e) {
-    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, needs_human_posts: [], recent: [] })
+    ok(res, { error: String(e.message), by_status: {}, by_channel: {}, published_today: 0, published_this_week: 0, quality: { measured_posts: 0, avg_chars: 0, with_images: 0, weak_posts: 0, avg_grounding: null }, needs_human_posts: [], recent: [] })
   } finally {
     db.close()
   }

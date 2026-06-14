@@ -21,9 +21,12 @@ const CHANNEL_GUIDES = {
 - 네이버 검색 사용자가 입력할 법한 표현을 소제목에 반영
 - 제목도 네이버 검색 클릭을 유도하는 형태로 새로 작성 (원래 제목과 다르게)`,
   tistory: `티스토리 블로그 독자 특성에 맞게 재작성:
-- 정보 정리형 문체, 핵심을 표/목록으로 구조화
-- 구글 검색 유입을 고려한 명확한 소제목
-- 제목도 원래 제목과 다르게 새로 작성`,
+- 구글 검색 유입 독자가 바로 훑어볼 수 있게 첫머리에 핵심 요약 3줄을 둔다
+- 단순 줄글 금지: h2/h3, 불릿, 번호 목록, 비교표를 상황에 맞게 적극 사용한다
+- 각 h2는 "무엇/왜/어떻게/주의점" 중 하나가 분명히 드러나게 쓴다
+- 실무자가 바로 적용할 수 있는 체크리스트·판단 기준·흐름을 포함한다
+- 과장된 광고문 대신 차분한 전문가 톤으로, 마지막에 부드러운 상담 CTA를 둔다
+- 제목도 원래 제목과 다르게 새로 작성하되 검색 의도를 분명히 담는다`,
 }
 
 // <img> 태그를 마크다운 이미지로 변환(스트리핑 과정에서 살아남게).
@@ -102,7 +105,7 @@ function extractJson(text) {
 
 function buildSourceFooter(canonicalUrl) {
   if (!canonicalUrl) return ''
-  return `\n<p>이 글의 원본과 더 많은 자료는 <a href="${canonicalUrl}">홍커뮤니케이션 블로그</a>에서 확인하실 수 있습니다.</p>`
+  return `\n<p>이 글의 원본과 더 많은 자료는 <a href="${canonicalUrl}">비오케이솔루션 블로그</a>에서 확인하실 수 있습니다.</p>`
 }
 
 /**
@@ -125,7 +128,7 @@ async function rewriteForChannel({ title, html, channel, canonicalUrl = '' }) {
   const plainText = stripToPlainText(html)
   if (plainText.length < 200) return fallback
 
-  const systemPrompt = `당신은 한국어 블로그 콘텐츠 재작성 전문가입니다.
+const systemPrompt = `당신은 한국어 블로그 콘텐츠 재작성 전문가입니다.
 주어진 글과 같은 주제·같은 사실관계를 유지하되, 완전히 다른 글처럼 보이도록 재작성합니다.
 
 절대 규칙:
@@ -134,6 +137,7 @@ async function rewriteForChannel({ title, html, channel, canonicalUrl = '' }) {
 - 분량은 원문의 80~120% 수준 유지
 - 허용 태그: h2, h3, p, ul, ol, li, strong, blockquote, img 사용 (인라인 스타일, class 금지)
 - 본문의 이미지 마크다운 ![설명](url) 은 src/alt를 변경·삭제하지 말고 자연스러운 위치에 그대로 유지할 것 (재작성된 흐름에 맞게 위치만 조정 가능)
+- 오직 한국어 한글로만 작성. 중국어 간체/번체·한자 혼입 금지
 - 반드시 JSON만 출력: { "title": "...", "html": "..." }
 
 ${guide}`

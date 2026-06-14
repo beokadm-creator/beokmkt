@@ -12,6 +12,7 @@ type NeedsHumanPost = {
   topic: string
   channel: string
   last_error: string | null
+  action?: string | null
   updated_at: string
 }
 
@@ -30,6 +31,13 @@ type PipelineStats = {
   by_channel: ByChannel
   published_today: number
   published_this_week: number
+  quality?: {
+    measured_posts: number
+    avg_chars: number
+    with_images: number
+    weak_posts: number
+    avg_grounding: number | null
+  }
   needs_human_posts: NeedsHumanPost[]
   recent: RecentPost[]
 }
@@ -216,6 +224,27 @@ export default function DashboardPage() {
         {data ? <StageBar by_status={data.by_status} /> : <div className="text-sm text-zinc-500">로딩 중…</div>}
       </div>
 
+      {/* 품질 지표 */}
+      {data?.quality ? (
+        <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">품질 지표</div>
+              <div className="mt-1 text-xs text-zinc-500">발행·검토·예약 글 기준. 실제 산출물 확인용 신호입니다.</div>
+            </div>
+            <span className="rounded-md border border-zinc-800 px-2 py-1 text-xs text-zinc-400">
+              측정 {data.quality.measured_posts}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiCard label="평균 본문 길이" value={data.quality.avg_chars} sub="문자 수" alert={data.quality.avg_chars > 0 && data.quality.avg_chars < 1800} />
+            <KpiCard label="이미지 포함" value={data.quality.with_images} sub="시각 요소 있는 글" />
+            <KpiCard label="짧은 글" value={data.quality.weak_posts} sub="1,800자 미만" alert />
+            <KpiCard label="평균 grounding" value={Math.round((data.quality.avg_grounding ?? 0) * 100)} sub={data.quality.avg_grounding == null ? '미측정' : '백분율'} alert={data.quality.avg_grounding != null && data.quality.avg_grounding < 0.9} />
+          </div>
+        </div>
+      ) : null}
+
       {/* 채널별 현황 */}
       <div className="rounded-xl border border-zinc-900 bg-zinc-900/30 p-4">
         <div className="mb-3 text-sm font-semibold">채널별 현황</div>
@@ -237,6 +266,11 @@ export default function DashboardPage() {
                   <div className="mt-1 truncate text-sm text-zinc-200">{post.topic}</div>
                   {post.last_error ? (
                     <div className="mt-1 truncate text-xs text-rose-400">{post.last_error}</div>
+                  ) : null}
+                  {post.action ? (
+                    <div className="mt-2 inline-flex rounded-md border border-amber-900/40 bg-amber-950/20 px-2 py-1 text-xs text-amber-200">
+                      다음 조치: {post.action}
+                    </div>
                   ) : null}
                   <div className="mt-1 text-xs text-zinc-600">
                     {new Date(post.updated_at + 'Z').toLocaleString('ko-KR')}

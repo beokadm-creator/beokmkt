@@ -18,6 +18,27 @@ from research import collect, evidence as ev
 from utils.notify import notify
 
 
+# CJK 한자(漢字) 범위. 한국어 블로그 본문엔 사실상 0개여야 한다.
+# glm 계열 모델이 한국어 단어를 중국어 글자로 바꿔치기하는 결함을 잡는다.
+import re as _re
+
+_HANZI_RE = _re.compile(r"[一-鿿㐀-䶿]")
+
+
+def _count_hanzi(text: str) -> int:
+    return len(_HANZI_RE.findall(text or ""))
+
+
+def _strip_hanzi(text: str) -> str:
+    """한자와, 한자만 들어있던 괄호 잔여물을 정리."""
+    if not text:
+        return text
+    out = _HANZI_RE.sub("", text)
+    out = _re.sub(r"\(\s*\)", "", out)      # 빈 괄호 제거
+    out = _re.sub(r"[ \t]{2,}", " ", out)
+    return out
+
+
 def _facts_summary(evidence: dict, limit: int = 40) -> str:
     """개요 입력용 사실 요약(출처 표기)."""
     lines = []
@@ -118,11 +139,11 @@ def compose_article(
     )
     title = outline["title"]
 
-    # ⑤ 근거기반 섹션 작성 (빈 응답 시 1회 재시도)
+    # ⑤ 근거기반 섹션 작성 (빈 응답/한자 혼입 시 재시도)
     parts: list[str] = []
     for sec in outline["sections"]:
         body = ""
-        for _sec_try in range(2):
+        for _sec_try in range(3):
             body = llm.chat(
                 prompts.SECTION_SYSTEM,
                 prompts.SECTION_USER.format(
@@ -134,11 +155,17 @@ def compose_article(
                 ),
                 model=config.MODEL_SECTION,
                 max_tokens=config.MAX_TOKENS_SECTION,
-                thinking=False,
+                thinking=True,   # 깊이·구조 향상(품질 우선). 통과율/비용 보며 조정.
             )
-            if len(body.strip()) >= config.SECTION_MIN_LEN:
+            too_short = len(body.strip()) < config.SECTION_MIN_LEN
+            # glm 계열이 한국어에 한자(信信, 几次 등)를 섞는 경우 → 재생성
+            has_hanzi = _count_hanzi(body) > 0
+            if not too_short and not has_hanzi:
                 break
-            print(f"[generate] 섹션 '{sec['h2']}' 너무 짧음({len(body)}자), 재시도")
+            reason = "너무 짧음" if too_short else f"한자 {_count_hanzi(body)}자 혼입"
+            print(f"[generate] 섹션 '{sec['h2']}' {reason}({len(body)}자), 재시도")
+        # 최종 시도에도 한자가 남으면 제거(최후의 안전망)
+        body = _strip_hanzi(body)
         parts.append(f"## {sec['h2']}\n\n{body}")
     body_text = "\n\n".join(parts)
 
