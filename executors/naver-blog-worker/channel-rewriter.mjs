@@ -24,6 +24,7 @@ const CHANNEL_GUIDES = {
 - 문단을 짧게 끊어 모바일에서 읽기 쉽게
 - 네이버 검색 사용자가 입력할 법한 표현을 소제목에 반영
 - 제목도 원래 제목과 다르게 작성하되, 실무형 검색 제목처럼 차분하고 구체적으로 작성
+- 네이버 자동 발행은 현재 이미지와 표 보존을 검증하지 않는다. img/table/마크다운 표/마크다운 이미지를 만들지 말고 h2, h3, p, ul, ol, li, strong, blockquote만 사용
 - 절대 금지: 낚시성 제목, 과장, 속어, 유행어, 감탄사, 이모지, "꿀팁", "환장", "대박", "지옥", "끝판왕", "완벽", "무조건", "충격", "실화"`,
   tistory: `티스토리 블로그 독자 특성에 맞게 재작성:
 - 구글 검색 유입 독자가 10초 안에 가치를 판단할 수 있게 첫머리에 "핵심 요약" 3줄을 둔다
@@ -205,6 +206,18 @@ function sanitizeAllowedHtml(html) {
     .replace(/\sstyle=["'][^"']*text-decoration\s*:\s*(?:line-through|line-through[^;"']*)[^"']*["']/gi, '')
 }
 
+function naverUnsupportedRichReason(html) {
+  const value = String(html ?? '')
+  const reasons = []
+  if (/<img\b/i.test(value)) reasons.push('이미지 태그')
+  if (/!\[[^\]]*\]\([^)\s]+\)/.test(value)) reasons.push('마크다운 이미지')
+  if (/<table\b/i.test(value)) reasons.push('표 태그')
+  if (value.split(/\r?\n/).some((line) => /^\s*\|.+\|\s*$/.test(line) || /^\s*\|?\s*:?-{3,}:?\s*\|/.test(line))) {
+    reasons.push('마크다운 표')
+  }
+  return reasons.join(', ')
+}
+
 /**
  * 채널용으로 글을 재작성한다.
  * @param {{ title: string, html: string, channel: 'naver'|'tistory', canonicalUrl?: string }} params
@@ -293,8 +306,18 @@ ${guide}`
           continue
         }
       }
-      // 모델이 마크다운으로 남긴 이미지를 <img>로 복원(어댑터가 인식하도록)
+      // 모델이 마크다운으로 남긴 이미지를 <img>로 복원(어댑터가 인식하도록).
+      // 단, 네이버는 현 자동 발행 경로에서 이미지/표 구조 보존이 검증되지 않았으므로
+      // 재작성 결과가 리치 구조를 만들면 원문 폴백으로 돌린다.
       newHtml = markdownImagesToHtml(sanitizeAllowedHtml(newHtml))
+      if (channel === 'naver') {
+        const unsupported = naverUnsupportedRichReason(newHtml)
+        if (unsupported) {
+          lastFailure = `네이버 미지원 리치 구조 포함: ${unsupported}`
+          console.warn(`[channel-rewriter] naver 재작성 ${attempt}차 실패: ${lastFailure}`)
+          continue
+        }
+      }
       return {
         title: newTitle,
         html: `${newHtml}${buildSourceFooter(canonicalUrl)}`,
