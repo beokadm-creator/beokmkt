@@ -64,14 +64,27 @@ def _check(group: str, item: dict, timeout: int = 15) -> ImageCheck:
 
 def run() -> bool:
     checks: list[ImageCheck] = []
-    seen: set[str] = set()
+    cache: dict[str, ImageCheck] = {}
     for group, items in _catalog():
         for item in items:
             url = str(item.get("url", ""))
-            if not url or url in seen:
+            if not url:
                 continue
-            seen.add(url)
-            checks.append(_check(group, item))
+            if url not in cache:
+                cache[url] = _check(group, item)
+            cached = cache[url]
+            checks.append(
+                ImageCheck(
+                    group=group,
+                    url=url,
+                    alt=str(item.get("alt", cached.alt)),
+                    ok=cached.ok,
+                    status=cached.status,
+                    content_type=cached.content_type,
+                    bytes_read=cached.bytes_read,
+                    error=cached.error,
+                )
+            )
 
     print("=== 이미지 자산 감사 ===")
     ok_count = 0
@@ -85,11 +98,21 @@ def run() -> bool:
         if check.error:
             print(f"      - {check.error}")
 
-    beoksolution_urls = [c.url for c in checks if "beoksolution.com" in c.url and c.ok]
+    beoksolution_urls = sorted({c.url for c in checks if "beoksolution.com" in c.url and c.ok})
+    beok_conference = [c for c in checks if c.group == "beok_conference"]
+    beok_conference_actual = [
+        c for c in beok_conference
+        if "beoksolution.com" in c.url and c.ok and "logo" not in c.url.lower()
+    ]
     print(f"\n결과: {ok_count}/{len(checks)} 통과")
     print(f"beoksolution.com 공개 이미지: {len(beoksolution_urls)}개")
     for url in beoksolution_urls:
         print(f"  - {url}")
+    if not beok_conference_actual:
+        print(
+            "\n[WARN] Phase C 제한: beok_conference 그룹에 beoksolution.com 실제 학회/명찰 현장 이미지가 없습니다. "
+            "현재는 beoksolution.com 로고와 hongcomm.kr 공개 시스템 이미지를 대체 사용 중입니다."
+        )
     return ok_count == len(checks)
 
 

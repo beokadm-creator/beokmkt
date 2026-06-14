@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-15 — Phase C 이미지 자산 감사 정밀화
+
+`beoksolution.com`에서 공개 접근 가능한 이미지 자산을 직접 확인한 결과 실제 이미지 URL은 `https://beoksolution.com/img/logo.png` 1개뿐이었다. 기존 이미지 감사는 중복 URL을 전역으로 제거해 `beok_conference` 그룹이 출력에서 사라졌고, beok 학회 글이 실제로 어떤 이미지를 쓰는지 운영자가 확인하기 어려웠다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/image_bank.py` | beok 학회/명찰 이미지 후보에 `beoksolution.com/img/logo.png`를 명시적으로 추가 |
+| `blog_publisher/tools/image_asset_audit.py` | URL 요청은 캐시하되 그룹별 결과는 모두 출력하도록 변경 |
+| `blog_publisher/tools/image_asset_audit.py` | beok 학회/명찰 현장 이미지가 `beoksolution.com`에 없으면 Phase C 제한 경고 출력 |
+
+검증:
+- `curl`로 `beoksolution.com`, `/references/`, `/sitemap.xml`, `/robots.txt` 확인
+- `https://beoksolution.com/img/logo.png` 200 `image/png` 확인
+- `python3 blog_publisher/run.py image_audit` PASS, `beok_conference` 그룹 및 Phase C 제한 경고 확인
+
+---
+
 ## 2026-06-15 — Phase B 자체/티스토리 실무 점검 범위 보강
 
 학회 명찰 글에서 독자가 바로 확인해야 하는 운영 범위가 본문 끝 CTA에만 묻히지 않도록, 자체 블로그와 티스토리 변환 결과에 “비오케이솔루션 실무 점검 범위” 블록을 deterministic하게 추가했다. 데이터 검수, 출력 기준, 현장 재발행, 사후 정리를 같은 구조로 노출해 광고 문구가 아니라 사무국 운영 기준으로 읽히게 했다.

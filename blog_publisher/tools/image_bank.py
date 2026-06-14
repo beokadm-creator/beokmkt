@@ -127,6 +127,11 @@ _BEOK_BRAND: list[dict] = [
 
 _BEOK_CONFERENCE: list[dict] = [
     {
+        "url": "https://beoksolution.com/img/logo.png",
+        "alt": "비오케이솔루션 학회 운영 사무국 명찰 출력 지원 로고",
+        "keywords": {"비오케이솔루션", "학회", "명찰", "사무국", "출력", "발행", "접수", "재발행"},
+    },
+    {
         "url": "https://hongcomm.kr/img/page/b2.png",
         "alt": "학회 현장 모바일 디지털 명찰 시스템 화면",
         "keywords": {"학회", "명찰", "디지털", "모바일", "QR", "바코드", "현장", "체크인"},
