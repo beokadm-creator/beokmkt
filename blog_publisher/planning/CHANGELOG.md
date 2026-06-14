@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-14 — Phase B 렌더러/티스토리 품질 셀프테스트
+
+티스토리/자체 블로그 디자인 품질은 공개 발행 후에야 드러나는 문제가 많아, 발행 전 회귀 검증 명령을 추가했다. 외부 발행·LLM 호출 없이 실제 렌더러와 티스토리 HTML 어댑터를 돌려 리치 HTML 구성요소가 유지되는지 확인한다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/quality_selftest.py` | 자체 블로그 `render_body()`와 티스토리 `convertForTistory()`/`validateTistoryHtml()`을 실제 실행해 summary/toc/cta/table/image/callout, h2/list/table/blockquote/strong/CTA 유지 여부를 검사 |
+| `blog_publisher/run.py` | `python3 run.py quality_selftest` 명령 추가 |
+
+검증:
+- `python3 run.py quality_selftest` PASS
+- `python3 -m py_compile blog_publisher/tools/quality_selftest.py blog_publisher/run.py` PASS
+- `node --check executors/naver-blog-worker/tistory-html-adapter.mjs` PASS
+
+---
+
 ## 2026-06-14 — 관리자 대시보드 공개 URL 품질 카드
 
 정기 `verify_public`은 로그/알림으로 동작하지만, 관리자 화면에서도 최근 공개 URL 품질을 바로 볼 수 있도록 Cloud Functions API와 SPA 대시보드를 보강했다.

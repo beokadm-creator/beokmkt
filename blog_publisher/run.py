@@ -12,6 +12,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py publish
   python run.py status         # 파이프라인 상태별 건수 리포트
   python run.py verify_public  # published 공개 URL 실제 HTML 품질 검증
+  python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
   python run.py loop           # 데모용: 한 번에 전체 흐름
 
   # 도구(직접 실행)
@@ -104,6 +105,10 @@ def main() -> None:
     elif cmd == "selftest":
         from tools import selftest
         raise SystemExit(0 if selftest.run() else 1)
+
+    elif cmd == "quality_selftest":
+        from tools import quality_selftest
+        raise SystemExit(0 if quality_selftest.run() else 1)
 
     elif cmd == "recover":
         import config as _cfg
