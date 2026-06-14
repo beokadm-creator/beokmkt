@@ -28,6 +28,9 @@ from utils.notify import notify
 import re as _re
 
 _HANZI_RE = _re.compile(r"[一-鿿㐀-䶿]")
+_RUN_META_RE = _re.compile(
+    r"\s*[\(\[][^)\]]*(?:실제\s*발행\s*검증|실발행\s*검증|검증\s*\d{4}[-_]\d{4}|\d{4}[-_]\d{4}\s*검증)[^)\]]*[\)\]]\s*"
+)
 
 
 def _lock_path() -> Path:
@@ -103,6 +106,61 @@ def _strip_hanzi(text: str) -> str:
     return out
 
 
+def _content_topic(topic: str) -> str:
+    """운영 run tag/검증 메타가 LLM 본문 소재로 새는 것을 막는다."""
+    cleaned = _RUN_META_RE.sub(" ", topic or "")
+    cleaned = _re.sub(r"\s{2,}", " ", cleaned).strip()
+    return cleaned or (topic or "").strip()
+
+
+def _channel_rules(engine: str) -> str:
+    if engine == "naver":
+        return (
+            "- 네이버 자동 발행용이다. 이미지, 마크다운 이미지, HTML 표, 마크다운 표를 절대 쓰지 마라.\n"
+            "- 비교·체크리스트는 불릿 목록이나 번호 목록으로 풀어쓴다.\n"
+            "- `| 항목 | 기준 |` 같은 표 문법을 한 줄도 출력하지 마라."
+        )
+    return "- 리치 HTML 보존 채널이다. 필요하면 이미지, 표, 목록, 인용을 자연스럽게 활용한다."
+
+
+def _markdown_table_to_list(block: str) -> str:
+    lines = [line.strip() for line in block.splitlines() if line.strip()]
+    rows = [line.strip("|").split("|") for line in lines if "|" in line]
+    rows = [[cell.strip() for cell in row] for row in rows]
+    rows = [row for row in rows if not all(_re.fullmatch(r":?-{3,}:?", cell or "") for cell in row)]
+    if len(rows) < 2:
+        return ""
+    header, data_rows = rows[0], rows[1:]
+    items = []
+    for row in data_rows:
+        pairs = []
+        for idx, cell in enumerate(row):
+            key = header[idx] if idx < len(header) and header[idx] else f"항목 {idx + 1}"
+            pairs.append(f"{key}: {cell}")
+        if pairs:
+            items.append("- " + " / ".join(pairs))
+    return "\n".join(items)
+
+
+def _sanitize_naver_body(body: str) -> str:
+    """네이버 자동 발행이 보존하지 못하는 리치 마크다운을 발행 가능한 구조로 낮춘다."""
+    text = _re.sub(r"!\[[^\]]*\]\([^)\s]+\)\s*", "", body or "")
+    blocks = text.split("\n\n")
+    out: list[str] = []
+    for block in blocks:
+        lines = block.splitlines()
+        table_like = lines and sum(1 for line in lines if "|" in line) >= 2
+        if table_like and any(_re.search(r"\|\s*:?-{3,}:?\s*\|", line) for line in lines):
+            converted = _markdown_table_to_list(block)
+            if converted:
+                out.append(converted)
+            continue
+        out.append(block)
+    text = "\n\n".join(out)
+    text = _re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text
+
+
 def _log_stage(topic: str, stage: str) -> None:
     print(f"[generate] topic={topic!r} 단계={stage}", flush=True)
 
@@ -170,8 +228,10 @@ def _build_outline(llm: LLMClient, post: dict, evidence: dict) -> dict:
     return _validate_outline(outline)
 
 
-def _ensure_summary_table(body_text: str, outline: dict) -> str:
+def _ensure_summary_table(body_text: str, outline: dict, allow_table: bool = True) -> str:
     """리치 HTML 품질 기준: 글 전체에 비교/점검용 표가 1개 이상 있게 한다."""
+    if not allow_table:
+        return body_text
     if "|---" in body_text:
         return body_text
     sections = [
@@ -204,7 +264,8 @@ def generate_article(
 
     # ① 의도/키워드/하위질문
     _log_stage(topic, "query_plan")
-    plan = ev.derive_query_plan(llm, topic, content_type)
+    public_topic = _content_topic(topic)
+    plan = ev.derive_query_plan(llm, public_topic, content_type)
     # ②a 타깃 엔진 SERP 분석(노출용) / ②b 사실 수집(근거용, 일반 웹)
     _log_stage(topic, f"serp:{engine}")
     serp = collect.analyze_serp(engine, plan["primary_keyword"])
@@ -212,10 +273,10 @@ def generate_article(
     sources = collect.collect(ev.search_queries(plan))
     # ③ 근거팩(커버리지는 타깃 SERP 반영)
     _log_stage(topic, "evidence_pack")
-    evidence = ev.build_evidence_pack(llm, topic, content_type, plan, sources, serp=serp)
+    evidence = ev.build_evidence_pack(llm, public_topic, content_type, plan, sources, serp=serp)
 
     # ④~⑥ 개요·섹션·SEO 합성(재작성 파이프라인과 공유)
-    return compose_article(llm, topic, content_type, engine, evidence, serp, brand_key=brand_key)
+    return compose_article(llm, public_topic, content_type, engine, evidence, serp, brand_key=brand_key)
 
 
 def compose_article(
@@ -228,6 +289,7 @@ def compose_article(
     brand_key: str = "",
 ) -> dict:
     """근거팩이 준비된 뒤의 합성 단계(개요→섹션→SEO). generate/rewrite 공용."""
+    topic = _content_topic(topic)
     # ④ 근거기반 개요
     outline = _build_outline(
         llm, {"topic": topic, "content_type": content_type, "brand_key": brand_key}, evidence
@@ -248,6 +310,7 @@ def compose_article(
                     h2=sec["h2"],
                     point=sec["point"],
                     tone=config.DEFAULT_TONE,
+                    channel_rules=_channel_rules(engine),
                     evidence=_evidence_for_section(evidence, sec["h2"], sec["point"]),
                 ),
                 model=config.MODEL_SECTION,
@@ -265,7 +328,7 @@ def compose_article(
         body = _strip_hanzi(body)
         parts.append(f"## {sec['h2']}\n\n{body}")
     body_text = "\n\n".join(parts)
-    body_text = _ensure_summary_table(body_text, outline)
+    body_text = _ensure_summary_table(body_text, outline, allow_table=engine != "naver")
 
     # ⑥ SEO 최적화(엔진별). 실패해도 원고는 살린다.
     try:
@@ -274,11 +337,11 @@ def compose_article(
         final_title = seo_data.get("seo_title") or title
         meta = seo_data.get("meta_description") or outline.get("meta_description", "")
         tags = seo_data.get("tags", [])
-        if brand_key in {"hong", "beok"}:
+        if engine == "naver":
+            body_text = _sanitize_naver_body(body_text)
+        elif brand_key in {"hong", "beok"}:
             from tools.image_bank import inject_images
             body_text = inject_images(body_text, brand_key=brand_key)
-        elif engine == "naver":
-            body_text = seo.apply_image_markers(body_text, seo_data.get("image_markers", []))
     except Exception as e:  # noqa: BLE001
         print(f"[seo] 최적화 실패(원고 유지): {e}", flush=True)
         seo_data, final_title, meta, tags = {}, title, outline.get("meta_description", ""), []

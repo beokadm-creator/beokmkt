@@ -161,6 +161,8 @@ SECTION_USER = """\
 이 섹션 소제목: {h2}
 이 섹션 핵심 메시지: {point}
 글 전체 톤: {tone}
+채널별 작성 규칙:
+{channel_rules}
 
 이 섹션에 쓸 수 있는 근거(이 안의 사실만 사용):
 {evidence}

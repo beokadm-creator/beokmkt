@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-06-15 — 품질 게이트 복구와 네이버 생성 제약 강화
+
+채널별 실발행 검증에서 자체 블로그·티스토리는 발행됐지만 `grounding_ratio=0.0` 글도 통과했고, 네이버는 이미지/마크다운 표가 포함된 원고라 자동 발행이 차단됐다. 발행 전 품질 게이트를 코드에서 강제하고, 네이버 원고는 생성 단계부터 이미지/표를 만들지 않도록 제약을 주입했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/pipeline/publish.py` | `MIN_GROUNDING_RATIO` 또는 `MIN_REVIEW_SCORE`가 0 이하이면 모든 채널 자동 발행을 `needs_human`으로 차단. 글별 `grounding_ratio`가 기준 미만이어도 발행 금지 |
+| `blog_publisher/pipeline/generate.py` | 운영 run tag/실발행 검증 문자열이 본문 소재로 새지 않도록 topic 정리 |
+| `blog_publisher/pipeline/generate.py` | 네이버 채널은 이미지/HTML 표/마크다운 표를 만들지 않도록 섹션 프롬프트 규칙 주입, 마크다운 이미지 제거, 마크다운 표를 불릿으로 변환 |
+| `blog_publisher/llm/prompts.py` | 섹션 작성 프롬프트에 채널별 작성 규칙 슬롯 추가 |
+| `blog_publisher/tools/selftest.py` | mock selftest도 운영 기준(`grounding 0.9`, review 80)으로 통과하도록 고정 |
+
+운영 정리:
+- 로컬 `.env`의 `MIN_GROUNDING_RATIO=0.9`, `MIN_REVIEW_SCORE=80` 복구
+- 네이버 테스트 산출물 id 83은 실제 발행되지 않았고 `archived` 처리
+- 과거 0점 상태로 예약된 id 41, 54는 발행 큐에서 빼고 재생성 대상으로 되돌림
+
+검증:
+- `python3 -m compileall -q blog_publisher` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- 품질 게이트 비활성 발행 차단 재현 PASS
+- 네이버 mock 원고에서 이미지/표/run tag 제거 확인
+- 운영 상태: inventory=15 이상, `needs_human=0`, `failed=0`, 공개 품질 샘플 20/20 OK
+
+---
+
 ## 2026-06-15 — 공개 블로그 글 읽기 경험 보강
 
 사용자 화면 품질 목표에 맞춰 공개 글 상세 화면에 긴 글을 읽기 위한 구조 신호를 추가했다. 글 본문에서 h2/h3를 읽어 목차 anchor를 자동 생성하고, 읽기 시간·이미지·표 개수를 사이드바에 노출해 실제 산출물의 밀도와 구조를 사용자가 바로 판단할 수 있게 했다.

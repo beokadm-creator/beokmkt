@@ -42,6 +42,23 @@ def _empty_stats() -> dict:
     return {"published": 0, "retried": 0, "needs_human": 0, "failed": 0, "skipped": 0}
 
 
+def _assert_publish_quality_gate(post) -> None:
+    """
+    운영 안전장치: 품질 임계값을 0으로 둔 테스트 설정에서는 실제 발행을 막는다.
+    자체/외부 채널 모두 같은 기준이다. mock selftest는 grounding/review 값을 정상으로 둔다.
+    """
+    if config.MIN_GROUNDING_RATIO <= 0 or config.MIN_REVIEW_SCORE <= 0:
+        raise NeedsHumanError(
+            "품질 게이트 비활성 상태(MIN_GROUNDING_RATIO/MIN_REVIEW_SCORE <= 0)에서는 자동 발행 금지. "
+            "운영 발행 전 MIN_GROUNDING_RATIO=0.9, MIN_REVIEW_SCORE=80 이상으로 복구하세요."
+        )
+    ratio = post["grounding_ratio"]
+    if ratio is None or float(ratio) < config.MIN_GROUNDING_RATIO:
+        raise NeedsHumanError(
+            f"사실검증 미통과 grounding_ratio={ratio}; 기준={config.MIN_GROUNDING_RATIO}. 자동 발행 금지."
+        )
+
+
 def _publish_claimed_post(post) -> dict:
     """이미 publishing으로 claim된 post 1건을 채널 어댑터로 발행한다."""
     stats = _empty_stats()
@@ -52,6 +69,7 @@ def _publish_claimed_post(post) -> dict:
         return stats
 
     try:
+        _assert_publish_quality_gate(post)
         result = publisher.publish(dict(post))
         if isinstance(result, dict):
             url = result.get("url") or ""
