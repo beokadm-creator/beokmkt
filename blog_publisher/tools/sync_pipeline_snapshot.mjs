@@ -248,6 +248,17 @@ function pipelineRequeuePolicy(post) {
 
 const PUBLIC_FORBIDDEN_TONE = ['꿀팁', '환장', '대박', '지옥', '끝판왕', '충격', '실화', 'ㅋㅋ', 'ㅎㅎ', '[이미지:']
 
+function publicFocusTerms() {
+  return readEnvList('AUTO_SEED_REQUIRED_TERMS', '학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드')
+}
+
+function matchesPublicFocus(row) {
+  const terms = publicFocusTerms()
+  if (!terms.length) return true
+  const text = `${row?.title || ''} ${row?.topic || ''}`
+  return terms.filter((term) => term && text.includes(term)).length >= 2
+}
+
 function stripPublicNonContent(html = '') {
   return String(html ?? '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -368,6 +379,7 @@ function hasVisibleStrike(html = '') {
 
 function publicQualityAction(channel, issues = []) {
   const issueText = issues.join(' ')
+  if (/목표 주제 이탈/.test(issueText)) return '운영 주제와 맞지 않는 공개 글입니다. 비공개/삭제 또는 목표 주제에 맞춘 재작성 판단'
   if (/캐시|CDN|Hosting/i.test(issueText)) return '본문은 수정됨. Hosting/CDN 캐시 만료 또는 재배포 후 공개 품질 재검증'
   if (channel === 'tistory' && /금칙|마커|취소선|본문|소제목/i.test(issueText)) {
     return '티스토리 관리자에서 공개 글 본문 수정 또는 삭제 후 공개 품질 재검증'
@@ -408,6 +420,9 @@ async function inspectPublicPost(row) {
   const matched = PUBLIC_FORBIDDEN_TONE.filter((word) => contentHtml.includes(word) || text.includes(word))
   if (matched.length) issues.push(`금칙/마커 문구 노출(${matched.slice(0, 5).join(', ')})`)
   if (hasVisibleStrike(contentHtml)) issues.push('취소선 서식 노출')
+  if (!matchesPublicFocus(row)) {
+    issues.push(`목표 주제 이탈(${readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 학회 운영 사무국 명찰 출력 발행')})`)
+  }
   if (channel === 'selfhosted') {
     if (chars < 1000) issues.push(`본문 짧음(${chars}자)`)
     if (h1 !== 1) issues.push(`h1 개수 비정상(${h1})`)
@@ -422,7 +437,8 @@ async function inspectPublicPost(row) {
   }
   let cache_bust_ok = false
   let cache_bust_url = null
-  if (channel === 'selfhosted' && issues.length > 0 && url && !url.includes('?')) {
+  const cacheCheckNeeded = issues.some((issue) => !/목표 주제 이탈/.test(issue))
+  if (channel === 'selfhosted' && issues.length > 0 && cacheCheckNeeded && url && !url.includes('?')) {
     cache_bust_url = `${url}?v=public-quality-${encodeURIComponent(String(row.id ?? Date.now()))}`
     try {
       const bust = await fetch(cache_bust_url, {

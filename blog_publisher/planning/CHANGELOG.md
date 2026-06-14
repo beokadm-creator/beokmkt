@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-15 — 공개 품질 검증에 목표 주제 이탈 감지 추가
+
+공개 URL 검증이 HTML 구조와 길이만 확인해, 현재 블로그 운영명(`비오케이솔루션 학회 운영 사무국 명찰 출력 발행`)과 맞지 않는 공개 글도 `OK`로 통과하던 문제를 보완했다. 기존 공개 글은 임의 삭제하지 않고, 공개 품질 검증과 관리자 대시보드에서 비공개/삭제 또는 목표 주제 재작성 판단 대상으로 드러나게 했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/verify_public_posts.py` | 공개 글 제목/주제가 목표 키워드 2개 이상과 맞지 않으면 `목표 주제 이탈` 이슈로 표시 |
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | 스냅샷 공개 품질 검사에도 동일한 목표 주제 이탈 감지 추가 |
+| `server/index.mjs` | `/api/pipeline/stats` 공개 품질 검사에도 동일한 목표 주제 이탈 감지 추가 |
+
+검증:
+- `python3 blog_publisher/run.py verify_public 10`에서 #55, #42 목표 주제 이탈 감지 확인
+- `python3 blog_publisher/run.py sync_snapshot`에서 최근 20건 중 공개 품질 `14/20`, 이탈 6건 노출 확인
+- `node --check server/index.mjs`, `sync_pipeline_snapshot.mjs` PASS
+- `python3 -m compileall -q blog_publisher`, `npx tsc --noEmit` PASS
+
+---
+
 ## 2026-06-15 — 관리자 채널별 목표 재고 표시
 
 네이버·티스토리 목표 주제 재고가 0이어도 채널 표에는 발행/예약/수동처리만 보여 운영 정책인지 장애인지 구분하기 어려웠다. `focus_inventory_by_channel`과 외부 자동 시드 설정을 관리자 채널 표에 연결해, 외부 채널 재고 0이 현재 `ALLOW_EXTERNAL_AUTO_SEED=false` 정책 때문임을 바로 볼 수 있게 했다.

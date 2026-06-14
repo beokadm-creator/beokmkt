@@ -19,6 +19,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
+import config
 from db import db
 from utils.notify import notify
 
@@ -27,6 +28,15 @@ FORBIDDEN_TONE = (
     "꿀팁", "환장", "대박", "지옥", "끝판왕", "충격", "실화",
     "ㅋㅋ", "ㅎㅎ", "[이미지:",
 )
+
+
+def _matches_focus(title: str, topic: str = "") -> bool:
+    terms = config.AUTO_SEED_REQUIRED_TERMS
+    if not terms:
+        return True
+    text = f"{title or ''} {topic or ''}"
+    hits = sum(1 for term in terms if term and term in text)
+    return hits >= 2
 
 
 @dataclass
@@ -104,6 +114,7 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
     url = str(post["published_url"] or "")
     channel = str(post["channel"] or "")
     title = str(post["title"] or post["topic"] or "")
+    topic = str(post["topic"] or "")
     issues: list[str] = []
     status, html = _fetch(url) if url else (None, "")
     content_html = _strip_non_content(html)
@@ -126,6 +137,8 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
         issues.append(f"금칙/마커 문구 노출({', '.join(matched_words[:5])})")
     if _has_visible_strike(content_html):
         issues.append("취소선 서식 노출")
+    if not _matches_focus(title, topic):
+        issues.append(f"목표 주제 이탈({config.BLOG_FOCUS_NAME})")
 
     if channel == "selfhosted":
         if chars < 1000:
@@ -154,7 +167,8 @@ def _inspect(post: sqlite3.Row) -> CheckResult:
 
     cache_bust_url = None
     cache_bust_ok = False
-    if channel == "selfhosted" and issues and url and "?" not in url:
+    cache_check_needed = any("목표 주제 이탈" not in issue for issue in issues)
+    if channel == "selfhosted" and issues and cache_check_needed and url and "?" not in url:
         cache_bust_url = f"{url}?v=public-quality-{post['id']}"
         bust_status, bust_html = _fetch(cache_bust_url)
         bust_content = _strip_non_content(bust_html)
