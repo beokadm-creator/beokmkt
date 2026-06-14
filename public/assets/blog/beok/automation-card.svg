@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">비오케이솔루션 자동화 연결 카드</title>
+  <desc id="desc">예약, 결제, 알림톡, 고객 응대를 하나로 연결하는 자동화 개념 카드</desc>
+  <rect width="1200" height="675" fill="#0b1812"/>
+  <text x="76" y="118" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#d6ee59">BEOK AUTOMATION</text>
+  <text x="76" y="184" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="#ffffff">반복 업무를 연결합니다</text>
+  <text x="76" y="230" font-family="Arial, sans-serif" font-size="24" fill="#cbd5d1">예약, 결제, 알림, 문의 응대를 홈페이지 안에서 이어줍니다.</text>
+  <g transform="translate(94 330)">
+    <rect width="220" height="126" rx="24" fill="#ffffff"/>
+    <text x="34" y="76" font-family="Arial, sans-serif" font-size="30" font-weight="900" fill="#0b1812">예약</text>
+  </g>
+  <g transform="translate(356 330)">
+    <rect width="220" height="126" rx="24" fill="#d6ee59"/>
+    <text x="34" y="76" font-family="Arial, sans-serif" font-size="30" font-weight="900" fill="#0b1812">결제</text>
+  </g>
+  <g transform="translate(618 330)">
+    <rect width="220" height="126" rx="24" fill="#ffffff"/>
+    <text x="34" y="76" font-family="Arial, sans-serif" font-size="30" font-weight="900" fill="#0b1812">알림톡</text>
+  </g>
+  <g transform="translate(880 330)">
+    <rect width="220" height="126" rx="24" fill="#d6ee59"/>
+    <text x="34" y="76" font-family="Arial, sans-serif" font-size="30" font-weight="900" fill="#0b1812">응대</text>
+  </g>
+  <path d="M322 393h28M584 393h28M846 393h28" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
+</svg>

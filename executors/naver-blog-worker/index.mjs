@@ -277,29 +277,118 @@ async function pasteHtmlIntoEditor(page, html, debugContext = '') {
 }
 
 async function normalizeNaverEditorContent(page) {
-  const result = await page.evaluate(() => {
-    const root = document.querySelector('.se-main-container, .se-content, [contenteditable="true"]') || document.body
-    if (!root) return { unwrapped: 0, lineThrough: 0 }
+  const stripInFrame = async (frame) => frame.evaluate(() => {
+    const roots = Array.from(document.querySelectorAll(
+      '.se-main-container, .se-content, .se-component, [contenteditable="true"]'
+    ))
+    if (!roots.length) roots.push(document.body)
+
     let unwrapped = 0
-    for (const node of Array.from(root.querySelectorAll('strike, s, del'))) {
-      const parent = node.parentNode
-      while (node.firstChild) parent.insertBefore(node.firstChild, node)
-      parent.removeChild(node)
-      unwrapped += 1
-    }
     let lineThrough = 0
-    for (const el of Array.from(root.querySelectorAll('[style]'))) {
-      const style = el.getAttribute('style') || ''
-      if (/text-decoration\s*:\s*line-through/i.test(style)) {
-        el.setAttribute('style', style.replace(/text-decoration\s*:\s*line-through[^;"]*;?/gi, ''))
-        lineThrough += 1
+    for (const root of roots) {
+      if (!root) continue
+      for (const node of Array.from(root.querySelectorAll('strike, s, del'))) {
+        const parent = node.parentNode
+        if (!parent) continue
+        while (node.firstChild) parent.insertBefore(node.firstChild, node)
+        parent.removeChild(node)
+        unwrapped += 1
+      }
+      for (const el of Array.from(root.querySelectorAll('[style]'))) {
+        const style = el.getAttribute('style') || ''
+        if (/text-decoration\s*:\s*line-through/i.test(style)) {
+          const cleaned = style
+            .replace(/text-decoration(?:-line)?\s*:\s*line-through[^;"]*;?/gi, '')
+            .replace(/;;+/g, ';')
+            .trim()
+          if (cleaned) el.setAttribute('style', cleaned)
+          else el.removeAttribute('style')
+          lineThrough += 1
+        }
       }
     }
-    return { unwrapped, lineThrough }
-  }).catch(() => ({ unwrapped: 0, lineThrough: 0 }))
-  if (result.unwrapped || result.lineThrough) {
-    log('warn', `네이버 에디터 취소선 서식 제거: strike=${result.unwrapped}, style=${result.lineThrough}`)
+
+    try {
+      if (document.queryCommandState?.('strikeThrough')) {
+        document.execCommand('strikeThrough', false, null)
+      }
+    } catch {}
+
+    const remainingStrike = document.querySelectorAll('strike, s, del').length
+    const remainingLineThrough = Array.from(document.querySelectorAll('[style]'))
+      .filter((el) => /text-decoration(?:-line)?\s*:\s*line-through/i.test(el.getAttribute('style') || ''))
+      .length
+    return { unwrapped, lineThrough, remainingStrike, remainingLineThrough }
+  }).catch(() => ({ unwrapped: 0, lineThrough: 0, remainingStrike: 0, remainingLineThrough: 0 }))
+
+  let total = { unwrapped: 0, lineThrough: 0, remainingStrike: 0, remainingLineThrough: 0 }
+  for (let pass = 0; pass < 2; pass += 1) {
+    total = { unwrapped: 0, lineThrough: 0, remainingStrike: 0, remainingLineThrough: 0 }
+    for (const frame of [page.mainFrame(), ...page.frames().filter((frame) => frame !== page.mainFrame())]) {
+      const result = await stripInFrame(frame)
+      total.unwrapped += result.unwrapped
+      total.lineThrough += result.lineThrough
+      total.remainingStrike += result.remainingStrike
+      total.remainingLineThrough += result.remainingLineThrough
+    }
+    if (total.remainingStrike === 0 && total.remainingLineThrough === 0) break
+    await page.waitForTimeout(300)
   }
+
+  if (total.unwrapped || total.lineThrough) {
+    log('warn', `네이버 에디터 취소선 서식 제거: strike=${total.unwrapped}, style=${total.lineThrough}`)
+  }
+  if (total.remainingStrike || total.remainingLineThrough) {
+    await dumpPageDiagnostics(page, 'naver-strike-remains', `strike-${total.remainingStrike}-style-${total.remainingLineThrough}`)
+    throw new WorkerError(
+      'EDITOR_STRIKE_REMAINS',
+      `네이버 에디터 취소선 서식 잔존: strike=${total.remainingStrike}, style=${total.remainingLineThrough}`
+    )
+  }
+}
+
+async function ensureNaverStrikeToolbarOff(page) {
+  const strikeButton = page.locator('.se-strikethrough-toolbar-button, button:has-text("취소선")').first()
+  if ((await strikeButton.count()) === 0 || !(await strikeButton.isVisible().catch(() => false))) return
+  const selected = await strikeButton.evaluate((el) => {
+    const className = el.className || ''
+    const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim()
+    return className.includes('se-is-selected') || text.includes('취소선 해제')
+  }).catch(() => false)
+  if (!selected) return
+  await strikeButton.click({ timeout: 5000, force: true })
+  await page.waitForTimeout(300)
+  log('warn', '네이버 에디터 취소선 툴바 사전 해제')
+}
+
+async function countNaverStrikeNodes(page) {
+  let total = 0
+  for (const frame of [page.mainFrame(), ...page.frames().filter((frame) => frame !== page.mainFrame())]) {
+    total += await frame.evaluate(() => document.querySelectorAll('strike, s, del').length)
+      .catch(() => 0)
+  }
+  return total
+}
+
+async function clearNaverStrikeWithToolbar(page, debugContext = '') {
+  const strikeCount = await countNaverStrikeNodes(page)
+  if (strikeCount === 0) return
+
+  const body = page.locator(
+    '.se-section-text .se-text-paragraph, .se-component.se-text .se-text-paragraph, .se-module.se-module-text:not(.se-title-text) .se-text-paragraph'
+  ).first()
+  if ((await body.count()) > 0 && (await body.isVisible().catch(() => false))) {
+    await body.click({ timeout: 5000, force: true })
+  }
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
+  await page.keyboard.press(`${modifier}+KeyA`).catch(() => {})
+  await page.keyboard.press(`${modifier}+KeyA`).catch(() => {})
+  await page.waitForTimeout(200)
+
+  await ensureNaverStrikeToolbarOff(page)
+  await page.waitForTimeout(500)
+  log('warn', `네이버 에디터 취소선 툴바 해제 시도: detected=${strikeCount}`)
 }
 
 async function fillNaverTitle(page, title) {
@@ -503,6 +592,66 @@ async function capturePublishedUrl(page) {
   return null
 }
 
+function stripHtmlText(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function hasVisibleStrike(html) {
+  const matches = String(html || '').matchAll(/<(?:strike|s|del)\b[^>]*>([\s\S]*?)<\/(?:strike|s|del)>/gi)
+  for (const match of matches) {
+    const text = stripHtmlText(match[1]).replace(/[\u200b\u200c\u200d\ufeff]/g, '').trim()
+    if (text) return true
+  }
+  return /text-decoration(?:-line)?\s*:\s*line-through/i.test(String(html || ''))
+}
+
+const NAVER_PUBLIC_FORBIDDEN = [
+  '꿀팁',
+  '환장',
+  '대박',
+  '지옥',
+  '끝판왕',
+  '무조건',
+  '충격',
+  '실화',
+  '발업',
+]
+
+async function validateNaverPublicPost(url, debugContext = '') {
+  try {
+    const res = await fetch(url, {
+      headers: { 'user-agent': 'Mozilla/5.0 blog-publisher-quality-check' },
+      signal: AbortSignal.timeout(20000),
+    })
+    const html = await res.text()
+    if (!res.ok) {
+      throw new WorkerError('NAVER_PUBLIC_HTTP_FAILED', `네이버 공개 URL 응답 실패: HTTP ${res.status}`)
+    }
+    const text = stripHtmlText(html)
+    const forbidden = NAVER_PUBLIC_FORBIDDEN.filter((word) => text.includes(word))
+    const visibleStrike = hasVisibleStrike(html)
+    if (forbidden.length || visibleStrike) {
+      throw new WorkerError(
+        'NAVER_PUBLIC_QUALITY_FAILED',
+        `네이버 공개 글 품질 검증 실패: forbidden=${forbidden.join(',') || '-'}, visibleStrike=${visibleStrike}`
+      )
+    }
+    log('info', `네이버 공개 글 품질 검증 통과: ${url}`)
+  } catch (e) {
+    if (e instanceof WorkerError) throw e
+    throw new WorkerError('NAVER_PUBLIC_CHECK_FAILED', `네이버 공개 글 검증 오류: ${e.message || e}`)
+  }
+}
+
 async function dismissDraftRestorePopup(page) {
   const selectors = [
     'button.se-popup-button-cancel',
@@ -563,9 +712,12 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
     await page.waitForTimeout(2000)
     await dismissDraftRestorePopup(page)
 
+    await ensureNaverStrikeToolbarOff(page)
     await fillNaverTitle(page, publishTitle)
 
+    await ensureNaverStrikeToolbarOff(page)
     await pasteHtmlIntoEditor(page, naverHtml, post_id || publishTitle)
+    await clearNaverStrikeWithToolbar(page, post_id || publishTitle)
     await normalizeNaverEditorContent(page)
 
     if (Array.isArray(tags) && tags.length) {
@@ -582,6 +734,7 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
       await dumpPageDiagnostics(page, 'naver-url-not-found', post_id || publishTitle)
       throw new WorkerError('PUBLISH_URL_NOT_FOUND', '네이버 발행 후 공개 글 URL을 확인하지 못했습니다.')
     }
+    await validateNaverPublicPost(publishedUrl, post_id || publishTitle)
     await saveStorageState(context)
 
     return {

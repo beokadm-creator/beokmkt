@@ -60,7 +60,7 @@ function markdownToHtml(markdown) {
     if (h3) {
       closeParagraph()
       closeList()
-      out.push(`<h3>${applyInlineMarkdown(h3[1])}</h3>`)
+      out.push(`<p><strong>${applyInlineMarkdown(h3[1])}</strong></p>`)
       continue
     }
 
@@ -68,7 +68,7 @@ function markdownToHtml(markdown) {
     if (h2) {
       closeParagraph()
       closeList()
-      out.push(`<h2>${applyInlineMarkdown(h2[1])}</h2>`)
+      out.push(`<p><strong>${applyInlineMarkdown(h2[1])}</strong></p>`)
       continue
     }
 

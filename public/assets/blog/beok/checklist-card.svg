@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">비오케이솔루션 홈페이지 운영 체크리스트 카드</title>
+  <desc id="desc">홈페이지 제작과 운영 전 확인해야 할 체크리스트를 표현한 카드</desc>
+  <rect width="1200" height="675" fill="#fbfaf6"/>
+  <rect x="84" y="72" width="1032" height="531" rx="36" fill="#0b1812"/>
+  <text x="132" y="144" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#d6ee59">OPERATION CHECKLIST</text>
+  <text x="132" y="208" font-family="Arial, sans-serif" font-size="54" font-weight="900" fill="#ffffff">운영 전에 확인할 것</text>
+  <g transform="translate(146 292)" font-family="Arial, sans-serif">
+    <rect width="900" height="58" rx="16" fill="#ffffff" opacity="0.1"/>
+    <text x="74" y="38" font-size="24" font-weight="800" fill="#ffffff">목표 고객과 문의 경로가 분명한가</text>
+    <circle cx="30" cy="29" r="16" fill="#d6ee59"/>
+    <path d="M22 29l6 7 13-16" fill="none" stroke="#0b1812" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect y="84" width="900" height="58" rx="16" fill="#ffffff" opacity="0.1"/>
+    <text x="74" y="122" font-size="24" font-weight="800" fill="#ffffff">모바일에서 CTA가 바로 보이는가</text>
+    <circle cx="30" cy="113" r="16" fill="#d6ee59"/>
+    <path d="M22 113l6 7 13-16" fill="none" stroke="#0b1812" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect y="168" width="900" height="58" rx="16" fill="#ffffff" opacity="0.1"/>
+    <text x="74" y="206" font-size="24" font-weight="800" fill="#ffffff">예약·결제·알림 자동화가 필요한가</text>
+    <circle cx="30" cy="197" r="16" fill="#d6ee59"/>
+    <path d="M22 197l6 7 13-16" fill="none" stroke="#0b1812" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

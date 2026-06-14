@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">비오케이솔루션 검색 노출 점검 카드</title>
+  <desc id="desc">구조화, 콘텐츠, 색인, 개선으로 이어지는 검색 노출 점검 항목을 보여주는 카드</desc>
+  <rect width="1200" height="675" fill="#f7f8ef"/>
+  <rect x="70" y="74" width="1060" height="527" rx="34" fill="#ffffff" stroke="#d8dee8" stroke-width="2"/>
+  <text x="116" y="146" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#176b87">SEO CHECK</text>
+  <text x="116" y="204" font-family="Arial, sans-serif" font-size="52" font-weight="900" fill="#0b1812">검색 노출 기본 세팅</text>
+  <g transform="translate(116 276)">
+    <rect width="440" height="58" rx="16" fill="#eef5f0"/>
+    <text x="26" y="38" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#0b1812">1. 제목과 메타 설명</text>
+    <rect y="82" width="440" height="58" rx="16" fill="#eef5f0"/>
+    <text x="26" y="120" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#0b1812">2. 목차와 구조화 본문</text>
+    <rect y="164" width="440" height="58" rx="16" fill="#eef5f0"/>
+    <text x="26" y="202" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#0b1812">3. 사이트맵과 색인</text>
+  </g>
+  <g transform="translate(660 260)">
+    <circle cx="160" cy="160" r="152" fill="#0b1812"/>
+    <circle cx="160" cy="160" r="96" fill="#d6ee59"/>
+    <circle cx="160" cy="160" r="38" fill="#ffffff"/>
+    <path d="M260 270l88 88" stroke="#0b1812" stroke-width="28" stroke-linecap="round"/>
+  </g>
+</svg>

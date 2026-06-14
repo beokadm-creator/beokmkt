@@ -103,6 +103,26 @@ _BEOK_BRAND: list[dict] = [
             "알림톡", "AI", "자동화", "문의폼", "반응형", "서비스",
         },
     },
+    {
+        "url": "https://beokmkt.web.app/assets/blog/beok/workflow-card.svg",
+        "alt": "비오케이솔루션 홈페이지 운영 흐름 카드",
+        "keywords": {"운영", "흐름", "제작", "문의", "개선", "관리", "서비스"},
+    },
+    {
+        "url": "https://beokmkt.web.app/assets/blog/beok/seo-card.svg",
+        "alt": "비오케이솔루션 검색 노출 기본 세팅 카드",
+        "keywords": {"SEO", "검색", "노출", "구글", "서치콘솔", "사이트맵", "색인", "메타"},
+    },
+    {
+        "url": "https://beokmkt.web.app/assets/blog/beok/automation-card.svg",
+        "alt": "비오케이솔루션 예약 결제 알림 자동화 카드",
+        "keywords": {"예약", "결제", "알림톡", "AI", "자동화", "문의", "응대", "폼"},
+    },
+    {
+        "url": "https://beokmkt.web.app/assets/blog/beok/checklist-card.svg",
+        "alt": "비오케이솔루션 홈페이지 운영 체크리스트 카드",
+        "keywords": {"체크리스트", "준비", "주의", "필수", "방법", "단계", "확인", "운영"},
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -143,19 +163,28 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
     hong은 섹션별 컨텍스트 이미지, beok은 실제 공개 자산(로고) 1회를 대표 이미지로 삽입.
     """
     if brand_key == "beok":
-        img = featured_image("beok", body)
-        if not img or img["url"] in body:
-            return body
         blocks = body.split("\n\n")
         out: list[str] = []
-        inserted = False
-        for blk in blocks:
+        used: set[str] = set()
+        inserted = 0
+        card_pool = [img for img in _BEOK_BRAND if img["url"].endswith(".svg")]
+        for index, blk in enumerate(blocks):
             out.append(blk)
-            if not inserted and blk.startswith("## "):
-                out.append(f"![{img['alt']}]({img['url']})")
-                inserted = True
-        if not inserted:
-            out.insert(0, f"![{img['alt']}]({img['url']})")
+            if not blk.startswith("## ") or inserted >= 3:
+                continue
+            # h2와 첫 문단이 같은 블록이면 현재 블록만 사용한다.
+            # 다음 h2까지 섞으면 다음 섹션 키워드가 현재 이미지 선택을 오염시킨다.
+            next_text = "" if "\n" in blk else (blocks[index + 1] if index + 1 < len(blocks) else "")
+            img = pick_image(card_pool, f"{blk} {next_text}")
+            if not img or img["url"] in used or img["url"] in body:
+                continue
+            out.append(f"![{img['alt']}]({img['url']})")
+            used.add(img["url"])
+            inserted += 1
+        if inserted == 0:
+            img = featured_image("beok", body)
+            if img and img["url"] not in body:
+                out.insert(0, f"![{img['alt']}]({img['url']})")
         return "\n\n".join(out)
 
     solution_cycle = itertools.cycle(_HONG_SOLUTION)

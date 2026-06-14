@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-06-14 — 네이버 공개 품질 게이트 + beok 이미지 카드
+
+실제 자체 블로그·티스토리·네이버 발행 결과를 공개 URL 기준으로 재검증하며, "URL 생성"과 "품질 통과"를 분리했다.
+
+| 대상 | 내용 |
+|---|---|
+| `executors/naver-blog-worker/index.mjs` | 네이버 SmartEditor 취소선 툴바가 켜진 상태로 새 글이 시작되는 문제를 확인하고, 제목/본문 입력 전 사전 해제 추가 |
+| `executors/naver-blog-worker/index.mjs` | 발행 후 공개 URL HTML을 다시 조회해 금칙 톤·오타·보이는 취소선이 있으면 성공으로 인정하지 않는 공개 품질 게이트 추가 |
+| `executors/naver-blog-worker/channel-rewriter.mjs` | 네이버 재작성 금칙 토큰에 실제 오타 `"발업"` 추가 |
+| `executors/naver-blog-worker/naver-html-adapter.mjs` | 네이버 SmartEditor 안정성을 위해 h2/h3 마크다운을 `<p><strong>...` 구조로 낮춰 입력 |
+| `blog_publisher/tools/image_bank.py`, `public/assets/blog/beok/*.svg` | beok 글에 사용할 브랜드 정보 카드 4종(운영 흐름/SEO/자동화/체크리스트) 추가, h2 문맥별 최대 3개 이미지 삽입 |
+| 실DB | 공개 품질 실패 네이버 글(id=13,19,22,26~30)을 `needs_human`으로 격리. 자동 성공 카운트에서 제외 |
+
+검증:
+- 자체 블로그 id=24 공개 200, 금칙 톤 0, 보이는 취소선 0
+- 티스토리 id=25 공개 200, 금칙 톤 0, 보이는 취소선 0
+- 네이버 id=31 공개 200, 금칙 톤 0, 보이는 취소선 0, 워커 공개 품질 게이트 통과
+- `node --check`: `index.mjs`, `channel-rewriter.mjs`, `naver-html-adapter.mjs`, `tistory-html-adapter.mjs`, `tistory-client.mjs`
+- `python3 -m compileall blog_publisher`, `python3 run.py selftest` PASS
+
+운영 주의: `needs_human`의 네이버 품질 실패 글은 외부 네이버에서 직접 삭제/비공개 확인이 필요하다. 시스템은 임의 삭제하지 않는다.
+
+---
+
 ## 2026-06-14 — 채널별 실발행 검증 및 외부 발행 안정화
 
 자체 블로그·티스토리·네이버를 각각 실제 발행 경로로 태우며 발견한 문제를 수정.
