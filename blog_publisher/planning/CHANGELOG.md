@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-15 — 배포 관리자 품질 항목 상세 미리보기 보강
+
+배포된 관리자 대시보드는 로컬 SQLite를 직접 읽을 수 없기 때문에 품질 항목을 눌렀을 때 본문 원인을 확인하지 못할 수 있었다. 로컬 스냅샷에 제한된 미리보기 HTML을 함께 싣고, Firebase 함수가 스냅샷에서 상세 항목을 찾도록 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `blog_publisher/tools/sync_pipeline_snapshot.mjs` | `quality_items`/`needs_human_posts`에 6KB 이하 안전 HTML 미리보기와 1,200자 본문 excerpt 추가 |
+| `functions/index.mjs` | `/api/pipeline/posts/:id`가 Firestore 글/외부 발행 로그에서 못 찾은 경우 `pipeline_snapshots/local`의 품질·수동처리 항목을 조회해 상세 응답 |
+
+검증:
+- `node --check functions/index.mjs`, `node --check blog_publisher/tools/sync_pipeline_snapshot.mjs` PASS
+- `python3 blog_publisher/run.py sync_snapshot` PASS
+- Firestore `pipeline_snapshots/local.quality_items[0]`에 `preview_html`/`body_excerpt` 저장 확인
+
+---
+
 ## 2026-06-15 — 관리자 운영 준비도에 채널 세션 헬스 노출
 
 네이버/티스토리 발행 실패의 주요 원인인 세션 만료를 발행 시점이 아니라 대시보드에서 미리 확인할 수 있도록 세션 파일 헬스 상태를 운영 준비도에 추가했다.

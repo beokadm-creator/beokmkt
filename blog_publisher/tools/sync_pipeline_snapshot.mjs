@@ -139,6 +139,7 @@ function collectQualityItems(db, limit = 12) {
         issues,
         action: qualityActionFor(issues, post.status),
         updated_at: post.updated_at,
+        ...snapshotBodyPreview(post.body),
       }
     })
     .filter((post) => post.issues.length > 0)
@@ -188,6 +189,97 @@ function publicPlainText(html = '') {
     .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function escapePreviewHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function sanitizeSnapshotPreviewHtml(html = '') {
+  return String(html)
+    .slice(0, 6000)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\s+on\w+="[^"]*"/gi, '')
+    .replace(/\s+on\w+='[^']*'/gi, '')
+    .replace(/\s+on\w+=\S+/gi, '')
+    .replace(/javascript:/gi, '')
+}
+
+function markdownToSnapshotPreviewHtml(markdown = '') {
+  const lines = String(markdown ?? '').slice(0, 8000).split(/\r?\n/)
+  const out = []
+  let listOpen = false
+  let paragraph = []
+  const closeParagraph = () => {
+    if (!paragraph.length) return
+    out.push(`<p>${escapePreviewHtml(paragraph.join(' '))}</p>`)
+    paragraph = []
+  }
+  const closeList = () => {
+    if (!listOpen) return
+    out.push('</ul>')
+    listOpen = false
+  }
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      closeParagraph()
+      closeList()
+      continue
+    }
+    const image = line.match(/^!\[([^\]]*)]\(([^)\s]+)\)$/)
+    if (image) {
+      closeParagraph()
+      closeList()
+      out.push(`<figure><img src="${escapePreviewHtml(image[2])}" alt="${escapePreviewHtml(image[1])}"></figure>`)
+      continue
+    }
+    const heading = line.match(/^(#{2,3})\s+(.+)$/)
+    if (heading) {
+      closeParagraph()
+      closeList()
+      const tag = heading[1].length === 2 ? 'h2' : 'h3'
+      out.push(`<${tag}>${escapePreviewHtml(heading[2])}</${tag}>`)
+      continue
+    }
+    const bullet = line.match(/^[-*]\s+(.+)$/)
+    if (bullet) {
+      closeParagraph()
+      if (!listOpen) {
+        out.push('<ul>')
+        listOpen = true
+      }
+      out.push(`<li>${escapePreviewHtml(bullet[1])}</li>`)
+      continue
+    }
+    paragraph.push(line)
+  }
+  closeParagraph()
+  closeList()
+  return sanitizeSnapshotPreviewHtml(out.join('\n'))
+}
+
+function snapshotPreviewHtml(body = '') {
+  const value = String(body ?? '').trim()
+  if (!value) return ''
+  return /<(h[1-6]|p|ul|ol|li|blockquote|img|figure|table)\b/i.test(value)
+    ? sanitizeSnapshotPreviewHtml(value)
+    : markdownToSnapshotPreviewHtml(value)
+}
+
+function snapshotBodyPreview(body = '') {
+  const value = String(body ?? '')
+  return {
+    body_available: Boolean(value.trim()),
+    body_excerpt: publicPlainText(value).slice(0, 1200),
+    preview_html: snapshotPreviewHtml(value),
+  }
 }
 
 function hasVisibleStrike(html = '') {
@@ -352,6 +444,7 @@ async function collectSnapshot() {
         can_archive: false,
         action: actionForExternalIssue(post.channel, post.last_error || ''),
         updated_at: post.updated_at,
+        ...snapshotBodyPreview(post.body),
       }
     })
     const recent = db.prepare(

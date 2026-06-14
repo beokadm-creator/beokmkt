@@ -299,6 +299,51 @@ function sanitizePreviewHtml(html = '') {
     .replace(/javascript:/gi, '')
 }
 
+function snapshotPostDetail(item, id) {
+  if (!item || typeof item !== 'object') return null
+  if (String(item.id ?? '') !== String(id)) return null
+  const previewHtml = sanitizePreviewHtml(item.preview_html ?? '')
+  const bodyExcerpt = String(item.body_excerpt ?? '')
+  const channel = typeof item.channel === 'string' ? item.channel : 'selfhosted'
+  return {
+    id: item.id ?? id,
+    channel,
+    status: typeof item.status === 'string' ? item.status : 'unknown',
+    title: item.title ?? item.topic ?? '',
+    topic: item.topic ?? item.title ?? '',
+    published_url: item.published_url ?? item.url ?? null,
+    last_error: item.last_error ?? null,
+    action: item.action ?? actionForExternalIssue(channel, item.last_error ?? ''),
+    can_requeue: false,
+    requeue_block_reason: '로컬 SQLite 스냅샷 항목입니다. 맥 로컬 관리자 또는 CLI에서 처리하세요.',
+    can_archive: false,
+    body_available: Boolean(previewHtml || bodyExcerpt || item.body_available),
+    body: bodyExcerpt,
+    preview_html: previewHtml,
+    quality: item.quality && typeof item.quality === 'object' ? item.quality : pipelineQuality(bodyExcerpt),
+    issues: Array.isArray(item.issues) ? item.issues : [],
+    updated_at: serializeValue(item.updated_at ?? '') ?? '',
+    snapshot_source: 'local_sqlite',
+  }
+}
+
+function findSnapshotPostDetail(snapshot, id) {
+  const lists = [
+    snapshot?.quality_items,
+    snapshot?.needs_human_posts,
+    snapshot?.recent,
+    snapshot?.public_quality?.items,
+  ]
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue
+    for (const item of list) {
+      const detail = snapshotPostDetail(item, id)
+      if (detail) return detail
+    }
+  }
+  return null
+}
+
 function slugifyBlogPost(value) {
   const slug = String(value ?? '')
     .trim()
@@ -2523,6 +2568,11 @@ app.get('/api/pipeline/posts/:id', async (req, res) => {
       updated_at: serializeValue(result.updated_at ?? result.published_at ?? result.created_at) ?? '',
     })
   }
+
+  const localSnapshotDoc = await db.collection('pipeline_snapshots').doc('local').get().catch(() => null)
+  const localSnapshot = localSnapshotDoc?.exists ? localSnapshotDoc.data() : null
+  const snapshotDetail = findSnapshotPostDetail(localSnapshot, id)
+  if (snapshotDetail) return ok(res, snapshotDetail)
 
   return fail(res, 404, 'NOT_FOUND', 'pipeline post not found', { id })
 })
