@@ -60,6 +60,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 등록되는 작업:
 
 - 부팅 시 `BEOK Blog Worker`: Node 워커 실행
+- 매일 10:00, 22:00 `BEOK Blog Keepalive AM/PM`: 티스토리/네이버 세션 갱신 확인
 - 5분마다 `publish`
 - 15분마다 `factcheck`
 - 30분마다 `generate/review/schedule/recover/sync_snapshot`
@@ -72,6 +73,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 
 ```powershell
 schtasks /Run /TN "BEOK Blog Worker"
+schtasks /Run /TN "BEOK Blog Keepalive AM"
 
 powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\run-task.ps1 -RepoRoot C:\beokmkt -Task status
 powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\run-task.ps1 -RepoRoot C:\beokmkt -Task quality-selftest

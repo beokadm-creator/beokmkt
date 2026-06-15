@@ -11,8 +11,9 @@ $ErrorActionPreference = "Stop"
 $OpsDir = Join-Path $RepoRoot "blog_publisher\ops\windows"
 $RunTask = Join-Path $OpsDir "run-task.ps1"
 $RunWorker = Join-Path $OpsDir "run-worker.ps1"
+$RunKeepalive = Join-Path $OpsDir "run-keepalive.ps1"
 
-if (!(Test-Path $RunTask) -or !(Test-Path $RunWorker)) {
+if (!(Test-Path $RunTask) -or !(Test-Path $RunWorker) -or !(Test-Path $RunKeepalive)) {
   throw "Windows ops scripts not found. Clone/pull repo first: $RepoRoot"
 }
 
@@ -34,6 +35,13 @@ function Register-DailyTask([string]$Name, [string]$Task, [string]$Time) {
   schtasks /Create /F /TN $tn /SC DAILY /ST $Time /TR $tr | Out-Host
 }
 
+function Register-DailyKeepalive([string]$Name, [string]$Time) {
+  $pullArg = if ($NoPull) { " -NoPull" } else { "" }
+  $tn = "$TaskPrefix $Name"
+  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunKeepalive) -RepoRoot $(Quote $RepoRoot) -Node $(Quote $Node)$pullArg"
+  schtasks /Create /F /TN $tn /SC DAILY /ST $Time /TR $tr | Out-Host
+}
+
 function Register-StartupWorker() {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix Worker"
@@ -42,6 +50,8 @@ function Register-StartupWorker() {
 }
 
 Register-StartupWorker
+Register-DailyKeepalive "Keepalive AM" "10:00"
+Register-DailyKeepalive "Keepalive PM" "22:00"
 Register-MinuteTask "Stock Seed" "stock-seed" 360
 Register-MinuteTask "Generate" "generate" 30
 Register-MinuteTask "Factcheck" "factcheck" 15
@@ -59,5 +69,7 @@ Write-Host ""
 Write-Host "Registered Windows tasks with prefix: $TaskPrefix"
 Write-Host "Start worker now:"
 Write-Host "  schtasks /Run /TN `"$TaskPrefix Worker`""
+Write-Host "Run keepalive now:"
+Write-Host "  schtasks /Run /TN `"$TaskPrefix Keepalive AM`""
 Write-Host "Run status check:"
 Write-Host "  powershell -ExecutionPolicy Bypass -File `"$RunTask`" -RepoRoot `"$RepoRoot`" -Task status"

@@ -4,6 +4,8 @@ param(
 
 $tasks = @(
   "Worker",
+  "Keepalive AM",
+  "Keepalive PM",
   "Stock Seed",
   "Generate",
   "Factcheck",
