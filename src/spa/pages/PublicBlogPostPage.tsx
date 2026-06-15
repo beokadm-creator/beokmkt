@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { applySeo } from '../lib/seo'
 import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
-import { classifyBlogAxis } from '../lib/blogTaxonomy'
+import { BLOG_BRANDS, classifyBlogAxis } from '../lib/blogTaxonomy'
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const CONFERENCE_IMAGES = [
@@ -349,6 +349,7 @@ export default function PublicBlogPostPage() {
               <div className="mt-7 flex flex-wrap gap-3">
                 <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">상담 문의</a>
                 <a href="https://beoksolution.com" target="_blank" rel="noopener" className="rounded-md border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-bold text-white hover:border-yellow-300">비오케이솔루션 보기</a>
+                <a href="https://hongcomm.kr" target="_blank" rel="noopener" className="rounded-md border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-bold text-white hover:border-orange-300">홍커뮤니케이션 보기</a>
               </div>
             </section>
 
@@ -422,7 +423,7 @@ export default function PublicBlogPostPage() {
                 ) : null}
               </div>
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">BOK SOLUTION</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">SERVICE CONTEXT</p>
                 <h2 className="mt-3 text-2xl font-black leading-tight">{axis.label}</h2>
                 <p className="mt-3 text-sm leading-7 text-zinc-300">{axis.description}</p>
                 <div className="mt-5 grid gap-2 text-sm text-zinc-300">
@@ -431,6 +432,25 @@ export default function PublicBlogPostPage() {
                   ))}
                 </div>
                 <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener" className="mt-5 flex w-full justify-center rounded-md bg-yellow-300 px-5 py-3 text-sm font-bold text-zinc-950 hover:bg-yellow-200">운영 상담하기</a>
+              </div>
+              <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl shadow-black/20 backdrop-blur">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-200">PROMOTION BLOG</p>
+                <h2 className="mt-3 text-2xl font-black leading-tight">비오케이솔루션 · 홍커뮤니케이션</h2>
+                <div className="mt-5 grid gap-3">
+                  {BLOG_BRANDS.map((brand) => (
+                    <a
+                      key={brand.key}
+                      href={brand.href}
+                      target="_blank"
+                      rel="noopener"
+                      className="rounded-md border border-zinc-800 bg-zinc-950/70 p-4 hover:border-yellow-300/60"
+                    >
+                      <p className={`text-sm font-black ${brand.accent}`}>{brand.name}</p>
+                      <p className="mt-1 text-sm font-semibold text-white">{brand.label}</p>
+                      <p className="mt-2 text-xs leading-5 text-zinc-400">{brand.description}</p>
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
           </aside>

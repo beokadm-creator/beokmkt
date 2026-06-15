@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { applySeo } from '../lib/seo'
-import { BLOG_AXES, BLOG_SITE_DESCRIPTION, BLOG_SITE_NAME, classifyBlogAxis } from '../lib/blogTaxonomy'
+import { BLOG_AXES, BLOG_BRANDS, BLOG_SITE_DESCRIPTION, BLOG_SITE_NAME, classifyBlogAxis } from '../lib/blogTaxonomy'
 
 type BlogPost = {
   id: string
@@ -28,10 +28,10 @@ const CONFERENCE_IMAGES = [
 ]
 
 const trustSignals = [
+  '비오케이솔루션 개발 솔루션',
+  '홍커뮤니케이션 MICE 레퍼런스',
   '학회·기관 홈페이지와 관리자 구축',
   '등록·결제·QR·명찰 운영 경험',
-  '맞춤형 업무 시스템과 자동화',
-  '홍커뮤니케이션 MICE 운영 맥락',
 ]
 
 function formatDate(value: string | null) {
@@ -129,7 +129,7 @@ export default function PublicBlogPage() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 bg-zinc-950">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/blog/" className="text-sm font-semibold tracking-tight text-white">비오케이솔루션</Link>
+          <Link to="/blog/" className="text-sm font-semibold tracking-tight text-white">비오케이솔루션 · 홍커뮤니케이션</Link>
           <nav className="hidden items-center gap-6 text-sm text-zinc-400 md:flex">
             <a href="#articles" className="hover:text-white">최신 글</a>
             <a href="#services" className="hover:text-white">서비스</a>
@@ -150,19 +150,22 @@ export default function PublicBlogPage() {
         <section className="border-b border-zinc-800">
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-18">
             <div>
-              <p className="text-sm font-medium text-yellow-300">비오케이솔루션 블로그</p>
+              <p className="text-sm font-medium text-yellow-300">비오케이솔루션 × 홍커뮤니케이션 공식 블로그</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight text-white md:text-5xl">
-                홈페이지와 업무 시스템, 행사 운영을 실무 기준으로 정리합니다.
+                홈페이지·업무 시스템 개발과 MICE·학술대회 운영을 함께 정리합니다.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-                제작 비용, 관리자 기능, 접수·결제 연동, 학회 운영처럼 의뢰 전에 확인해야 할 내용을 사례와 체크리스트 중심으로 다룹니다.
+                비오케이솔루션의 개발 솔루션과 홍커뮤니케이션의 행사 운영 경험을 바탕으로, 의뢰 전에 확인해야 할 화면·데이터·권한·현장 동선을 사례와 체크리스트 중심으로 다룹니다.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a href="#articles" className="rounded-md bg-white px-5 py-3 text-center text-sm font-semibold text-zinc-950 hover:bg-zinc-200">
                   최신 글 보기
                 </a>
-                <a href="#services" className="rounded-md border border-yellow-300 px-5 py-3 text-center text-sm font-semibold text-yellow-200 hover:bg-yellow-300 hover:text-zinc-950">
-                  서비스 보기
+                <a href="https://beoksolution.com" target="_blank" rel="noreferrer" className="rounded-md border border-yellow-300 px-5 py-3 text-center text-sm font-semibold text-yellow-200 hover:bg-yellow-300 hover:text-zinc-950">
+                  비오케이솔루션
+                </a>
+                <a href="https://hongcomm.kr" target="_blank" rel="noreferrer" className="rounded-md border border-orange-300 px-5 py-3 text-center text-sm font-semibold text-orange-200 hover:bg-orange-300 hover:text-zinc-950">
+                  홍커뮤니케이션
                 </a>
               </div>
             </div>
@@ -177,13 +180,40 @@ export default function PublicBlogPage() {
           </div>
         </section>
 
+        <section className="border-b border-zinc-800 bg-zinc-900/25">
+          <div className="mx-auto max-w-6xl px-6 py-10">
+            <div className="grid gap-4 md:grid-cols-2">
+              {BLOG_BRANDS.map((brand) => (
+                <a
+                  key={brand.key}
+                  href={brand.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group rounded-lg border border-zinc-800 bg-zinc-950/70 p-5 transition hover:border-yellow-300/70 hover:bg-zinc-950"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className={`text-sm font-semibold ${brand.accent}`}>{brand.name}</p>
+                      <h2 className="mt-2 text-xl font-bold text-white">{brand.label}</h2>
+                    </div>
+                    <span className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs font-semibold text-zinc-400 group-hover:border-yellow-300 group-hover:text-yellow-200">
+                      바로가기
+                    </span>
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-zinc-400">{brand.description}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="articles" className="border-b border-zinc-800">
           <div className="mx-auto max-w-6xl px-6 py-14">
             <div className="flex items-end justify-between gap-6">
               <div>
                 <h2 className="text-2xl font-bold text-white">최신 발행 글</h2>
                 <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  홈페이지 제작, 시스템 개발, 학회 운영에 필요한 실무 글을 모았습니다.
+                  비오케이솔루션과 홍커뮤니케이션의 서비스 맥락에서 홈페이지 제작, 시스템 개발, 학회·MICE 운영에 필요한 실무 글을 모았습니다.
                 </p>
               </div>
               <span className="hidden rounded-md border border-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-400 sm:block">
@@ -251,7 +281,7 @@ export default function PublicBlogPage() {
           <div className="mx-auto max-w-6xl px-6 py-14">
             <h2 className="text-2xl font-bold text-white">서비스 분야</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-              필요한 범위에 따라 제작 방식, 운영 기능, 현장 대응 기준을 나눠 확인할 수 있습니다.
+              두 회사가 제공하는 개발·운영 범위에 따라 제작 방식, 운영 기능, 현장 대응 기준을 나눠 확인할 수 있습니다.
             </p>
             <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {BLOG_AXES.map((topic) => (
@@ -270,9 +300,9 @@ export default function PublicBlogPage() {
         <section className="mx-auto max-w-6xl px-6 py-14">
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/45 p-6 md:flex md:items-center md:justify-between md:gap-8">
             <div>
-              <h2 className="text-xl font-bold text-white">홈페이지, 시스템, 행사 운영 중 어디가 병목인지 먼저 정리합니다.</h2>
+              <h2 className="text-xl font-bold text-white">비오케이솔루션·홍커뮤니케이션이 함께 볼 수 있는 범위를 먼저 정리합니다.</h2>
               <p className="mt-3 text-sm leading-6 text-zinc-400">
-                필요한 범위가 홈페이지인지, 관리자 시스템인지, 학회 접수·명찰 운영인지 알려주시면 실제 운영 흐름에 맞춰 검토합니다.
+                필요한 범위가 홈페이지인지, 관리자 시스템인지, 학회 접수·명찰 운영인지 알려주시면 개발과 현장 운영 흐름을 함께 검토합니다.
               </p>
             </div>
             <a
@@ -288,7 +318,7 @@ export default function PublicBlogPage() {
       </main>
 
       <footer className="border-t border-zinc-800 py-6 text-center text-xs text-zinc-600">
-        © {new Date().getFullYear()} 비오케이솔루션 · beoksolution
+        © {new Date().getFullYear()} 비오케이솔루션 · 홍커뮤니케이션
       </footer>
     </div>
   )

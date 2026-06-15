@@ -144,7 +144,7 @@ ALLOW_EXTERNAL_AUTO_SEED = os.getenv("ALLOW_EXTERNAL_AUTO_SEED", "false").lower(
 # ---- 운영 주제 축 ----
 # 블로그는 단일 명찰 키워드가 아니라 홈페이지 제작, 시스템 개발, 학회 운영,
 # 홍커뮤니케이션/MICE 레퍼런스를 함께 다룬다.
-BLOG_FOCUS_NAME = os.getenv("BLOG_FOCUS_NAME", "비오케이솔루션 블로그")
+BLOG_FOCUS_NAME = os.getenv("BLOG_FOCUS_NAME", "비오케이솔루션 · 홍커뮤니케이션 블로그")
 AUTO_SEED_BRAND_FILTER = os.getenv("AUTO_SEED_BRAND_FILTER", "")
 AUTO_SEED_REQUIRED_TERMS = [
     term.strip()

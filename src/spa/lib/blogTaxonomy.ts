@@ -9,9 +9,28 @@ export type BlogAxis = {
   accent: string
 }
 
-export const BLOG_SITE_NAME = '비오케이솔루션 블로그'
+export const BLOG_SITE_NAME = '비오케이솔루션 · 홍커뮤니케이션 블로그'
 export const BLOG_SITE_DESCRIPTION =
-  '학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그입니다.'
+  '비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 다루는 공식 실무 블로그입니다.'
+
+export const BLOG_BRANDS = [
+  {
+    key: 'beoksolution',
+    name: '비오케이솔루션',
+    label: '홈페이지·맞춤형 시스템 개발',
+    description: '홈페이지 제작, 관리자 대시보드, 업무 자동화, 예약·결제·문자·이메일 API 연동을 설계합니다.',
+    href: 'https://beoksolution.com',
+    accent: 'text-yellow-200',
+  },
+  {
+    key: 'hongcomm',
+    name: '홍커뮤니케이션',
+    label: 'MICE·학술대회 운영',
+    description: '국제회의, 학술대회, 동시통역, 참가자 등록, 초록 접수, 현장 운영 레퍼런스를 다룹니다.',
+    href: 'https://hongcomm.kr',
+    accent: 'text-orange-200',
+  },
+] as const
 
 export const BLOG_AXES: BlogAxis[] = [
   {

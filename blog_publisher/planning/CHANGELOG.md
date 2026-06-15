@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-15 — 자체 블로그 브랜드 주체 노출 강화
+
+자체 블로그가 비오케이솔루션과 홍커뮤니케이션의 홍보 채널임을 첫 화면, 글 상세, SSR/RSS/JSON-LD에서 명확히 드러내도록 보정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `PublicBlogPage.tsx` | 히어로와 브랜드 섹션에 `비오케이솔루션 × 홍커뮤니케이션 공식 블로그`, 각 회사 역할/링크 추가 |
+| `PublicBlogPostPage.tsx` | 글 상세 CTA와 우측 패널에 비오케이솔루션/홍커뮤니케이션 링크와 홍보 블로그 맥락 추가 |
+| `blogTaxonomy.ts`, `server/index.mjs`, `functions/index.mjs` | 사이트명·설명·RSS·SSR·JSON-LD를 두 회사 공식 블로그 기준으로 변경 |
+| `config.py`, `sync_pipeline_snapshot.mjs` | 운영 대시보드 focus name 기본값을 `비오케이솔루션 · 홍커뮤니케이션 블로그`로 변경 |
+
+검증:
+- `npm run build:spa`, `npx tsc --noEmit`, `npm run lint -- --max-warnings=999` PASS
+- `python3 -m compileall -q blog_publisher`, `node --check`, `sync_snapshot` PASS
+
+---
+
 ## 2026-06-15 — 복합 콘텐츠 전략 고정 및 공개 글 감사 보강
 
 hongcomm.kr의 MICE·학술대회 운영 맥락과 beoksolution의 홈페이지/맞춤 시스템 개발 맥락을 함께 다루도록 자동 시드와 품질 게이트를 재정렬했다. 명찰 단독 draft 15건은 복합 주제로 교체했고, 공개 블로그에서 서비스 축을 벗어난 마케팅 트렌드 글 1건은 삭제했다.

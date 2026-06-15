@@ -531,7 +531,7 @@ async function inspectPublicPost(row) {
   if (matched.length) issues.push(`금칙/마커 문구 노출(${matched.slice(0, 5).join(', ')})`)
   if (hasVisibleStrike(contentHtml)) issues.push('취소선 서식 노출')
   if (!publicTopicAxis(row)) {
-    issues.push(`허용 콘텐츠 축 이탈(${readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그')})`)
+    issues.push(`허용 콘텐츠 축 이탈(${readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 · 홍커뮤니케이션 블로그')})`)
   }
   if (channel === 'selfhosted') {
     if (chars < 1000) issues.push(`본문 짧음(${chars}자)`)
@@ -705,7 +705,7 @@ async function collectSnapshot() {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
         inventory,
-        focus_name: readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그'),
+        focus_name: readEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 · 홍커뮤니케이션 블로그'),
         focus_inventory,
         focus_inventory_by_channel,
         external_auto_seed_enabled: externalAutoSeedEnabled(),

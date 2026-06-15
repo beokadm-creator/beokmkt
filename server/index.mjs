@@ -322,8 +322,8 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;')
 }
 
-const PUBLIC_BLOG_SITE_NAME = '비오케이솔루션 블로그'
-const PUBLIC_BLOG_SITE_DESCRIPTION = '학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그입니다.'
+const PUBLIC_BLOG_SITE_NAME = '비오케이솔루션 · 홍커뮤니케이션 블로그'
+const PUBLIC_BLOG_SITE_DESCRIPTION = '비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 다루는 공식 실무 블로그입니다.'
 const PUBLIC_TOPIC_AXES = [
   ['학회운영', ['학회', '학술대회', '명찰', '사무국', '참가자', '접수', '등록', '출력', '발행', '재발행', 'QR', '바코드', '체크인', '초록', '심사']],
   ['홈페이지', ['홈페이지', '웹사이트', '반응형', 'SEO', '서치콘솔', '신청폼', '문의폼', '예약', '결제', 'SSL']],
@@ -2565,7 +2565,7 @@ async function inspectPublicPost(row) {
   if (matched.length) issues.push(`금칙/마커 문구 노출(${matched.slice(0, 5).join(', ')})`)
   if (hasVisibleStrike(contentHtml)) issues.push('취소선 서식 노출')
   if (!pipelinePublicTopicAxis(row)) {
-    issues.push(`허용 콘텐츠 축 이탈(${readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그')})`)
+    issues.push(`허용 콘텐츠 축 이탈(${readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 · 홍커뮤니케이션 블로그')})`)
   }
 
   if (channel === 'selfhosted') {
@@ -2855,7 +2855,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
         reviewed_target: reviewedTarget,
         inventory_target: reviewedTarget,
         inventory,
-        focus_name: readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 블로그'),
+        focus_name: readPipelineEnvString('BLOG_FOCUS_NAME', '비오케이솔루션 · 홍커뮤니케이션 블로그'),
         focus_inventory: focusInventory,
         focus_inventory_by_channel: focusInventoryByChannel,
         external_auto_seed_enabled: pipelineExternalAutoSeedEnabled(),
