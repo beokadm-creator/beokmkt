@@ -37,6 +37,9 @@ class TistoryPublisher:
             "tags": tags,
             "canonical_url": post.get("canonical_url", ""),
             "link": post.get("canonical_url", ""),
+            "source_channel": post.get("channel", ""),
+            "source_url": post.get("source_url", ""),
+            "translated_from": post.get("translated_from"),
         }
 
         try:

@@ -118,6 +118,7 @@ function escapeHtml(str) {
 function inlineMarkdown(text) {
   return escapeHtml(text)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, '<img src="$2" alt="$1">')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
 }
 
@@ -195,6 +196,8 @@ async function convertForTistory(html) {
 
 function markdownToHtml(markdown) {
   const source = String(markdown ?? '')
+    .replace(/([^\n])(!\[[^\]]*]\(https?:\/\/[^)\s]+\))/g, '$1\n$2')
+    .replace(/(!\[[^\]]*]\(https?:\/\/[^)\s]+\))([^\n])/g, '$1\n$2')
   const hasStructuralHtml = /<(h2|h3|p|ul|ol|li|blockquote|table|img)\b/i.test(source)
   const hasMarkdownBlocks = /(^|\n)\s*(#{2,3}\s+|[-*]\s+|\d+\.\s+|>\s+|\|.+\||!\[[^\]]*\]\([^)\s]+\))/m.test(source)
   if (hasStructuralHtml && !hasMarkdownBlocks) return source

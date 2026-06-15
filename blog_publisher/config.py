@@ -28,7 +28,7 @@ MODEL_REVIEW = os.getenv("MODEL_REVIEW", "glm-4.5")     # 검수: 저온, 짧게
 # 단계별 출력 토큰 상한(기획 01 §3.1)
 MAX_TOKENS_OUTLINE = int(os.getenv("MAX_TOKENS_OUTLINE", "600"))
 MAX_TOKENS_INTENT = int(os.getenv("MAX_TOKENS_INTENT", "800"))      # 의도/키워드 JSON은 짧고 빠르게
-MAX_TOKENS_OUTLINE_JSON = int(os.getenv("MAX_TOKENS_OUTLINE_JSON", "1200"))  # 개요 JSON 상한
+MAX_TOKENS_OUTLINE_JSON = int(os.getenv("MAX_TOKENS_OUTLINE_JSON", "2200"))  # 개요 JSON 상한
 MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1500"))  # 리치 구조(목록·표·강조) 허용
 MAX_TOKENS_SEO    = int(os.getenv("MAX_TOKENS_SEO",     "300"))
 MAX_TOKENS_REVIEW = int(os.getenv("MAX_TOKENS_REVIEW",  "300"))

@@ -18,7 +18,8 @@ PUBDIR=/Users/aaron/Developer/personal/beokmkt/blog_publisher
 WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 
 # ── 콘텐츠 파이프라인 ──────────────────────────────────────────────
-# */30 * * * * cd $PUBDIR && $PYTHON run.py stock_seed selfhosted >> /tmp/blog-generate.log 2>&1
+# 운영 채널: selfhosted + tistory. naver 자동 발행/시드는 중지.
+# 0 */6 * * * cd $PUBDIR && $PYTHON run.py stock_seed selfhosted 15 >> /tmp/blog-generate.log 2>&1
 # */30 * * * * cd $PUBDIR && $PYTHON run.py generate   >> /tmp/blog-generate.log 2>&1
 # */15 * * * * cd $PUBDIR && $PYTHON run.py factcheck   >> /tmp/blog-factcheck.log 2>&1
 # */30 * * * * cd $PUBDIR && $PYTHON run.py review      >> /tmp/blog-review.log 2>&1
@@ -31,9 +32,8 @@ WORKERDIR=/Users/aaron/Developer/personal/beokmkt/executors/naver-blog-worker
 
 # ── 복구 / 재고 / 백업 ─────────────────────────────────────────────
 # */35 * * * * cd $PUBDIR && $PYTHON run.py recover     >> /tmp/blog-recover.log 2>&1
-# naver/tistory는 콘텐츠 품질 기준과 티스토리 인증을 정비한 뒤 수동 재개
-# 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed naver 2      >> /tmp/blog-generate.log 2>&1
-# 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed tistory 2    >> /tmp/blog-generate.log 2>&1
+# tistory는 품질/중복 확인 후 수동 seed → generate/factcheck/review/schedule/publish 경로로 운영
+# 0    6 * * * cd $PUBDIR && $PYTHON run.py auto_seed tistory 1    >> /tmp/blog-generate.log 2>&1
 # 0    4 * * * cd $PUBDIR && $PYTHON run.py backup      >> /tmp/blog-backup.log 2>&1
 
 # ── 세션 keepalive (매일 10시 + 지터) ─────────────────────────────

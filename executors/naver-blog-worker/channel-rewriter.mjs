@@ -14,7 +14,7 @@ const AI_MODEL = process.env.AI_MODEL || 'glm-5.1'
 const AI_ENDPOINT = process.env.AI_REWRITE_ENDPOINT || 'https://api.z.ai/api/coding/paas/v4/chat/completions'
 const REWRITE_ENABLED = process.env.CHANNEL_REWRITE !== 'false'
 const AI_REWRITE_TIMEOUT_MS = Number(process.env.AI_REWRITE_TIMEOUT_MS || '120000')
-const AI_REWRITE_MAX_TOKENS = Number(process.env.AI_REWRITE_MAX_TOKENS || '4096')
+const AI_REWRITE_MAX_TOKENS = Number(process.env.AI_REWRITE_MAX_TOKENS || '8192')
 const AI_REWRITE_THINKING = process.env.AI_REWRITE_THINKING === 'true'
 const HANZI_RE = /[\u3400-\u4dbf\u4e00-\u9fff]/
 
@@ -100,7 +100,14 @@ async function callAi(messages) {
     throw new Error(`AI API error ${res.status}: ${err}`)
   }
   const data = await res.json()
-  return data.choices?.[0]?.message?.content || ''
+  const choice = data.choices?.[0] || {}
+  const content = choice.message?.content || ''
+  if (!content) {
+    const finishReason = choice.finish_reason || choice.finishReason || 'unknown'
+    const usage = data.usage ? ` usage=${JSON.stringify(data.usage)}` : ''
+    console.warn(`[channel-rewriter] AI 응답 content 비어 있음 finish_reason=${finishReason}${usage}`)
+  }
+  return content
 }
 
 function extractJson(text) {
@@ -116,6 +123,110 @@ function extractJson(text) {
     return JSON.parse(cleaned.slice(start, end + 1))
   } catch {
     return null
+  }
+}
+
+function cleanupAiText(text) {
+  return String(text ?? '')
+    .replace(/<think[\s\S]*?<\/think>/gi, '')
+    .replace(/```(?:json|html|markdown|md)?\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim()
+}
+
+function markdownishToHtml(text) {
+  const source = cleanupAiText(text)
+  if (/<(h2|h3|p|ul|ol|li|blockquote|table|img)\b/i.test(source)) return source
+
+  const lines = source.split(/\r?\n/)
+  const out = []
+  let paragraph = []
+  let listType = ''
+
+  const inline = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img src="$2" alt="$1">')
+
+  const closeParagraph = () => {
+    if (!paragraph.length) return
+    out.push(`<p>${inline(paragraph.join(' '))}</p>`)
+    paragraph = []
+  }
+  const closeList = () => {
+    if (!listType) return
+    out.push(`</${listType}>`)
+    listType = ''
+  }
+  const openList = (type) => {
+    closeParagraph()
+    if (listType === type) return
+    closeList()
+    listType = type
+    out.push(`<${type}>`)
+  }
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      closeParagraph()
+      closeList()
+      continue
+    }
+    const h2 = line.match(/^##\s+(.+)/)
+    if (h2) {
+      closeParagraph()
+      closeList()
+      out.push(`<h2>${inline(h2[1])}</h2>`)
+      continue
+    }
+    const h3 = line.match(/^###\s+(.+)/)
+    if (h3) {
+      closeParagraph()
+      closeList()
+      out.push(`<h3>${inline(h3[1])}</h3>`)
+      continue
+    }
+    const bullet = line.match(/^[-*]\s+(.+)/)
+    if (bullet) {
+      openList('ul')
+      out.push(`<li>${inline(bullet[1])}</li>`)
+      continue
+    }
+    const numbered = line.match(/^\d+[.)]\s+(.+)/)
+    if (numbered) {
+      openList('ol')
+      out.push(`<li>${inline(numbered[1])}</li>`)
+      continue
+    }
+    const quote = line.match(/^>\s+(.+)/)
+    if (quote) {
+      closeParagraph()
+      closeList()
+      out.push(`<blockquote>${inline(quote[1])}</blockquote>`)
+      continue
+    }
+    paragraph.push(line)
+  }
+  closeParagraph()
+  closeList()
+  return out.join('\n')
+}
+
+function parseRewriteResponse(response, fallbackTitle) {
+  const parsed = extractJson(response)
+  if (parsed) {
+    return {
+      title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title.trim() : fallbackTitle,
+      html: typeof parsed.html === 'string' && parsed.html.trim() ? parsed.html.trim() : '',
+    }
+  }
+  const html = markdownishToHtml(response)
+  return {
+    title: fallbackTitle,
+    html: stripToPlainText(html).length >= 200 ? html : '',
   }
 }
 
@@ -279,9 +390,9 @@ ${guide}`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ])
-      const parsed = extractJson(response)
-      const newTitle = typeof parsed?.title === 'string' && parsed.title.trim() ? parsed.title.trim() : title
-      let newHtml = typeof parsed?.html === 'string' && parsed.html.trim() ? parsed.html.trim() : ''
+      const parsed = parseRewriteResponse(response, title)
+      const newTitle = parsed.title
+      let newHtml = parsed.html
       const plainNew = stripToPlainText(newHtml)
       if (!newHtml || plainNew.length < plainText.length * 0.5) {
         lastFailure = `비정상적으로 짧은 결과(${plainNew.length}자)`

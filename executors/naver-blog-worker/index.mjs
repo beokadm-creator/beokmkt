@@ -792,24 +792,39 @@ async function publishToNaver({ post_id, title, content_html, tags, link, canoni
   }
 }
 
-async function publishToTistory({ title, content_html, tags, link, canonical_url }) {
+function isNativeTistoryDraft({ source_channel, source_url, translated_from }) {
+  return source_channel === 'tistory' && !source_url && !translated_from
+}
+
+async function publishToTistory({ title, content_html, tags, link, canonical_url, source_channel, source_url, translated_from }) {
   try {
     await assertTistoryAuthenticated()
 
-    // 유사문서/중복콘텐츠 방지: 티스토리용 재작성 후 스타일 변환
-    log('info', '티스토리용 콘텐츠 재작성 (AI) 시작…')
-    const rewritten = await rewriteForChannel({
-      title,
-      html: content_html,
-      channel: 'tistory',
-      canonicalUrl: canonical_url || link || '',
-    })
-    log('info', `티스토리용 재작성 ${rewritten.rewritten ? '완료' : '건너뜀(원문 사용)'} — 제목: ${rewritten.title}`)
-    if (TISTORY_REWRITE_REQUIRED && channelRewriteEnabled() && !rewritten.rewritten) {
-      throw new WorkerError(
-        'TISTORY_REWRITE_REQUIRED',
-        `티스토리 재작성 실패로 원문 발행을 중단합니다: ${rewritten.rewrite_error || 'unknown'}`
-      )
+    let rewritten
+    if (isNativeTistoryDraft({ source_channel, source_url, translated_from })) {
+      log('info', '티스토리 전용 신규 원고: 채널 재작성 생략, HTML 품질 검증으로 진행')
+      rewritten = {
+        title,
+        html: content_html,
+        rewritten: false,
+        rewrite_error: 'native_tistory_draft',
+      }
+    } else {
+      // 유사문서/중복콘텐츠 방지: 티스토리용 재작성 후 스타일 변환
+      log('info', '티스토리용 콘텐츠 재작성 (AI) 시작…')
+      rewritten = await rewriteForChannel({
+        title,
+        html: content_html,
+        channel: 'tistory',
+        canonicalUrl: canonical_url || link || '',
+      })
+      log('info', `티스토리용 재작성 ${rewritten.rewritten ? '완료' : '건너뜀(원문 사용)'} — 제목: ${rewritten.title}`)
+      if (TISTORY_REWRITE_REQUIRED && channelRewriteEnabled() && !rewritten.rewritten) {
+        throw new WorkerError(
+          'TISTORY_REWRITE_REQUIRED',
+          `티스토리 재작성 실패로 원문 발행을 중단합니다: ${rewritten.rewrite_error || 'unknown'}`
+        )
+      }
     }
 
     log('info', '티스토리 HTML 변환 시작…')
