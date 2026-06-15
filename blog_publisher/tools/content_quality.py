@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from urllib.parse import urlparse
 
 from db import db
 
@@ -69,6 +70,26 @@ def image_count(value: str | None) -> int:
     return len(re.findall(r"<img\b", text, flags=re.I)) + len(
         re.findall(r"!\[[^\]]*]\([^)\s]+\)", text)
     )
+
+
+def image_urls(value: str | None) -> list[str]:
+    text = str(value or "")
+    urls = re.findall(r"<img\b[^>]*\bsrc=[\"']([^\"']+)[\"']", text, flags=re.I)
+    urls.extend(re.findall(r"!\[[^\]]*]\(([^)\s]+)\)", text))
+    return [url.strip() for url in urls if url.strip()]
+
+
+def unique_image_count(value: str | None) -> int:
+    return len(set(image_urls(value)))
+
+
+def external_image_count(value: str | None) -> int:
+    count = 0
+    for url in image_urls(value):
+        host = urlparse(url).netloc.lower()
+        if host and ("hongcomm.kr" in host or "beoksolution.com" in host or "beokmkt.web.app" in host):
+            count += 1
+    return count
 
 
 def is_operational_post(post) -> bool:
@@ -196,12 +217,24 @@ def publish_blockers(post) -> list[str]:
     body = post["body"] or ""
     chars = len(plain_text(body))
     images = image_count(body)
+    unique_images = unique_image_count(body)
+    trusted_images = external_image_count(body)
 
     if is_operational_post(post):
-        if chars < 1800:
-            issues.append(f"운영 글 본문 부족({chars}/1800자)")
-        if images < 1:
-            issues.append("운영 글 이미지 없음")
+        if chars < 900:
+            issues.append(f"운영 글 본문 부족({chars}/900자)")
+        if chars > 2600:
+            issues.append(f"운영 글 본문 과다({chars}/2600자)")
+        if images < 2:
+            issues.append(f"운영 글 이미지 부족({images}/2장)")
+        if unique_images < images:
+            issues.append("같은 글 안에서 이미지 URL 반복")
+        if trusted_images < 2:
+            issues.append(f"홍커뮤니케이션/비오케이 계열 이미지 부족({trusted_images}/2장)")
+        if body.count("## ") < 3:
+            issues.append("소제목 구조 부족(3개 미만)")
+        if "|---" not in body and "| ---" not in body:
+            issues.append("점검표/비교표 없음")
         title_topic = f"{field(post, 'title')} {field(post, 'topic')}"
         full_text = f"{title_topic} {plain_text(body)[:1800]}"
         if generic_title_risk(title_topic) and service_anchor_count(full_text) < 4:

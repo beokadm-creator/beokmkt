@@ -200,6 +200,71 @@ def _test_image_diversity() -> list[str]:
     return issues
 
 
+def _test_publish_quality_gate() -> list[str]:
+    from tools.content_quality import publish_blockers
+
+    good_body = """## 학술대회 등록 기준
+
+![학술대회 등록 시스템](https://hongcomm.kr/img/page/a1.png)
+
+학회 사무국은 참가자 등록 기준과 결제 상태를 먼저 하나로 맞춰야 합니다. 홈페이지 신청폼, 등록 시스템, 관리자 대시보드가 같은 데이터를 보고 있어야 현장 접수에서 중복 확인이 줄어듭니다.
+등록 데이터는 이름, 소속, 등록 구분, 결제 상태, QR 식별값을 같은 기준으로 관리해야 합니다. 사전 등록과 현장 등록이 섞이는 행사에서는 이 기준이 흔들리면 접수대에서 확인 전화와 재출력이 반복됩니다.
+
+## 현장 명찰 출력 기준
+
+![현장 명찰 출력 시스템](https://hongcomm.kr/img/page/c1.jpg)
+
+명찰 출력은 최종 명단, QR 코드, 소속 표기, 재발행 승인 기준을 함께 확인해야 합니다. 비오케이솔루션은 홈페이지와 접수 데이터 흐름을, 홍커뮤니케이션은 MICE 현장 운영 레퍼런스를 기준으로 점검합니다.
+현장 출력은 빠른 장비보다 같은 기준을 유지하는 절차가 더 중요합니다. 출력 담당자와 승인 담당자를 나누고, 수정 사유와 출력 시간을 남기면 행사 후 미수령자와 당일 변경 요청을 정리하기 쉽습니다.
+
+## 운영 전 점검표
+
+| 점검 항목 | 확인 기준 |
+| --- | --- |
+| 등록 데이터 | 홈페이지 신청 내역과 관리자 DB 일치 |
+| 명찰 출력 | QR 스캔과 소속 표기 확인 |
+
+## 시스템 연동 기준
+
+현장 운영은 명찰 출력만으로 끝나지 않습니다. 등록, 결제, 체크인, 재발행 로그가 연결되어야 행사 후 참가자 데이터 정리와 문의 응대가 쉬워집니다.
+홈페이지 제작 단계에서 신청폼과 관리자 화면을 어떻게 설계했는지가 현장 운영 품질로 이어집니다. 그래서 학술대회 운영 글은 단순한 명찰 제작 안내가 아니라 접수 시스템, 결제, 데이터 검수, 출력 현장을 함께 다뤄야 합니다.
+운영 담당자는 행사 규모, 참가자 유형, 현장 등록 가능 여부, 결제 마감 시점, 명찰 양식을 한 번에 확인해야 합니다. 이 정보가 있어야 개발팀은 관리자 화면과 데이터 내보내기 형식을 맞추고, 현장팀은 접수대 배치와 출력 동선을 정할 수 있습니다.
+"""
+    long_body = good_body + ("\n\n반복 설명입니다." * 260)
+    no_image_body = re.sub(r"!\[[^\]]*]\([^)\s]+\)\n\n", "", good_body)
+    duplicate_image_body = good_body.replace("https://hongcomm.kr/img/page/c1.jpg", "https://hongcomm.kr/img/page/a1.png")
+    thin_body = """## 안내
+
+학회 명찰 출력 안내입니다.
+"""
+    base = {
+        "id": 999001,
+        "channel": "selfhosted",
+        "category": "hong",
+        "title": "학술대회 등록 시스템과 현장 명찰 출력 기준",
+        "topic": "학술대회 등록 시스템과 현장 명찰 출력 기준",
+        "updated_at": "2099-01-01 00:00:00",
+    }
+    cases = [
+        ("good", good_body, []),
+        ("too-long", long_body, ["본문 과다"]),
+        ("no-image", no_image_body, ["이미지 부족", "계열 이미지 부족"]),
+        ("duplicate-image", duplicate_image_body, ["이미지 URL 반복"]),
+        ("thin", thin_body, ["본문 부족", "이미지 부족", "소제목 구조 부족", "점검표/비교표 없음"]),
+    ]
+    issues: list[str] = []
+    for name, body, expected_fragments in cases:
+        post = {**base, "body": body}
+        blockers = publish_blockers(post)
+        if not expected_fragments and blockers:
+            issues.append(f"publish-gate: {name} 정상 글 차단: {blockers}")
+            continue
+        for fragment in expected_fragments:
+            if not any(fragment in blocker for blocker in blockers):
+                issues.append(f"publish-gate: {name} 기대 차단 누락({fragment}): {blockers}")
+    return issues
+
+
 def _test_selfhosted_renderer() -> list[str]:
     from render.renderer import render_body
 
@@ -382,6 +447,7 @@ def run() -> bool:
     issues = (
         _test_phase_a_generation_contract()
         + _test_image_diversity()
+        + _test_publish_quality_gate()
         + _test_selfhosted_renderer()
         + _test_tistory_adapter()
         + _test_channel_rewriter_gate()
@@ -395,6 +461,7 @@ def run() -> bool:
         return False
     print("[OK] phase-a generation: 350~650자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
     print("[OK] image bank: 섹션별 이미지 다양성 유지")
+    print("[OK] publish gate: 길이/이미지/구조/반복 이미지 차단 유지")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")
     print("[OK] channel rewriter: 티스토리 얇은 글/한자/금칙톤/의미위험 차단")
