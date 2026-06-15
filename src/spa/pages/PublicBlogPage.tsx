@@ -132,7 +132,7 @@ export default function PublicBlogPage() {
           <Link to="/blog/" className="text-sm font-semibold tracking-tight text-white">비오케이솔루션</Link>
           <nav className="hidden items-center gap-6 text-sm text-zinc-400 md:flex">
             <a href="#articles" className="hover:text-white">최신 글</a>
-            <a href="#topics" className="hover:text-white">콘텐츠 축</a>
+            <a href="#services" className="hover:text-white">서비스</a>
             <a href="/blog/rss.xml" className="hover:text-white">RSS</a>
           </nav>
           <a
@@ -150,19 +150,19 @@ export default function PublicBlogPage() {
         <section className="border-b border-zinc-800">
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-18">
             <div>
-              <p className="text-sm font-medium text-yellow-300">홈페이지 제작 · 시스템 개발 · 학회 운영</p>
+              <p className="text-sm font-medium text-yellow-300">비오케이솔루션 블로그</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight text-white md:text-5xl">
-                비오케이솔루션의 개발과 행사 운영 경험을 검색 가능한 기록으로 남깁니다.
+                홈페이지와 업무 시스템, 행사 운영을 실무 기준으로 정리합니다.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-                홈페이지 제작, 맞춤형 관리자 시스템, 학회 접수·명찰 출력, 홍커뮤니케이션 MICE 레퍼런스를 분리해 다룹니다. 같은 말을 반복하는 글은 줄이고, 실제 의사결정에 필요한 기준만 쌓습니다.
+                제작 비용, 관리자 기능, 접수·결제 연동, 학회 운영처럼 의뢰 전에 확인해야 할 내용을 사례와 체크리스트 중심으로 다룹니다.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a href="#articles" className="rounded-md bg-white px-5 py-3 text-center text-sm font-semibold text-zinc-950 hover:bg-zinc-200">
                   최신 글 보기
                 </a>
-                <a href="#topics" className="rounded-md border border-yellow-300 px-5 py-3 text-center text-sm font-semibold text-yellow-200 hover:bg-yellow-300 hover:text-zinc-950">
-                  콘텐츠 축 보기
+                <a href="#services" className="rounded-md border border-yellow-300 px-5 py-3 text-center text-sm font-semibold text-yellow-200 hover:bg-yellow-300 hover:text-zinc-950">
+                  서비스 보기
                 </a>
               </div>
             </div>
@@ -183,7 +183,7 @@ export default function PublicBlogPage() {
               <div>
                 <h2 className="text-2xl font-bold text-white">최신 발행 글</h2>
                 <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  공개 URL 기준으로 살아 있는 글만 보여줍니다. 개발 홍보와 학회 운영 글을 한 목록 안에서 축별로 구분합니다.
+                  홈페이지 제작, 시스템 개발, 학회 운영에 필요한 실무 글을 모았습니다.
                 </p>
               </div>
               <span className="hidden rounded-md border border-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-400 sm:block">
@@ -247,11 +247,11 @@ export default function PublicBlogPage() {
           </div>
         </section>
 
-        <section id="topics" className="border-b border-zinc-800 bg-zinc-900/25">
+        <section id="services" className="border-b border-zinc-800 bg-zinc-900/25">
           <div className="mx-auto max-w-6xl px-6 py-14">
-            <h2 className="text-2xl font-bold text-white">콘텐츠 축</h2>
+            <h2 className="text-2xl font-bold text-white">서비스 분야</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-              검색 유입을 위해 억지로 같은 글을 반복하지 않고, 서비스별로 다른 문제와 의사결정 기준을 다룹니다.
+              필요한 범위에 따라 제작 방식, 운영 기능, 현장 대응 기준을 나눠 확인할 수 있습니다.
             </p>
             <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {BLOG_AXES.map((topic) => (
