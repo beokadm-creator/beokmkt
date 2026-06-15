@@ -9,7 +9,7 @@
 """
 from __future__ import annotations
 
-import fcntl
+import os
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -20,7 +20,34 @@ from publishers.base import FatalError, NeedsHumanError, RetryableError
 from tools.content_quality import publish_blockers
 from utils.notify import notify
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
+
 LOCK_PATH = Path(__file__).resolve().parents[1] / "db" / "publish.lock"
+
+
+def _try_lock(fh) -> bool:
+    if os.name == "nt":
+        try:
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+            return True
+        except OSError:
+            return False
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except BlockingIOError:
+        return False
+
+
+def _unlock(fh) -> None:
+    if os.name == "nt":
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
 @contextmanager
@@ -28,15 +55,13 @@ def _publish_lock():
     """동일 머신에서 cron/수동 실행이 겹쳐 외부 채널을 동시에 누르는 것을 막는다."""
     LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOCK_PATH.open("w") as fh:
-        try:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+        if not _try_lock(fh):
             yield False
             return
         try:
             yield True
         finally:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            _unlock(fh)
 
 
 def _empty_stats() -> dict:

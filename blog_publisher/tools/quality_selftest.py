@@ -6,12 +6,19 @@ Phase A/B 품질 셀프테스트.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKER_DIR = ROOT / "executors" / "naver-blog-worker"
+
+
+def _subprocess_env(**overrides: str) -> dict[str, str]:
+    env = os.environ.copy()
+    env.update({key: value for key, value in overrides.items() if value is not None})
+    return env
 
 
 SAMPLE_MD = """학회 운영 사무국의 명찰 출력은 참가자 응대 품질과 바로 연결됩니다.
@@ -322,12 +329,11 @@ process.exit(issues.length ? 1 : 0)
         capture_output=True,
         timeout=30,
         check=False,
-        env={
-            "PATH": __import__("os").environ.get("PATH", ""),
-            "CHANNEL_REWRITE": "true",
-            "TISTORY_REWRITE_REQUIRED": "true",
-            "AI_API_KEY": "",
-        },
+        env=_subprocess_env(
+            CHANNEL_REWRITE="true",
+            TISTORY_REWRITE_REQUIRED="true",
+            AI_API_KEY="",
+        ),
     )
     if proc.returncode == 0:
         return []

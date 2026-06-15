@@ -8,8 +8,8 @@
 """
 from __future__ import annotations
 
-import fcntl
 import multiprocessing as mp
+import os
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -21,6 +21,11 @@ from llm.parse import chat_json
 from pipeline import seo
 from research import collect, evidence as ev
 from utils.notify import notify
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 
 # CJK 한자(漢字) 범위. 한국어 블로그 본문엔 사실상 0개여야 한다.
@@ -49,21 +54,41 @@ def _lock_path() -> Path:
     return db.DB_PATH.with_name("generate.lock")
 
 
+def _try_lock(fh) -> bool:
+    if os.name == "nt":
+        try:
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+            return True
+        except OSError:
+            return False
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except BlockingIOError:
+        return False
+
+
+def _unlock(fh) -> None:
+    if os.name == "nt":
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
 @contextmanager
 def _generate_lock():
     """cron 겹침으로 동일 재고를 여러 생성 워커가 잡는 것을 막는다."""
     lock_path = _lock_path()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("w") as fh:
-        try:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+        if not _try_lock(fh):
             yield False
             return
         try:
             yield True
         finally:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            _unlock(fh)
 
 
 def _generate_one_child(post: dict, result_queue: mp.Queue) -> None:
