@@ -88,6 +88,8 @@ type OpsStats = {
   }
   search_health?: {
     provider: string | null
+    official_sources_ok?: boolean
+    official_source_count?: number
     general_search_ok: boolean
     naver_serp_ok: boolean
     ok: boolean
@@ -402,7 +404,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
     {
       label: '검색/근거',
       value: search ? (search.ok ? '정상' : '확인') : '미측정',
-      sub: search ? `${search.provider ?? '없음'} · naver ${search.naver_serp_ok ? 'on' : 'off'}` : '스냅샷 갱신 필요',
+      sub: search ? `공식 ${search.official_source_count ?? 0} · 외부 ${search.general_search_ok ? (search.provider ?? 'on') : 'off'}` : '스냅샷 갱신 필요',
       alert: searchAlert,
     },
     {
@@ -506,7 +508,7 @@ function OpsReadinessPanel({ ops }: { ops?: OpsStats | null }) {
 function LocalOpsPanel({ active }: { active: boolean }) {
   const commands = [
     { label: '대상 확인', command: 'cd blog_publisher && python3 run.py needs_human' },
-    { label: '검색 설정 확인', command: 'cd blog_publisher && grep -E "^(SEARCH_PROVIDER|TAVILY_API_KEY|NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)=" .env' },
+    { label: '근거 출처 설정 확인', command: 'cd blog_publisher && grep -E "^(OFFICIAL_SOURCE_URLS|SEARCH_PROVIDER|NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)=" .env' },
     { label: '발행 전 품질 셀프테스트', command: 'cd blog_publisher && python3 run.py quality_selftest' },
     { label: '이미지 자산 감사', command: 'cd blog_publisher && python3 run.py image_audit' },
     { label: '공개 품질 검증', command: 'cd blog_publisher && python3 run.py verify_public 20' },
@@ -543,11 +545,11 @@ function SearchRecoveryPanel({ search }: { search?: OpsStats['search_health'] })
   const commands = [
     {
       label: '현재 설정 확인',
-      command: 'cd blog_publisher && grep -E "^(SEARCH_PROVIDER|TAVILY_API_KEY|NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)=" .env',
+      command: 'cd blog_publisher && grep -E "^(OFFICIAL_SOURCE_URLS|SEARCH_PROVIDER|NAVER_CLIENT_ID|NAVER_CLIENT_SECRET)=" .env',
     },
     {
-      label: '일반 검색 연결',
-      command: 'cd blog_publisher && printf "\\nSEARCH_PROVIDER=tavily\\nTAVILY_API_KEY=<키 입력>\\n" >> .env',
+      label: '공식 출처 기본값 추가',
+      command: 'cd blog_publisher && printf "\\nOFFICIAL_SOURCE_URLS=https://beoksolution.com/,https://hongcomm.kr/\\n" >> .env',
     },
     {
       label: '생성 재개 확인',
@@ -563,14 +565,14 @@ function SearchRecoveryPanel({ search }: { search?: OpsStats['search_health'] })
     <div className="rounded-xl border border-amber-900/60 bg-amber-950/15 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-amber-200">신규 원고 생성 중단</div>
+          <div className="text-sm font-semibold text-amber-200">공식 근거 출처 확인 필요</div>
           <div className="mt-1 text-xs leading-5 text-zinc-500">
-            {search.reason || '검색/근거 수집 설정이 없어 근거 기반 생성이 중단됩니다.'}
-            {' '}품질 게이트가 켜진 상태에서는 검색 출처 없이 새 글을 만들지 않습니다.
+            {search.reason || '공식 출처 설정이 없어 근거 기반 생성이 중단됩니다.'}
+            {' '}외부 검색 API는 선택 사항이며, 기본 생성은 공식 사이트 근거를 사용합니다.
           </div>
         </div>
         <span className="rounded-md border border-amber-800 px-2 py-1 text-xs text-amber-200">
-          검색 연결 필요
+          출처 설정 필요
         </span>
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-2">

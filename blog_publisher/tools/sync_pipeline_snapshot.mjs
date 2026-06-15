@@ -61,18 +61,25 @@ function qualityGateStatus() {
 function searchHealthStatus() {
   const provider = readEnvString('SEARCH_PROVIDER', '').toLowerCase()
   const tavilyKey = readEnvString('TAVILY_API_KEY', '')
+  const officialSources = readEnvList(
+    'OFFICIAL_SOURCE_URLS',
+    'https://beoksolution.com/,https://hongcomm.kr/',
+  )
   const naverClientId = readEnvString('NAVER_CLIENT_ID', '')
   const naverClientSecret = readEnvString('NAVER_CLIENT_SECRET', '')
   const generalOk = provider === 'tavily' && Boolean(tavilyKey)
+  const officialOk = officialSources.length > 0
   const naverSerpOk = Boolean(naverClientId && naverClientSecret)
   return {
     provider: provider || null,
+    official_sources_ok: officialOk,
+    official_source_count: officialSources.length,
     general_search_ok: generalOk,
     naver_serp_ok: naverSerpOk,
-    ok: generalOk,
-    reason: generalOk
+    ok: officialOk || generalOk,
+    reason: officialOk || generalOk
       ? null
-      : 'SEARCH_PROVIDER/TAVILY_API_KEY 미설정: 신규 원고 근거 수집 불가',
+      : '공식 출처 또는 검색 공급자 미설정: 신규 원고 근거 수집 불가',
   }
 }
 

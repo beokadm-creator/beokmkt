@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-15 — Tavily 비용 의존 제거 및 공식 출처 기반 생성
+
+Tavily는 무료 한도가 있어도 초과 시 비용이 발생하는 외부 검색 API이므로 기본 생성 조건에서 제거했다. 신규 원고는 기본적으로 `beoksolution.com`, `hongcomm.kr` 공식 사이트를 근거 출처로 사용하고, Tavily는 설정했을 때만 선택 보조 검색으로 사용한다.
+
+| 대상 | 내용 |
+|---|---|
+| `config.py` | `OFFICIAL_SOURCE_URLS` 기본값 추가. `SEARCH_PROVIDER/TAVILY_API_KEY` 없이도 공식 출처가 있으면 생성 가능하도록 변경 |
+| `research/official_sources.py`, `research/collect.py` | 공식 사이트 HTML 수집기를 추가하고 외부 검색보다 먼저 근거팩 출처로 사용 |
+| `generate.py`, `status_report.py` | Tavily 미설정 경고를 공식 출처 기반 상태 문구로 변경 |
+| `sync_pipeline_snapshot.mjs`, `server/index.mjs`, `DashboardPage.tsx` | 운영 대시보드에서 `official_sources=2`, `external_search=off` 구조로 표시. Tavily 입력 유도 제거 |
+
+검증:
+- 공식 출처 수집 2건(`beoksolution.com`, `hongcomm.kr`) 확인
+- `python3 -m compileall -q blog_publisher`, `node --check`, `status`, `sync_snapshot`, `npm run build:spa`, `npx tsc --noEmit`, `npm run lint -- --max-warnings=999` PASS
+
+---
+
 ## 2026-06-15 — 자체 블로그 브랜드 주체 노출 강화
 
 자체 블로그가 비오케이솔루션과 홍커뮤니케이션의 홍보 채널임을 첫 화면, 글 상세, SSR/RSS/JSON-LD에서 명확히 드러내도록 보정했다.

@@ -53,22 +53,34 @@ DEFAULT_TONE = os.getenv("DEFAULT_TONE", "친근하고 신뢰감 있는")
 DEFAULT_REFERENCES = os.getenv("DEFAULT_REFERENCES", "(없음)")
 
 # ---- 검색/리서치 (기획 05 §4) ----
-# 사실 수집(근거)용 일반 웹 검색 공급자. 엔진과 무관하게 본문이 풍부한 소스.
-SEARCH_PROVIDER = os.getenv("SEARCH_PROVIDER", "")          # tavily | (확장)
+# 사실 수집(근거)은 공식 사이트를 기본으로 사용한다.
+# Tavily 같은 유료/외부 검색 API는 설정했을 때만 보조 검색으로 쓴다.
+SEARCH_PROVIDER = os.getenv("SEARCH_PROVIDER", "")          # tavily | (비우면 공식 사이트만)
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+OFFICIAL_SOURCE_URLS = [
+    u.strip()
+    for u in os.getenv(
+        "OFFICIAL_SOURCE_URLS",
+        "https://beoksolution.com/,https://hongcomm.kr/",
+    ).split(",")
+    if u.strip()
+]
 
 
 def search_health_status() -> dict:
     """신규 원고 생성에 필요한 검색/근거 수집 준비 상태."""
     provider = (SEARCH_PROVIDER or "").strip().lower()
-    general_ok = provider == "tavily" and bool(TAVILY_API_KEY)
+    paid_search_ok = provider == "tavily" and bool(TAVILY_API_KEY)
+    official_ok = bool(OFFICIAL_SOURCE_URLS)
     naver_serp_ok = bool(NAVER_CLIENT_ID and NAVER_CLIENT_SECRET)
     return {
         "provider": provider or None,
-        "general_search_ok": general_ok,
+        "official_sources_ok": official_ok,
+        "official_source_count": len(OFFICIAL_SOURCE_URLS),
+        "general_search_ok": paid_search_ok,
         "naver_serp_ok": naver_serp_ok,
-        "ok": general_ok,
-        "reason": None if general_ok else "SEARCH_PROVIDER/TAVILY_API_KEY 미설정: 신규 원고 근거 수집 불가",
+        "ok": official_ok or paid_search_ok,
+        "reason": None if (official_ok or paid_search_ok) else "공식 출처 또는 검색 공급자 미설정: 신규 원고 근거 수집 불가",
     }
 
 

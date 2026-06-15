@@ -99,11 +99,16 @@ def report() -> dict[str, int]:
     print("\n=== 점검 ===")
     search_health = config.search_health_status()
     if search_health["ok"]:
-        provider = search_health["provider"] or "unknown"
+        provider = search_health["provider"] or "official"
+        external = "on" if search_health["general_search_ok"] else "off"
         naver_serp = "on" if search_health["naver_serp_ok"] else "off"
-        print(f"  [정상] 검색/근거 수집 가능: provider={provider}, naver_serp={naver_serp}")
+        print(
+            "  [정상] 근거 수집 가능: "
+            f"official_sources={search_health.get('official_source_count', 0)}, "
+            f"external_search={external}({provider}), naver_serp={naver_serp}"
+        )
     else:
-        print(f"  [중단] 검색/근거 수집 불가: {search_health['reason']}")
+        print(f"  [중단] 근거 수집 불가: {search_health['reason']}")
 
     if inventory < buffer_target:
         print(f"  [경고] 전발행 재고 부족: inventory={inventory} < 목표 {buffer_target} "

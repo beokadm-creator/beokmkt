@@ -55,9 +55,19 @@ def _trust_of(url: str) -> str | None:
 
 def collect(queries: list[str]) -> list[CollectedSource]:
     """여러 쿼리로 검색·수집해 중복 제거된 출처 목록을 반환."""
+    from research.official_sources import collect_official_sources
+
     provider = get_provider()
     seen: set[str] = set()
     sources: list[CollectedSource] = []
+
+    for source in collect_official_sources():
+        if source.url in seen:
+            continue
+        seen.add(source.url)
+        sources.append(source)
+        if len(sources) >= config.MAX_SOURCES:
+            return sources
 
     for q in queries:
         for r in provider.search(q, k=config.SEARCH_RESULTS_PER_QUERY):
