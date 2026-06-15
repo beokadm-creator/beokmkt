@@ -171,24 +171,30 @@ function pipelineImageAssetHealthStatus() {
 }
 
 function collectPipelineFocusInventory(db, channels) {
-  const brand = readPipelineEnvString('AUTO_SEED_BRAND_FILTER', 'beok')
+  const brand = readPipelineEnvString('AUTO_SEED_BRAND_FILTER', '')
   const terms = readPipelineEnvList(
     'AUTO_SEED_REQUIRED_TERMS',
-    '학회,명찰,사무국,참가자,접수,출력,발행,재발행,QR,바코드',
+    '학회,학술대회,명찰,사무국,참가자,접수,등록,출력,발행,재발행,QR,바코드,체크인,초록,심사,홈페이지,웹사이트,반응형,SEO,신청폼,문의폼,예약,결제,SSL,시스템,개발,관리자,대시보드,백오피스,자동화,알림톡,DB,데이터,솔루션,연동,홍커뮤니케이션,MICE,국제회의,컨퍼런스,행사,동시통역,포트폴리오,레퍼런스',
   )
   const inventoryStatuses = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed']
   const result = Object.fromEntries(channels.map((channel) => [channel, 0]))
-  if (!brand || terms.length === 0) return result
+  if (terms.length === 0) return result
   const statusPlaceholders = inventoryStatuses.map(() => '?').join(',')
   const likeClause = terms.map(() => 'topic LIKE ?').join(' OR ')
+  const brandClause = brand ? 'AND category = ?' : ''
+  const params = [
+    ...inventoryStatuses,
+    ...(brand ? [brand] : []),
+    ...terms.map((term) => `%${term}%`),
+  ]
   for (const row of db.prepare(
     `SELECT channel, COUNT(*) AS n
      FROM posts
      WHERE status IN (${statusPlaceholders})
-       AND category = ?
+       ${brandClause}
        AND (${likeClause})
      GROUP BY channel`
-  ).all(...inventoryStatuses, brand, ...terms.map((term) => `%${term}%`))) {
+  ).all(...params)) {
     if (row.channel in result) result[row.channel] = row.n
   }
   return result
@@ -319,10 +325,10 @@ function escapeXml(value) {
 const PUBLIC_BLOG_SITE_NAME = '비오케이솔루션 블로그'
 const PUBLIC_BLOG_SITE_DESCRIPTION = '학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그입니다.'
 const PUBLIC_TOPIC_AXES = [
-  ['학회운영', ['학회', '학술대회', '명찰', '사무국', '참가자', '접수', '출력', '발행', '재발행', 'QR', '바코드']],
+  ['학회운영', ['학회', '학술대회', '명찰', '사무국', '참가자', '접수', '등록', '출력', '발행', '재발행', 'QR', '바코드', '체크인', '초록', '심사']],
   ['홈페이지', ['홈페이지', '웹사이트', '반응형', 'SEO', '서치콘솔', '신청폼', '문의폼', '예약', '결제', 'SSL']],
-  ['시스템개발', ['시스템', '개발', '관리자', '자동화', '알림톡', 'DB', '데이터', '솔루션', '연동', '셀프호스팅']],
-  ['MICE', ['홍커뮤니케이션', 'MICE', '국제회의', '컨퍼런스', '동시통역', '전시회', '세미나', '레퍼런스', '포트폴리오']],
+  ['시스템개발', ['시스템', '개발', '관리자', '대시보드', '백오피스', '자동화', '알림톡', 'DB', '데이터', '솔루션', '연동', '셀프호스팅']],
+  ['MICE', ['홍커뮤니케이션', 'MICE', '국제회의', '컨퍼런스', '행사', '동시통역', '전시회', '세미나', '레퍼런스', '포트폴리오']],
 ]
 
 function publicTopicAxis(post = {}) {

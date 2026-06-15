@@ -14,6 +14,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py status         # 파이프라인 상태별 건수 리포트
   python run.py verify_public  # published 공개 URL 실제 HTML 품질 검증
   python run.py cleanup_audit   # 공개 글 삭제/비공개 후보(중복·무이미지·테스트 제목) 감사
+  python run.py strategy_audit   # 공개 블로그 주제축/리라이트/삭제 후보 감사
   python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
   python run.py image_audit    # 이미지 뱅크 공개 URL 도달성 검증
   python run.py sync_snapshot   # 로컬 SQLite 상태를 관리자 대시보드용 Firestore 스냅샷으로 동기화
@@ -157,6 +158,11 @@ def main() -> None:
         from tools import audit_published_cleanup
         limit = int(sys.argv[2]) if len(sys.argv) > 2 else 80
         raise SystemExit(0 if audit_published_cleanup.run(limit) else 1)
+
+    elif cmd == "strategy_audit":
+        from tools import strategy_audit
+        limit = int(sys.argv[2]) if len(sys.argv) > 2 else 100
+        raise SystemExit(0 if strategy_audit.run(limit) else 1)
 
     elif cmd == "needs_human":          # 수동 처리 대기 목록(감사 J4)
         rows = db.fetch_by_status("needs_human", limit=100)

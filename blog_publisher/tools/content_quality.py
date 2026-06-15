@@ -26,6 +26,28 @@ TOPIC_AXES = (
     ("mice", ("홍커뮤니케이션", "MICE", "국제회의", "컨퍼런스", "동시통역", "전시회", "세미나", "레퍼런스", "포트폴리오")),
 )
 
+GENERIC_TITLE_PATTERNS = (
+    "완벽 가이드", "A to Z", "트렌드", "전망", "비밀", "꿀팁",
+    "성공 방법", "성공 전략", "바꾸는 미래",
+)
+
+SERVICE_ANCHORS = (
+    "학회", "학술대회", "MICE", "국제회의", "컨퍼런스", "행사", "사무국",
+    "홍커뮤니케이션", "홈페이지", "웹사이트", "시스템", "관리자", "대시보드",
+    "접수", "등록", "결제", "초록", "심사", "QR", "체크인", "명찰",
+    "동시통역", "API", "연동", "데이터", "백오피스",
+)
+
+COMPOSITE_OPERATION_TERMS = (
+    "학회", "학술대회", "MICE", "국제회의", "컨퍼런스", "행사", "사무국",
+    "등록", "접수", "초록", "결제", "체크인", "명찰", "동시통역",
+)
+
+COMPOSITE_SYSTEM_TERMS = (
+    "홈페이지", "웹사이트", "시스템", "관리자", "대시보드", "개발",
+    "솔루션", "API", "연동", "데이터", "백오피스", "자동화",
+)
+
 
 def plain_text(value: str | None) -> str:
     text = str(value or "")
@@ -72,6 +94,23 @@ def topic_axis(post) -> str | None:
             best_axis = axis
             best_hits = hits
     return best_axis if best_hits >= 1 else None
+
+
+def service_anchor_count(value: str | None) -> int:
+    text = str(value or "")
+    return sum(1 for term in SERVICE_ANCHORS if term in text)
+
+
+def has_composite_service_fit(value: str | None) -> bool:
+    text = str(value or "")
+    has_operation = any(term in text for term in COMPOSITE_OPERATION_TERMS)
+    has_system = any(term in text for term in COMPOSITE_SYSTEM_TERMS)
+    return has_operation and has_system
+
+
+def generic_title_risk(value: str | None) -> bool:
+    title = str(value or "")
+    return any(pattern in title for pattern in GENERIC_TITLE_PATTERNS)
 
 
 def title_signature(value: str | None) -> set[str]:
@@ -163,6 +202,12 @@ def publish_blockers(post) -> list[str]:
             issues.append(f"운영 글 본문 부족({chars}/1800자)")
         if images < 1:
             issues.append("운영 글 이미지 없음")
+        title_topic = f"{field(post, 'title')} {field(post, 'topic')}"
+        full_text = f"{title_topic} {plain_text(body)[:1800]}"
+        if generic_title_risk(title_topic) and service_anchor_count(full_text) < 4:
+            issues.append("일반론 제목 대비 서비스/운영 앵커 부족")
+        if topic_axis(post) in {"conference", "mice"} and not has_composite_service_fit(full_text):
+            issues.append("학회/MICE 글이 운영 맥락과 시스템·홈페이지 해법을 함께 다루지 않음")
 
     if post["channel"] == "naver":
         issues.append(

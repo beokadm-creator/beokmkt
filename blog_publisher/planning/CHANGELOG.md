@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-15 — 복합 콘텐츠 전략 고정 및 공개 글 감사 보강
+
+hongcomm.kr의 MICE·학술대회 운영 맥락과 beoksolution의 홈페이지/맞춤 시스템 개발 맥락을 함께 다루도록 자동 시드와 품질 게이트를 재정렬했다. 명찰 단독 draft 15건은 복합 주제로 교체했고, 공개 블로그에서 서비스 축을 벗어난 마케팅 트렌드 글 1건은 삭제했다.
+
+| 대상 | 내용 |
+|---|---|
+| `keyword_bank.py`, `prompts.py` | 학술대회 홈페이지, 등록/결제/초록/명찰, MICE 운영, 관리자/백오피스 개발을 연결하는 우선 주제와 작성 지시 추가 |
+| `content_quality.py` | 포괄 제목, 서비스 앵커 부족, 학회/MICE 글의 시스템 해법 누락을 발행 전 차단 |
+| `strategy_audit.py`, `run.py` | 실제 공개 API 기준 삭제/리라이트/유지 후보를 분류하는 `strategy_audit` 명령 추가 |
+| `config.py`, `sync_pipeline_snapshot.mjs`, `server/index.mjs`, `functions/index.mjs` | 허용 콘텐츠 축과 focus inventory 계산을 복합 블로그 기준으로 통일 |
+| `CONTENT-STRATEGY-2026-06-15.md` | 운영 기준, 발행 금지 기준, 우선 발행 주제 문서화 |
+
+검증:
+- 공개 전략 감사: 39건 검사, 삭제 후보 0건, 리라이트 후보 9건
+- 로컬 draft 15건을 복합 주제로 교체, focus_inventory 15 확인
+- `python3 -m compileall -q blog_publisher`, `quality_selftest`, `node --check`, `npm run build:spa` PASS
+
+---
+
 ## 2026-06-15 — 블로그 다중 콘텐츠 축 복구 및 중복 발행 차단 강화
 
 블로그를 단일 `학회 명찰` 캠페인처럼 취급하던 구조를 `홈페이지 제작`, `맞춤형 시스템 개발`, `학회 운영·명찰 출력`, `홍커뮤니케이션·MICE` 축으로 재정리했다. 개발 홍보 글은 삭제 대상이 아니라 별도 콘텐츠 축으로 유지하고, 진짜 오프토픽·중복 글만 걸러내도록 품질 기준을 바꿨다.
