@@ -12,6 +12,7 @@ $OpsDir = Join-Path $RepoRoot "blog_publisher\ops\windows"
 $RunTask = Join-Path $OpsDir "run-task.ps1"
 $RunWorker = Join-Path $OpsDir "run-worker.ps1"
 $RunKeepalive = Join-Path $OpsDir "run-keepalive.ps1"
+$RunMonitor   = Join-Path $OpsDir "run-session-monitor.ps1"
 
 if (!(Test-Path $RunTask) -or !(Test-Path $RunWorker) -or !(Test-Path $RunKeepalive)) {
   throw "Windows ops scripts not found. Clone/pull repo first: $RepoRoot"
@@ -42,6 +43,12 @@ function Register-DailyKeepalive([string]$Name, [string]$Time) {
   schtasks /Create /F /TN $tn /SC DAILY /ST $Time /TR $tr | Out-Host
 }
 
+function Register-SessionMonitor() {
+  $tn = "BEOK Session Monitor"
+  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunMonitor) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python)"
+  schtasks /Create /F /TN $tn /SC HOURLY /MO 2 /TR $tr | Out-Host
+}
+
 function Register-StartupWorker() {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix Worker"
@@ -50,6 +57,7 @@ function Register-StartupWorker() {
 }
 
 Register-StartupWorker
+Register-SessionMonitor
 Register-DailyKeepalive "Keepalive AM" "10:00"
 Register-DailyKeepalive "Keepalive PM" "22:00"
 Register-MinuteTask "Stock Seed" "stock-seed" 360

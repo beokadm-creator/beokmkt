@@ -1,6 +1,7 @@
 param(
   [string]$RepoRoot = "C:\beokmkt",
   [string]$Node = "node",
+  [string]$StatusDir = "C:\Users\Aaron\Claude\Projects\beokmkt\status",
   [int]$MaxJitterSeconds = 1800,
   [switch]$NoPull
 )
@@ -39,6 +40,7 @@ if (!(Test-Path "node_modules")) {
   npm install 2>&1 | Tee-Object -FilePath $logPath -Append
 }
 
+$env:SESSION_STATUS_DIR = $StatusDir
 Write-Log "$Node keepalive.mjs"
 & $Node "keepalive.mjs" 2>&1 | Tee-Object -FilePath $logPath -Append
 $exitCode = $LASTEXITCODE

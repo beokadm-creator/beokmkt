@@ -73,3 +73,5 @@ blog_publisher/db/backups/
 
 bin/
 logs/
+
+status/

@@ -7,7 +7,8 @@ import { persistSession, readJsonIfExists, snapshotSessionSize } from './session
 const NAV_TIMEOUT = Number(process.env.NAVER_BLOG_TIMEOUT_MS || '60000')
 const NAVER_STORAGE = path.resolve(process.env.NAVER_BLOG_STORAGE_STATE_PATH || './.session/naver-session.json')
 const TISTORY_STORAGE = path.resolve(process.env.TISTORY_SESSION_PATH || './.session/tistory-session.json')
-const CHROME_PROFILE = path.resolve(process.env.CHROME_PROFILE_PATH || `${process.env.HOME}/Library/Application Support/Google/Chrome/Profile 1`)
+const _homeDir = process.env.HOME || process.env.USERPROFILE || ''
+const CHROME_PROFILE = path.resolve(process.env.CHROME_PROFILE_PATH || path.join(_homeDir, 'Library', 'Application Support', 'Google', 'Chrome', 'Profile 1'))
 const NAVER_BLOG_ID = process.env.NAVER_BLOG_ID || ''
 const NAVER_WRITE_URL = process.env.NAVER_BLOG_WRITE_URL || (
   NAVER_BLOG_ID
@@ -132,6 +133,21 @@ async function main() {
   if (results.tistory?.ok) {
     await fs.copyFile(TISTORY_STORAGE, TISTORY_STORAGE + '.bak').catch(() => {})
   }
+
+  // keepalive 결과 마커 기록 (session-monitor.py가 읽어 health.json에 반영)
+  const statusDir = process.env.SESSION_STATUS_DIR || String.raw`C:\Users\Aaron\Claude\Projects\beokmkt\status`
+  const keepaliveFile = path.join(statusDir, 'keepalive.json')
+  const marker = {
+    ok: results.tistory ? results.tistory.ok : null,
+    ran_at: new Date().toISOString(),
+    tistory: results.tistory || null,
+    naver: results.naver || null,
+  }
+  await fs.mkdir(statusDir, { recursive: true }).catch(() => {})
+  await fs.writeFile(keepaliveFile, JSON.stringify(marker, null, 2)).catch((e) => {
+    log('warn', `keepalive.json 기록 실패(무시): ${e.message}`)
+  })
+  log('info', `keepalive.json 기록: ok=${marker.ok} -> ${keepaliveFile}`)
 
   log('info', '─────────────────────────────────────────')
   process.exit(0)
