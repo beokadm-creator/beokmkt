@@ -430,7 +430,7 @@ function extractFirstSentences(html, max = 3) {
 
 function ensureTistoryLeadSummary(html) {
   if (!html.trim() || hasLeadSummaryText(html)) return html
-  const bullets = extractFirstSentences(html, 3)
+  const bullets = extractFirstSentences(html, 2)
   if (!bullets.length) return html
   const items = bullets
     .map((line) => `<li style="margin:0 0 8px;line-height:1.75;color:${DESIGN_SYSTEM.colors.text};">${escapeHtml(line)}</li>`)
@@ -446,7 +446,7 @@ function ensureTistoryLeadSummary(html) {
 
 function ensureTistoryDecisionChecklist(html) {
   if (!html.trim() || hasDecisionChecklist(html)) return html
-  const headings = extractHeadingTexts(html, 4)
+  const headings = extractHeadingTexts(html, 3)
   if (headings.length < 2) return html
   const items = headings
     .map((heading) => `<li style="margin:0 0 8px;line-height:1.75;color:${DESIGN_SYSTEM.colors.text};"><strong style="color:${DESIGN_SYSTEM.colors.point};font-weight:800;">${escapeHtml(heading)}</strong> 기준을 실제 운영 전에 확인합니다.</li>`)
@@ -463,10 +463,10 @@ function ensureTistoryDecisionChecklist(html) {
 function ensureTistoryServiceProof(html) {
   if (!html.trim() || !isConferenceBadgeContent(html) || hasServiceProof(html)) return html
   const items = [
-    ['데이터 검수', '참가자 이름, 소속, 역할, 등록 구분, 식별 코드를 출력 전 기준 파일로 정리합니다.'],
-    ['출력 기준', '명찰 크기, 줄바꿈, QR·바코드 인식, 여분 수량을 샘플 출력으로 확인합니다.'],
-    ['현장 재발행', '오탈자, 역할 변경, 분실 요청을 승인 기준과 출력 기록으로 나누어 처리합니다.'],
-    ['사후 정리', '미수령자, 현장 등록자, 변경 요청 기록을 행사 종료 후 정산 자료와 맞춥니다.'],
+    ['데이터 검수', '이름·소속·역할·등록 구분을 기준 파일 하나로 고정합니다.'],
+    ['출력 기준', '줄바꿈, QR·바코드, 여분 수량을 샘플 출력으로 확인합니다.'],
+    ['현장 재발행', '승인 기준과 출력 기록을 남겨 중복 처리를 줄입니다.'],
+    ['사후 정리', '미수령·변경 요청을 다음 행사 기준으로 남깁니다.'],
   ]
   const rows = items.map(([title, desc]) => [
     `<li style="margin:0;padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:10px;background:#ffffff;">`,
@@ -477,7 +477,6 @@ function ensureTistoryServiceProof(html) {
   const proof = [
     `<section style="margin:26px 0;padding:18px 20px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:14px;background:${DESIGN_SYSTEM.colors.highlight};">`,
     `<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:${DESIGN_SYSTEM.colors.accent};font-weight:800;">비오케이솔루션 실무 점검 범위</p>`,
-    `<p style="margin:0 0 14px;font-size:15px;line-height:1.8;color:${DESIGN_SYSTEM.colors.text};">명찰 출력은 인쇄물이 아니라 접수 운영의 일부입니다. 데이터부터 현장 재발행까지 같은 기준으로 점검해야 접수대가 멈추지 않습니다.</p>`,
     `<ul style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none;">${rows}</ul>`,
     `</section>`,
   ].join('')
@@ -487,10 +486,10 @@ function ensureTistoryServiceProof(html) {
 function ensureTistoryOperationFlow(html) {
   if (!html.trim() || !isConferenceBadgeContent(html) || hasOperationFlow(html)) return html
   const steps = [
-    ['1', '명단 확정', '참가자 최종 파일, 역할 구분, 등록 상태, QR·바코드 열을 하나의 기준으로 잠급니다.'],
-    ['2', '샘플 출력', '긴 소속명, 줄바꿈, 색상, 절단선, 코드 스캔 결과를 실제 출력물로 확인합니다.'],
-    ['3', '현장 배치', '접수대, 재발행 창구, 여분 명찰, 목걸이 줄, 승인 담당자를 같은 동선 안에 둡니다.'],
-    ['4', '기록 정리', '수정 요청, 재출력 시간, 미수령자, 현장 등록자를 행사 후 정산 자료로 남깁니다.'],
+    ['1', '명단 확정', '최종 파일과 QR·바코드 열을 잠급니다.'],
+    ['2', '샘플 출력', '긴 소속명, 줄바꿈, 코드 스캔을 확인합니다.'],
+    ['3', '현장 배치', '접수대와 재발행 창구 역할을 나눕니다.'],
+    ['4', '기록 정리', '수정·미수령·현장 등록 기록을 남깁니다.'],
   ]
   const items = steps.map(([num, title, desc]) => [
     `<li style="display:flex;gap:12px;margin:0 0 10px;padding:14px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:12px;background:#ffffff;list-style:none;">`,
@@ -514,10 +513,10 @@ function ensureTistoryOperationFlow(html) {
 function ensureTistoryOpsComparison(html) {
   if (!html.trim() || !isConferenceBadgeContent(html) || hasOpsComparison(html)) return html
   const rows = [
-    ['명단 파일', '담당자별 파일이 흩어져 있음', '최종 기준 파일 1개와 수정 로그 유지'],
-    ['출력 검수', '전체 출력 후 오류를 현장에서 발견', '샘플 출력으로 표기·코드·케이스 삽입 확인'],
-    ['재발행', '요청이 오면 바로 재출력', '승인자·수정 사유·출력 시간을 남긴 뒤 처리'],
-    ['행사 후 정리', '미수령·변경 내역이 사라짐', '정산 자료와 다음 행사 기준으로 재사용'],
+    ['명단 파일', '파일 분산', '기준 파일 1개'],
+    ['출력 검수', '현장 오류 발견', '샘플 출력 선확인'],
+    ['재발행', '즉시 재출력', '승인·사유 기록'],
+    ['행사 후', '기록 소실', '정산 자료화'],
   ]
   const body = rows.map(([label, risk, standard]) => (
     `<tr><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${label}</td><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${risk}</td><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${standard}</td></tr>`
@@ -543,8 +542,8 @@ function ensureTistoryCta(html) {
       ? `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">학회 명찰 출력과 현장 재발행 기준이 필요하신가요?</p>`
       : `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">운영 환경 점검이 필요하신가요?</p>`,
     conference
-      ? `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">비오케이솔루션은 참가자 데이터 정리, 명찰 출력, QR·바코드 확인, 현장 재발행 동선을 사무국 운영 흐름에 맞춰 함께 점검합니다. 행사 전 상담 문의로 현재 명단 구조와 출력 기준을 확인해 주세요.</p>`
-      : `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">홈페이지 구축, 보안 설정, 신청폼 연동처럼 실제 운영에 연결되는 작업은 비오케이솔루션에 문의해 현재 상황에 맞는 점검을 받아보실 수 있습니다.</p>`,
+      ? `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">비오케이솔루션은 명단 정리, 명찰 출력, QR·바코드 확인, 현장 재발행 동선을 행사 흐름에 맞춰 점검합니다.</p>`
+      : `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">홈페이지 구축, 보안 설정, 신청폼 연동은 비오케이솔루션에 현재 상황을 문의해 점검할 수 있습니다.</p>`,
     `</section>`,
   ].join('')
   return `${html}\n${cta}`

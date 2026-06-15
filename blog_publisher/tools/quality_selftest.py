@@ -7,6 +7,7 @@ Phase A/B 품질 셀프테스트.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -76,9 +77,11 @@ def _test_phase_a_generation_contract() -> list[str]:
     from llm import prompts
 
     issues: list[str] = []
-    if config.MAX_TOKENS_SECTION < 1500:
-        issues.append(f"phase-a: MAX_TOKENS_SECTION < 1500 ({config.MAX_TOKENS_SECTION})")
-    for token in ["600~1000자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
+    if config.SECTION_TOKEN_CAP > 1200:
+        issues.append(f"phase-a: SECTION_TOKEN_CAP > 1200 ({config.SECTION_TOKEN_CAP})")
+    if config.SECTION_MAX_LEN > 1000:
+        issues.append(f"phase-a: SECTION_MAX_LEN > 1000 ({config.SECTION_MAX_LEN})")
+    for token in ["350~650자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
         if token not in prompts.SECTION_SYSTEM:
             issues.append(f"phase-a: SECTION_SYSTEM 품질 지시 누락: {token}")
 
@@ -149,9 +152,9 @@ def _test_phase_a_generation_contract() -> list[str]:
         if call.get("thinking") is not True:
             issues.append("phase-a: 섹션 thinking=True 미적용")
             break
-        if call.get("max_tokens") != config.MAX_TOKENS_SECTION:
+        if call.get("max_tokens") != generate._section_max_tokens():
             issues.append(
-                f"phase-a: 섹션 max_tokens 불일치({call.get('max_tokens')} != {config.MAX_TOKENS_SECTION})"
+                f"phase-a: 섹션 max_tokens 불일치({call.get('max_tokens')} != {generate._section_max_tokens()})"
             )
             break
     body = result["body"]
@@ -160,6 +163,40 @@ def _test_phase_a_generation_contract() -> list[str]:
     for token in ["###", "- ", "**", "| 항목 | 확인 기준 |"]:
         if token not in body:
             issues.append(f"phase-a: 구조화 출력 누락: {token}")
+    return issues
+
+
+def _test_image_diversity() -> list[str]:
+    from tools.image_bank import inject_images
+
+    body = """## 학술대회 등록 시스템
+
+등록 접수와 참가자 관리 기준을 확인합니다.
+
+## 온라인 결제와 등록비
+
+결제, 수수료, 등록비 정산 흐름을 확인합니다.
+
+## 모바일 명찰과 QR 체크인
+
+명찰, QR, 현장 체크인 기준을 확인합니다.
+
+## 현장 명찰 출력 장비
+
+출력기, 프린터, 재발행 창구를 확인합니다.
+
+## 행사 통합 운영 관리
+
+마스터 컨트롤러와 운영 시스템을 확인합니다.
+"""
+    rendered = inject_images(body, brand_key="hong")
+    urls = re.findall(r"!\[[^\]]*]\(([^)]+)\)", rendered)
+    unique = set(urls)
+    issues: list[str] = []
+    if len(unique) < 5:
+        issues.append(f"image-bank: hong 이미지 다양성 부족(unique={len(unique)}, urls={urls})")
+    if len(urls) != len(unique):
+        issues.append("image-bank: 같은 글 안에서 이미지 URL 중복")
     return issues
 
 
@@ -344,6 +381,7 @@ process.exit(issues.length ? 1 : 0)
 def run() -> bool:
     issues = (
         _test_phase_a_generation_contract()
+        + _test_image_diversity()
         + _test_selfhosted_renderer()
         + _test_tistory_adapter()
         + _test_channel_rewriter_gate()
@@ -355,7 +393,8 @@ def run() -> bool:
             print(f"[FAIL] {issue}")
         print(f"\n결과: FAIL ({len(issues)}건)")
         return False
-    print("[OK] phase-a generation: 600~1000자 프롬프트·1500 토큰·섹션 thinking·한자 재시도/제거 유지")
+    print("[OK] phase-a generation: 350~650자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
+    print("[OK] image bank: 섹션별 이미지 다양성 유지")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")
     print("[OK] channel rewriter: 티스토리 얇은 글/한자/금칙톤/의미위험 차단")

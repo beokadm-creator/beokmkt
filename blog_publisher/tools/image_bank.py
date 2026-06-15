@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-import itertools
+import hashlib
 import re
 
 # ---------------------------------------------------------------------------
@@ -168,12 +168,21 @@ def _score(img: dict, text: str) -> int:
     return sum(1 for kw in img["keywords"] if kw in words or kw in (text or ""))
 
 
-def pick_image(pool: list[dict], context_text: str = "") -> dict:
-    """pool에서 context_text에 가장 어울리는 이미지 반환. 빈 풀이면 {}."""
+def pick_image(pool: list[dict], context_text: str = "", used: set[str] | None = None) -> dict:
+    """pool에서 context_text에 어울리는 이미지를 반환하되, 같은 글 안의 반복을 피한다."""
     if not pool:
         return {}
-    scored = sorted(pool, key=lambda img: _score(img, context_text), reverse=True)
-    return scored[0]
+    used = used or set()
+    candidates = [img for img in pool if img["url"] not in used]
+    if not candidates:
+        return {}
+    scored = sorted(candidates, key=lambda img: (_score(img, context_text), img["url"]), reverse=True)
+    top_score = _score(scored[0], context_text)
+    top = [img for img in scored if _score(img, context_text) == top_score]
+    if len(top) == 1:
+        return top[0]
+    digest = hashlib.sha1((context_text or "").encode("utf-8")).hexdigest()
+    return top[int(digest[:8], 16) % len(top)]
 
 
 def _is_beok_conference_context(context_text: str = "") -> bool:
@@ -209,14 +218,15 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
         inserted = 0
         conference_context = _is_beok_conference_context(body)
         card_pool = _BEOK_CONFERENCE if conference_context else [img for img in _BEOK_BRAND if img["url"].endswith(".svg")]
+        max_images = min(5 if conference_context else 4, len(card_pool))
         for index, blk in enumerate(blocks):
             out.append(blk)
-            if not blk.startswith("## ") or inserted >= 3:
+            if not blk.startswith("## ") or inserted >= max_images:
                 continue
             # h2와 첫 문단이 같은 블록이면 현재 블록만 사용한다.
             # 다음 h2까지 섞으면 다음 섹션 키워드가 현재 이미지 선택을 오염시킨다.
             next_text = "" if "\n" in blk else (blocks[index + 1] if index + 1 < len(blocks) else "")
-            img = pick_image(card_pool, f"{blk} {next_text}")
+            img = pick_image(card_pool, f"{blk} {next_text}", used=used)
             if not img or img["url"] in used or img["url"] in body:
                 continue
             out.append(f"![{img['alt']}]({img['url']})")
@@ -228,27 +238,24 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
                 out.insert(0, f"![{img['alt']}]({img['url']})")
         return "\n\n".join(out)
 
-    solution_cycle = itertools.cycle(_HONG_SOLUTION)
-    conference_cycle = itertools.cycle(_HONG_CONFERENCE)
-
     blocks = body.split("\n\n")
     out: list[str] = []
+    used: set[str] = set()
+    pool = _HONG_SOLUTION + _HONG_CONFERENCE
+    max_images = min(6, len(pool))
 
-    for blk in blocks:
+    for index, blk in enumerate(blocks):
         out.append(blk)
-        if not blk.startswith("## "):
+        if not blk.startswith("## ") or len(used) >= max_images:
             continue
 
-        # 섹션 제목 + 바로 다음 블록 텍스트로 컨텍스트 판단
-        section_text = blk[3:].strip()
-        sol_score = sum(1 for kw in _SOLUTION_KW if kw in section_text)
-        con_score = sum(1 for kw in _CONF_KW if kw in section_text)
-
-        if sol_score >= con_score:
-            img = next(solution_cycle)
-        else:
-            img = next(conference_cycle)
+        next_text = blocks[index + 1] if index + 1 < len(blocks) else ""
+        section_text = f"{blk} {next_text}"
+        img = pick_image(pool, section_text, used=used)
+        if not img or img["url"] in body:
+            continue
 
         out.append(f"![{img['alt']}]({img['url']})")
+        used.add(img["url"])
 
     return "\n\n".join(out)

@@ -29,7 +29,8 @@ MODEL_REVIEW = os.getenv("MODEL_REVIEW", "glm-4.5")     # 검수: 저온, 짧게
 MAX_TOKENS_OUTLINE = int(os.getenv("MAX_TOKENS_OUTLINE", "600"))
 MAX_TOKENS_INTENT = int(os.getenv("MAX_TOKENS_INTENT", "800"))      # 의도/키워드 JSON은 짧고 빠르게
 MAX_TOKENS_OUTLINE_JSON = int(os.getenv("MAX_TOKENS_OUTLINE_JSON", "2200"))  # 개요 JSON 상한
-MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1500"))  # 리치 구조(목록·표·강조) 허용
+MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1000"))  # 짧고 밀도 있는 섹션 생성
+SECTION_TOKEN_CAP = int(os.getenv("SECTION_TOKEN_CAP", "1100"))    # 오래된 .env의 과도한 token 상한 방어
 MAX_TOKENS_SEO    = int(os.getenv("MAX_TOKENS_SEO",     "300"))
 MAX_TOKENS_REVIEW = int(os.getenv("MAX_TOKENS_REVIEW",  "300"))
 
@@ -39,6 +40,7 @@ GENERATE_MAX_ATTEMPTS = int(os.getenv("GENERATE_MAX_ATTEMPTS", "5"))    # 생성
 GENERATE_POST_TIMEOUT_SEC = int(os.getenv("GENERATE_POST_TIMEOUT_SEC", "900"))  # 글 1건 생성 하드 상한
 GENERATE_PROCESS_ISOLATION = os.getenv("GENERATE_PROCESS_ISOLATION", "true").lower() == "true"
 SECTION_MIN_LEN       = int(os.getenv("SECTION_MIN_LEN",       "100"))  # 섹션 최소 글자
+SECTION_MAX_LEN       = int(os.getenv("SECTION_MAX_LEN",       "900"))  # 섹션 최대 글자(문단 단위 압축)
 STUCK_THRESHOLD_MIN   = int(os.getenv("STUCK_THRESHOLD_MIN",   "35"))   # stuck 판단 기준(분)
 
 # 번역(기획 11)

@@ -172,6 +172,10 @@ def _channel_rules(engine: str) -> str:
     return "- 리치 HTML 보존 채널이다. 필요하면 이미지, 표, 목록, 인용을 자연스럽게 활용한다."
 
 
+def _section_max_tokens() -> int:
+    return min(config.MAX_TOKENS_SECTION, config.SECTION_TOKEN_CAP)
+
+
 def _markdown_table_to_list(block: str) -> str:
     lines = [line.strip() for line in block.splitlines() if line.strip()]
     rows = [line.strip("|").split("|") for line in lines if "|" in line]
@@ -208,6 +212,34 @@ def _sanitize_naver_body(body: str) -> str:
     text = "\n\n".join(out)
     text = _re.sub(r"\n{3,}", "\n\n", text).strip()
     return text
+
+
+def _compact_section_body(body: str) -> str:
+    """모델이 과하게 길게 쓴 섹션을 문단 단위로 줄인다."""
+    max_len = int(getattr(config, "SECTION_MAX_LEN", 0) or 0)
+    text = (body or "").strip()
+    if max_len <= 0 or len(text) <= max_len:
+        return text
+
+    blocks = [block.strip() for block in _re.split(r"\n{2,}", text) if block.strip()]
+    kept: list[str] = []
+    total = 0
+    has_list = False
+    has_table = False
+    for block in blocks:
+        block_len = len(block) + (2 if kept else 0)
+        block_has_list = bool(_re.search(r"(^|\n)\s*(?:[-*]\s+|\d+\.\s+)", block))
+        block_has_table = "|" in block and "\n" in block
+        must_keep = not kept or (block_has_list and not has_list) or (block_has_table and not has_table)
+        if not must_keep and total + block_len > max_len:
+            break
+        kept.append(block)
+        total += block_len
+        has_list = has_list or block_has_list
+        has_table = has_table or block_has_table
+        if total >= max_len * 0.85 and has_list:
+            break
+    return "\n\n".join(kept).strip() or text[:max_len].rstrip()
 
 
 def _log_stage(topic: str, stage: str) -> None:
@@ -370,7 +402,7 @@ def compose_article(
                     evidence=_evidence_for_section(evidence, sec["h2"], sec["point"]),
                 ),
                 model=config.MODEL_SECTION,
-                max_tokens=config.MAX_TOKENS_SECTION,
+                max_tokens=_section_max_tokens(),
                 thinking=True,   # 깊이·구조 향상(품질 우선). 통과율/비용 보며 조정.
             )
             too_short = len(body.strip()) < config.SECTION_MIN_LEN
@@ -381,7 +413,7 @@ def compose_article(
             reason = "너무 짧음" if too_short else f"한자 {_count_hanzi(body)}자 혼입"
             print(f"[generate] 섹션 '{sec['h2']}' {reason}({len(body)}자), 재시도", flush=True)
         # 최종 시도에도 한자가 남으면 제거(최후의 안전망)
-        body = _strip_hanzi(body)
+        body = _compact_section_body(_strip_hanzi(body))
         parts.append(f"## {sec['h2']}\n\n{body}")
     body_text = "\n\n".join(parts)
     body_text = _ensure_summary_table(body_text, outline, allow_table=engine != "naver")
@@ -432,7 +464,7 @@ def _generate_one(llm: LLMClient, post: dict) -> None:
 
 
 SECTION_MIN = 2   # 하한(이하면 실패)
-SECTION_MAX = 8   # 상한(초과분은 잘라서 보정)
+SECTION_MAX = 5   # 상한(초과분은 잘라서 보정)
 
 
 def _validate_outline(outline: dict) -> dict:

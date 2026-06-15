@@ -163,10 +163,10 @@ def _service_proof_html(post: dict) -> str:
     if not any(token in topic for token in ("학회", "명찰", "사무국", "참가자", "접수")):
         return ""
     items = [
-        ("데이터 검수", "참가자 이름, 소속, 역할, 등록 구분, 식별 코드를 출력 전 기준 파일로 정리합니다."),
-        ("출력 기준", "명찰 크기, 줄바꿈, QR·바코드 인식, 여분 수량을 샘플 출력으로 확인합니다."),
-        ("현장 재발행", "오탈자, 역할 변경, 분실 요청을 승인 기준과 출력 기록으로 나누어 처리합니다."),
-        ("사후 정리", "미수령자, 현장 등록자, 변경 요청 기록을 행사 종료 후 정산 자료와 맞춥니다."),
+        ("데이터 검수", "이름·소속·역할·등록 구분을 기준 파일 하나로 고정합니다."),
+        ("출력 기준", "줄바꿈, QR·바코드, 여분 수량을 샘플 출력으로 확인합니다."),
+        ("현장 재발행", "승인 기준과 출력 기록을 남겨 중복 처리를 줄입니다."),
+        ("사후 정리", "미수령·변경 요청을 다음 행사 기준으로 남깁니다."),
     ]
     item_html = "".join(
         '<li>'
@@ -178,7 +178,6 @@ def _service_proof_html(post: dict) -> str:
     return (
         '<section class="service-proof" aria-label="비오케이솔루션 실무 점검 범위">'
         '<div class="proof-kicker">비오케이솔루션 실무 점검 범위</div>'
-        '<p>명찰 출력은 인쇄물이 아니라 접수 운영의 일부입니다. 사무국이 놓치기 쉬운 기준을 데이터부터 현장 재발행까지 한 흐름으로 점검합니다.</p>'
         f'<ul>{item_html}</ul>'
         '</section>'
     )
@@ -193,10 +192,10 @@ def _operation_flow_html(post: dict) -> str:
     if not _conference_badge_context(post):
         return ""
     steps = [
-        ("1", "명단 확정", "참가자 최종 파일, 역할 구분, 등록 상태, QR·바코드 열을 하나의 기준으로 잠급니다."),
-        ("2", "샘플 출력", "긴 소속명, 줄바꿈, 색상, 절단선, 코드 스캔 결과를 실제 출력물로 확인합니다."),
-        ("3", "현장 배치", "접수대, 재발행 창구, 여분 명찰, 목걸이 줄, 승인 담당자를 같은 동선 안에 둡니다."),
-        ("4", "기록 정리", "수정 요청, 재출력 시간, 미수령자, 현장 등록자를 행사 후 정산 자료로 남깁니다."),
+        ("1", "명단 확정", "최종 파일과 QR·바코드 열을 잠급니다."),
+        ("2", "샘플 출력", "긴 소속명, 줄바꿈, 코드 스캔을 확인합니다."),
+        ("3", "현장 배치", "접수대와 재발행 창구 역할을 나눕니다."),
+        ("4", "기록 정리", "수정·미수령·현장 등록 기록을 남깁니다."),
     ]
     items = "".join(
         '<li>'
@@ -221,10 +220,10 @@ def _ops_comparison_html(post: dict) -> str:
     if not _conference_badge_context(post):
         return ""
     rows = [
-        ("명단 파일", "담당자별 파일이 흩어져 있음", "최종 기준 파일 1개와 수정 로그 유지"),
-        ("출력 검수", "전체 출력 후 오류를 현장에서 발견", "샘플 출력으로 표기·코드·케이스 삽입 확인"),
-        ("재발행", "요청이 오면 바로 재출력", "승인자·수정 사유·출력 시간을 남긴 뒤 처리"),
-        ("행사 후 정리", "미수령·변경 내역이 사라짐", "정산 자료와 다음 행사 기준으로 재사용"),
+        ("명단 파일", "파일 분산", "기준 파일 1개"),
+        ("출력 검수", "현장 오류 발견", "샘플 출력 선확인"),
+        ("재발행", "즉시 재출력", "승인·사유 기록"),
+        ("행사 후", "기록 소실", "정산 자료화"),
     ]
     body = "".join(
         '<tr>'
@@ -267,7 +266,7 @@ def _tags(post: dict) -> list[str]:
 
 def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str:
     desc = (post.get("meta_desc") or "").strip()
-    bullets = [title for _hid, title in toc[:3]]
+    bullets = [title for _hid, title in toc[:2]]
     if not desc and not bullets:
         return ""
     bullet_html = "".join(f"<li>{html.escape(item)}</li>" for item in bullets)
@@ -276,9 +275,9 @@ def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str
     list_html = f"<ul>{bullet_html}</ul>" if bullet_html else ""
     topic = f"{post.get('topic', '')} {post.get('title', '')}"
     if any(token in topic for token in ("학회", "명찰", "사무국")):
-        decision = "명단 기준, 출력 검수, 현장 재발행 기준을 순서대로 확인하세요."
+        decision = "명단 기준과 현장 재발행 기준을 먼저 확인하세요."
     elif any(token in topic for token in ("홈페이지", "신청폼", "SSL", "보안")):
-        decision = "운영 목적, 보안 설정, 신청/문의 흐름을 먼저 대조하세요."
+        decision = "운영 목적과 신청/문의 흐름을 먼저 대조하세요."
     else:
         decision = "본문의 기준과 체크리스트를 실제 운영 상황에 맞춰 확인하세요."
     return (
@@ -301,7 +300,7 @@ def _cta_html(post: dict) -> str:
         return (
             '<aside class="soft-cta">'
             '<strong>학회 명찰 출력과 현장 재발행 기준이 필요하다면</strong>'
-            '<p>비오케이솔루션은 참가자 명단 정리, QR·바코드 확인, 출력 운영, 현장 재발행 동선을 사무국 흐름에 맞춰 정리합니다.</p>'
+            '<p>명단 정리, QR·바코드 확인, 출력·재발행 동선을 행사 흐름에 맞춰 점검합니다.</p>'
             '<a href="https://beoksolution.com" target="_blank" rel="noopener">상담 문의하기</a>'
             '</aside>'
         )
@@ -317,7 +316,7 @@ def _cta_html(post: dict) -> str:
         return (
             '<aside class="soft-cta">'
             '<strong>운영 업무를 실제 시스템과 연결해야 한다면</strong>'
-            '<p>비오케이솔루션은 예약·결제, 알림톡, 관리자, AI 자동화까지 업무 흐름에 맞춰 설계합니다.</p>'
+            '<p>예약·결제, 알림톡, 관리자, AI 자동화를 업무 흐름에 맞춰 설계합니다.</p>'
             '<a href="https://beoksolution.com" target="_blank" rel="noopener">상담 문의하기</a>'
             '</aside>'
         )
