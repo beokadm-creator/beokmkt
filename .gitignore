@@ -70,3 +70,6 @@ blog_publisher/db/publish.lock
 blog_publisher/db/.fuse_hidden*
 blog_publisher/db/backups/
 **/*.tmp
+
+bin/
+logs/
