@@ -60,11 +60,11 @@ Register-StartupWorker
 Register-SessionMonitor
 Register-DailyKeepalive "Keepalive AM" "10:00"
 Register-DailyKeepalive "Keepalive PM" "22:00"
-Register-MinuteTask "Stock Seed" "stock-seed" 360
+Register-MinuteTask "Stock Seed" "stock-seed" 60
 Register-MinuteTask "Generate" "generate" 30
 Register-MinuteTask "Factcheck" "factcheck" 15
 Register-MinuteTask "Review" "review" 30
-Register-MinuteTask "Schedule" "schedule" 30
+Register-MinuteTask "Schedule" "schedule" 15
 Register-MinuteTask "Publish" "publish" 5
 Register-MinuteTask "Recover" "recover" 30
 Register-MinuteTask "Sync Snapshot" "sync-snapshot" 30

@@ -69,6 +69,7 @@ blog_publisher/db/generate.lock
 blog_publisher/db/publish.lock
 blog_publisher/db/.fuse_hidden*
 blog_publisher/db/backups/
+blog_publisher/reports/
 **/*.tmp
 
 bin/

@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-16 — 품질 조정 이전 글 리셋 및 자체 블로그 연속 운영 보강
+
+짧고 이미지가 다양한 본문 규칙이 들어가기 전에 생성/발행된 글을 운영 DB에서 제거하고, 같은 주제를 새 규칙으로 다시 생성할 수 있게 일회성 리셋 명령을 추가했다. 자체 블로그는 외부 계정 리스크가 낮으므로 재고 보충과 스케줄 주기를 더 촘촘히 조정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `reset_pre_quality_posts.py`, `run.py` | `reset_pre_quality --apply` 명령 추가. cutoff 이전 selfhosted/tistory 활성 글을 archived 처리하고, 자체 블로그 공개 글은 API로 soft delete 후 같은 주제를 새 draft로 재등록 |
+| `reset_pre_quality_posts.py` | 티스토리는 현재 삭제 어댑터가 없으므로 이미 발행된 URL을 report에 수동 삭제 목록으로 남김 |
+| `ops/windows/run-task.ps1` | Windows 운영 PC에서 `reset-pre-quality` 태스크로 리셋 명령 실행 가능. selfhosted stock target 15→40 |
+| `ops/windows/install-windows-tasks.ps1` | Stock Seed 6시간→1시간, Schedule 30분→15분으로 조정 |
+| `.gitignore` | `blog_publisher/reports/` 런타임 리포트 제외 |
+
+검증:
+- `python3 -m compileall -q blog_publisher`, `python3 run.py reset_pre_quality` dry-run PASS
+- `python3 run.py quality_selftest` PASS
+- macOS 환경에 PowerShell이 없어 ps1 파싱은 미실행. Windows 운영 PC에서 pull 후 기존 설치 스크립트로 태스크 재등록 필요
+
+---
+
 ## 2026-06-15 — Tavily 비용 의존 제거 및 공식 출처 기반 생성
 
 Tavily는 무료 한도가 있어도 초과 시 비용이 발생하는 외부 검색 API이므로 기본 생성 조건에서 제거했다. 신규 원고는 기본적으로 `beoksolution.com`, `hongcomm.kr` 공식 사이트를 근거 출처로 사용하고, Tavily는 설정했을 때만 선택 보조 검색으로 사용한다.

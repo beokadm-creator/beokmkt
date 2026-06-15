@@ -10,6 +10,7 @@ param(
     "recover",
     "backup",
     "verify-public",
+    "reset-pre-quality",
     "sync-snapshot",
     "quality-selftest",
     "image-audit",
@@ -47,7 +48,7 @@ if (!$NoPull) {
 }
 
 $argsByTask = @{
-  "stock-seed"       = @("run.py", "stock_seed", "selfhosted", "15")
+  "stock-seed"       = @("run.py", "stock_seed", "selfhosted", "40")
   "generate"         = @("run.py", "generate")
   "factcheck"        = @("run.py", "factcheck")
   "review"           = @("run.py", "review")
@@ -56,6 +57,7 @@ $argsByTask = @{
   "recover"          = @("run.py", "recover")
   "backup"           = @("run.py", "backup")
   "verify-public"    = @("run.py", "verify_public", "20")
+  "reset-pre-quality" = @("run.py", "reset_pre_quality", "--apply")
   "sync-snapshot"    = @("run.py", "sync_snapshot")
   "quality-selftest" = @("run.py", "quality_selftest")
   "image-audit"      = @("run.py", "image_audit")
