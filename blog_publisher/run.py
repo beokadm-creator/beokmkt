@@ -40,6 +40,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+
 from db import db
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
