@@ -304,6 +304,53 @@ def _test_selfhosted_renderer() -> list[str]:
     return issues
 
 
+def _test_renderer_security_and_normalization() -> list[str]:
+    from render.renderer import render_body
+    from tools.og_card import build_og_svg
+
+    body = """## 결론 요약![홍커뮤니케이션 등록 시스템](https://hongcomm.kr/img/page/a1.png)
+
+위험 링크는 [누르면 안 됨](javascript:alert(1))으로 들어와도 텍스트만 남아야 합니다.
+
+![위험 이미지](javascript:alert(2))
+
+## 안전한 참고
+
+[공식 사이트](https://hongcomm.kr/) 링크는 유지되어야 합니다.
+"""
+    html = render_body({
+        "title": "보안 렌더 테스트",
+        "body": body,
+        "meta_desc": "렌더러 보안 테스트",
+        "category": "hong",
+        "topic": "학술대회 등록 시스템",
+        "source_url": "javascript:alert(3)",
+        "hero_image": "javascript:alert(4)",
+    })
+    issues: list[str] = []
+    if "javascript:" in html:
+        issues.append("renderer-security: 위험 URL 스킴 노출")
+    if "![" in html:
+        issues.append("renderer-normalize: 마크다운 이미지 원문 노출")
+    if any("<img" in h2 for h2 in re.findall(r"<h2\b[^>]*>.*?</h2>", html, flags=re.I | re.DOTALL)):
+        issues.append("renderer-normalize: 이미지가 h2 내부에 남음")
+    if "<figure>" not in html or "홍커뮤니케이션 등록 시스템" not in html:
+        issues.append("renderer-normalize: 안전 이미지 figure/caption 승격 실패")
+    if 'href="https://hongcomm.kr/"' not in html:
+        issues.append("renderer-security: 안전 링크 제거됨")
+    if "참고 출처:" in html:
+        issues.append("renderer-security: 위험 source_url footer 노출")
+
+    svg = build_og_svg({
+        "title": '학회 <script>alert("x")</script> 명찰',
+        "category": "hong",
+        "tags": ['태그"><script>'],
+    })
+    if "<script>" in svg or '태그"><script>' in svg:
+        issues.append("og-card: SVG 텍스트 escape 실패")
+    return issues
+
+
 def _test_tistory_adapter() -> list[str]:
     script = f"""
 import {{ convertForTistory, validateTistoryHtml }} from './tistory-html-adapter.mjs'
@@ -449,6 +496,7 @@ def run() -> bool:
         + _test_image_diversity()
         + _test_publish_quality_gate()
         + _test_selfhosted_renderer()
+        + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
         + _test_channel_rewriter_gate()
         + _test_tistory_rewrite_required_gate()
@@ -463,6 +511,7 @@ def run() -> bool:
     print("[OK] image bank: 섹션별 이미지 다양성 유지")
     print("[OK] publish gate: 길이/이미지/구조/반복 이미지 차단 유지")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
+    print("[OK] renderer security: URL 스킴 세척·제목 이미지 분리·OG SVG escape 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")
     print("[OK] channel rewriter: 티스토리 얇은 글/한자/금칙톤/의미위험 차단")
     print("[OK] channel rewriter: 티스토리 재작성 실패 시 원문 발행 차단")

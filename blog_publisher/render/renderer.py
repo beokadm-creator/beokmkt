@@ -12,31 +12,110 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 _DIR = Path(__file__).parent
 _TEMPLATE = (_DIR / "template.html").read_text(encoding="utf-8")
 _CSS = (_DIR / "style.css").read_text(encoding="utf-8")
 
 
+def _clean_heading_text(text: str) -> str:
+    """제목/목차 표시·슬러그용: 마크다운 이미지·링크·강조 문법을 평문으로 정리."""
+    text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)        # 이미지 제거
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)     # 링크는 텍스트만 남김
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)            # 굵게 해제
+    text = re.sub(r"`([^`]+)`", r"\1", text)                 # 인라인 코드 해제
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def _slug(text: str) -> str:
-    s = re.sub(r"[^\w가-힣\s-]", "", text).strip().lower()
+    s = re.sub(r"[^\w가-힣\s-]", "", _clean_heading_text(text)).strip().lower()
     return re.sub(r"\s+", "-", s)[:60] or "section"
+
+
+def _is_safe_url(url: str, *, image: bool = False) -> bool:
+    """렌더링 URL allowlist. LLM/근거 데이터가 만든 javascript: 링크 주입을 차단한다."""
+    value = (url or "").strip()
+    if not value:
+        return False
+    parsed = urlparse(value)
+    if value.startswith("#"):
+        return not image
+    if value.startswith("/"):
+        return not value.startswith("//")
+    if image:
+        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    return parsed.scheme in {"http", "https", "mailto"} or not parsed.scheme
+
+
+def _safe_attr_url(url: str, *, image: bool = False) -> str:
+    value = (url or "").strip()
+    return value if _is_safe_url(value, image=image) else ""
+
+
+def _normalize_block_images(md: str) -> str:
+    """제목 줄에 붙어버린 이미지(`## 제목![alt](url)`)를 별도 블록으로 분리한다.
+
+    마크다운 변환기가 이미지를 <h2> 안에 넣거나 목차에 원문이 노출되는 결함을 차단한다.
+    """
+    def _split(m: "re.Match[str]") -> str:
+        hashes, text = m.group(1), m.group(2)
+        imgs = re.findall(r"!\[[^\]]*\]\([^)]+\)", text)
+        clean = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text).rstrip()
+        tail = ("\n\n" + "\n\n".join(imgs)) if imgs else ""
+        return f"{hashes} {clean}{tail}"
+
+    return re.sub(r"(?m)^(#{1,6})[ \t]+(.+?)[ \t]*$", _split, md)
 
 
 def _inline(text: str) -> str:
     """인라인 마크다운: 링크/이미지/굵게/코드. 입력은 평문(이스케이프 후 패턴 복원)."""
     text = html.escape(text)
-    text = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)",
-                  r'<img src="\2" alt="\1" loading="lazy">', text)
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
+
+    def _image(m: "re.Match[str]") -> str:
+        alt, url = m.group(1), _safe_attr_url(html.unescape(m.group(2)), image=True)
+        if not url:
+            return ""
+        return f'<img src="{html.escape(url)}" alt="{alt}" loading="lazy">'
+
+    def _link(m: "re.Match[str]") -> str:
+        label, url = m.group(1), _safe_attr_url(html.unescape(m.group(2)))
+        if not url:
+            return label
+        return f'<a href="{html.escape(url)}" rel="noopener">{label}</a>'
+
+    text = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _image, text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", _link, text)
     text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
     text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
     return text
 
 
+def _sanitize_rendered_urls(body: str) -> str:
+    """markdown 패키지가 만든 HTML도 URL 스킴을 한 번 더 세척한다."""
+    def _img(m: "re.Match[str]") -> str:
+        attrs = m.group(1)
+        src_m = re.search(r'\bsrc=["\']([^"\']+)["\']', attrs, flags=re.I)
+        if not src_m or not _is_safe_url(html.unescape(src_m.group(1)), image=True):
+            return ""
+        return m.group(0)
+
+    def _anchor(m: "re.Match[str]") -> str:
+        attrs, inner = m.group(1), m.group(2)
+        href_m = re.search(r'\bhref=["\']([^"\']+)["\']', attrs, flags=re.I)
+        if not href_m or not _is_safe_url(html.unescape(href_m.group(1))):
+            return inner
+        safe_href = html.escape(_safe_attr_url(html.unescape(href_m.group(1))))
+        return f'<a href="{safe_href}" rel="noopener">{inner}</a>'
+
+    body = re.sub(r"<img\b([^>]*)>", _img, body, flags=re.I)
+    body = re.sub(r"<a\b([^>]*)>(.*?)</a>", _anchor, body, flags=re.I | re.DOTALL)
+    return body
+
+
 def _postprocess_content_html(body: str) -> str:
     """마크다운 변환 결과를 자체 블로그 디자인 컴포넌트에 맞게 보강한다."""
-    out = body
+    out = _sanitize_rendered_urls(body)
     out = re.sub(r"<table>", '<div class="table-wrap"><table>', out)
     out = re.sub(r"</table>", "</table></div>", out)
     out = re.sub(
@@ -56,23 +135,59 @@ def _postprocess_content_html(body: str) -> str:
         flags=re.DOTALL,
     )
     out = re.sub(r"<ul>\s*(<li class=\"check-item[\s\S]*?</li>)\s*</ul>", r'<ul class="check-list">\1</ul>', out)
+
+    # 단독 이미지(<p><img></p>)를 캡션 있는 <figure>로 승격 — 가독성/시각 위계 강화
+    def _to_figure(m: "re.Match[str]") -> str:
+        attrs = m.group(1)
+        alt_m = re.search(r'alt="([^"]*)"', attrs)
+        cap = (
+            f"<figcaption>{alt_m.group(1)}</figcaption>"
+            if alt_m and alt_m.group(1).strip()
+            else ""
+        )
+        return f"<figure><img{attrs}>{cap}</figure>"
+
+    out = re.sub(r"<p>\s*<img([^>]*?)\s*/?>\s*</p>", _to_figure, out)
+
+    # 콜아웃 변형: 머리말 키워드로 info/tip/warn 구분 — 평평한 회색 박스 탈피
+    def _callout_variant(m: "re.Match[str]") -> str:
+        inner = m.group(1)
+        plain = re.sub(r"<[^>]+>", "", inner).lstrip()
+        cls = "content-callout"
+        if re.match(r"(주의|경고|위험|유의|반드시|금지|⚠)", plain):
+            cls += " is-warn"
+        elif re.match(r"(팁|참고|확인|체크|권장|추천|\U0001f4a1|✅)", plain):
+            cls += " is-tip"
+        return f'<aside class="{cls}">{inner}</aside>'
+
+    out = re.sub(
+        r'<aside class="content-callout">(.*?)</aside>',
+        _callout_variant,
+        out,
+        flags=re.DOTALL,
+    )
     return out
 
 
 def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
     """경량 변환. (html, toc[(id,title)]) 반환. H2만 목차에 넣는다."""
+    md = _normalize_block_images(md)
     try:
         import markdown as _md  # 있으면 고품질 변환
 
         headings: list[tuple[str, str]] = []
         for m in re.finditer(r"^##\s+(.+)$", md, flags=re.MULTILINE):
-            headings.append((_slug(m.group(1)), m.group(1).strip()))
+            clean = _clean_heading_text(m.group(1))
+            headings.append((_slug(clean), clean))
         body = _md.markdown(md, extensions=["tables", "fenced_code"])
-        # H2에 id 부여
-        for hid, htext in headings:
-            body = body.replace(f"<h2>{html.escape(htext)}</h2>",
-                                f'<h2 id="{hid}">{html.escape(htext)}</h2>', 1)
-            body = body.replace(f"<h2>{htext}</h2>", f'<h2 id="{hid}">{htext}</h2>', 1)
+        # H2에 등장 순서대로 id 부여(내부 태그·강조가 있어도 안전)
+        _ids = iter(hid for hid, _ in headings)
+
+        def _assign_id(m: "re.Match[str]") -> str:
+            hid = next(_ids, None)
+            return f'<h2 id="{hid}">{m.group(1)}</h2>' if hid else m.group(0)
+
+        body = re.sub(r"<h2>(.*?)</h2>", _assign_id, body, flags=re.DOTALL)
         return _postprocess_content_html(body), headings
     except ImportError:
         pass
@@ -125,7 +240,7 @@ def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
         flush_table()
         if s.startswith("## "):
             flush_para(); close_list()
-            t = s[3:].strip(); hid = _slug(t); toc.append((hid, t))
+            t = _clean_heading_text(s[3:].strip()); hid = _slug(t); toc.append((hid, t))
             out.append(f'<h2 id="{hid}">{_inline(t)}</h2>')
         elif s.startswith("### "):
             flush_para(); close_list()
@@ -324,12 +439,25 @@ def _cta_html(post: dict) -> str:
 
 
 def _source_footer_html(post: dict) -> str:
-    if not post.get("source_url"):
+    source_url = _safe_attr_url(str(post.get("source_url") or ""))
+    if not source_url:
         return ""
-    u = html.escape(post["source_url"])
+    u = html.escape(source_url)
     return (
         f'<footer class="src">참고 출처: '
         f'<a href="{u}" rel="nofollow noopener" target="_blank">{u}</a></footer>'
+    )
+
+
+def _hero_html(post: dict) -> str:
+    """글마다 고유한 대표 이미지(og_image/hero_image)를 본문 상단 히어로로 노출."""
+    src = _safe_attr_url(str(post.get("hero_image") or post.get("og_image") or ""), image=True)
+    if not src:
+        return ""
+    alt = html.escape(post.get("title", ""))
+    return (
+        f'<div class="post-hero">'
+        f'<img src="{html.escape(src)}" alt="{alt}" loading="eager"></div>'
     )
 
 
@@ -339,6 +467,7 @@ def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]
         f'<a href="/tag/{html.escape(t)}">#{html.escape(t)}</a>' for t in tags
     )
     return (
+        f'{_hero_html(post)}\n'
         f'{_summary_card(post, toc, source_md)}\n'
         f'{_service_proof_html(post)}\n'
         f'{_operation_flow_html(post)}\n'

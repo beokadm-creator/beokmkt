@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-16 — 자체 블로그 렌더 디자인 보강 및 URL 보안 세척
+
+첨부 진단에서 확인된 자체 블로그 렌더링 결함을 적용하고, LLM/근거 데이터가 만든 마크다운 링크·이미지가 위험 URL을 HTML로 내보내지 못하도록 보안 세척을 추가했다. OG/히어로 SVG 생성기는 추가했지만, 정적 파일 배포 경로가 확정되지 않아 자동 발행 연동은 보류했다.
+
+| 대상 | 내용 |
+|---|---|
+| `render/renderer.py` | 제목 줄에 붙은 이미지 분리, 목차/요약의 마크다운 원문 제거, 단독 이미지 `figure/figcaption` 승격, hero 이미지 지원, callout 변형 추가 |
+| `render/renderer.py` | `javascript:` 등 위험 URL 스킴 차단. 링크는 `http/https/mailto/#/상대경로`, 이미지는 `http/https/사이트 상대경로`만 허용 |
+| `render/style.css` | 번호 칩 H2, 리드 문단, 표/그림/요약/목차/CTA/콜아웃 디자인 보강, 모바일·다크모드 유지 |
+| `tools/og_card.py` | 제목·카테고리 기반 고유 SVG OG 카드 생성 모듈 추가. 자동 발행 연동은 호스팅 경로 확정 후 적용 |
+| `quality_selftest.py` | 제목 이미지 분리, 마크다운 원문 미노출, 위험 URL 제거, OG SVG escape 회귀 테스트 추가 |
+| `planning/13-디자인품질-보강-제안.md` | 원인 진단, 적용 패치, 남은 OG 연동/채널 차별화 로드맵 기록 |
+
+검증:
+- `python3 -m compileall -q blog_publisher`, `python3 run.py quality_selftest`, `python3 run.py selftest`, `node --check` PASS
+
+---
+
 ## 2026-06-16 — 발행 전 compact/readable 품질 게이트 강화
 
 생성 규칙만으로는 긴 글, 이미지 부족 글, 같은 이미지를 반복한 글이 발행 단계까지 도달할 수 있어 publish 직전 차단 기준을 강화했다. 목표는 자체 블로그/티스토리에 나가는 글을 짧고 읽기 쉬운 HTML 구조로 유지하는 것이다.
