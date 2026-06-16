@@ -31,7 +31,11 @@ Set-Location $RepoRoot
 
 if (!$NoPull) {
   Write-Log "git pull --ff-only"
+  $prevEAP = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
   git pull --ff-only 2>&1 | Tee-Object -FilePath $logPath -Append
+  $ErrorActionPreference = $prevEAP
+  if ($LASTEXITCODE -ne 0) { throw "git pull failed (exit=$LASTEXITCODE)" }
 }
 
 Set-Location $WorkerDir
