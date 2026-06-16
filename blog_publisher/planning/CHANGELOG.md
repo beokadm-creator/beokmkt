@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-06-16 — review 탈락 draft 재생성 루프 복구
+
+공개 대시보드와 로컬 DB 모두 `draft=17`, `reviewed=0`, `queued=0` 상태로 확인되어 발행이 멈춘 원인을 점검했다. 일부 글이 review 탈락 후 본문을 유지한 채 draft에 남아 같은 글을 반복 검수하는 문제가 있어 실제 재생성 대상으로 돌아가도록 수정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `db.py` | `mark_review_failed()`가 본문을 비우고 `grounding_ratio`를 초기화하도록 변경. 검수 탈락 글이 다음 generate 대상이 되게 함 |
+| `db.py` | `save_article()`이 재생성 저장 시 이전 `grounding_ratio/review_issues`를 초기화하도록 변경 |
+
+검증:
+- 공개 API 기준 최신 발행은 2026-06-14 이후 정지 상태, pipeline stats는 `draft=17`, `reviewed=0`, `queued=0`
+- `python3 -m compileall -q blog_publisher`, `python3 run.py selftest`, `python3 run.py quality_selftest` PASS
+
+---
+
 ## 2026-06-16 — 자체 블로그 렌더 디자인 보강 및 URL 보안 세척
 
 첨부 진단에서 확인된 자체 블로그 렌더링 결함을 적용하고, LLM/근거 데이터가 만든 마크다운 링크·이미지가 위험 URL을 HTML로 내보내지 못하도록 보안 세척을 추가했다. OG/히어로 SVG 생성기는 추가했지만, 정적 파일 배포 경로가 확정되지 않아 자동 발행 연동은 보류했다.

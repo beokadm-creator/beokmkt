@@ -218,7 +218,8 @@ def save_article(post_id: int, title: str, meta_desc: str, body: str) -> None:
     with connect() as conn:
         conn.execute(
             "UPDATE posts SET title = ?, meta_desc = ?, body = ?, status = 'draft', "
-            "attempts = 0, next_run_at = ?, last_error = NULL, updated_at = ? WHERE id = ?",
+            "attempts = 0, grounding_ratio = NULL, review_issues = NULL, "
+            "next_run_at = ?, last_error = NULL, updated_at = ? WHERE id = ?",
             (title, meta_desc, body, now, now, post_id),
         )
 
@@ -252,7 +253,8 @@ def mark_review_failed(post_id: int, issues: list[str]) -> None:
     """검수 탈락 -> draft로 되돌려 재생성 대상이 되게 한다."""
     with connect() as conn:
         conn.execute(
-            "UPDATE posts SET status = 'draft', review_issues = ?, updated_at = ? "
+            "UPDATE posts SET status = 'draft', body = '', grounding_ratio = NULL, "
+            "review_issues = ?, updated_at = ? "
             "WHERE id = ?",
             (json.dumps(issues, ensure_ascii=False), _iso(_utcnow()), post_id),
         )
