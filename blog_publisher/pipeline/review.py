@@ -47,13 +47,55 @@ def evaluate(llm: LLMClient, title: str, body: str) -> dict:
     )
 
 
-def llm_gate(llm: LLMClient, title: str, body: str) -> list[str]:
+def _score(data: dict) -> int:
+    try:
+        return int(float(data.get("score", 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _issues(data: dict) -> list[str]:
+    raw = data.get("issues", [])
+    if isinstance(raw, str):
+        return [raw]
+    if not isinstance(raw, list):
+        return []
+    return [str(issue).strip() for issue in raw if str(issue).strip()]
+
+
+def _issue_key(issue: str) -> str:
+    return issue.split(":", 1)[0].strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def review_blockers(data: dict) -> list[str]:
+    """
+    LLM 평가는 hard gate가 아니라 2차 안전망이다.
+
+    규칙 게이트/발행 게이트가 이미 길이, 구조, 이미지, 중복, 서비스 축을 차단하므로
+    LLM의 generic/repetitive 같은 주관적 개선 의견만으로는 재고를 모두 폐기하지 않는다.
+    다만 매우 낮은 점수와 사실성·주제이탈·부자연한 한국어 같은 치명 이슈는 계속 차단한다.
+    """
     if config.MIN_REVIEW_SCORE <= 0:
         return []   # 검수 점수 임계 0 = LLM 게이트 비활성
-    data = evaluate(llm, title, body)
-    if data.get("score", 0) < config.MIN_REVIEW_SCORE:
-        return data.get("issues", ["low_score"])
+    if not isinstance(data, dict):
+        return ["invalid_review_response"]
+
+    score = _score(data)
+    issues = _issues(data)
+    if score < config.REVIEW_HARD_FAIL_SCORE:
+        blockers = [f"low_score:{score}"]
+        blockers.extend(issue for issue in issues if issue not in blockers)
+        return blockers
+
+    critical = {_issue_key(issue) for issue in getattr(config, "REVIEW_CRITICAL_ISSUES", [])}
+    blockers = [issue for issue in issues if _issue_key(issue) in critical]
+    if blockers:
+        return blockers
     return []
+
+
+def llm_gate(llm: LLMClient, title: str, body: str) -> list[str]:
+    return review_blockers(evaluate(llm, title, body))
 
 
 def run_once(batch: int = 5) -> tuple[int, int]:
@@ -72,8 +114,9 @@ def run_once(batch: int = 5) -> tuple[int, int]:
             try:
                 issues = llm_gate(llm, post["title"], post["body"])
             except Exception as e:  # noqa: BLE001
-                # 검수기 자체 오류는 보류(draft 복귀) — 발행으로 새지 않게
-                db.mark_review_failed(post["id"], [f"reviewer_error:{e}"])
+                # 검수기 자체 오류는 본문을 폐기하지 않고 보류한다.
+                # LLM/API 일시 오류가 양호한 글을 재생성 루프로 밀어 넣으면 재고가 0%로 고갈된다.
+                db.defer_review(post["id"], [f"reviewer_error:{e}"])
                 continue
 
         if issues:

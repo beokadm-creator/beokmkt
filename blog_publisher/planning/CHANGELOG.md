@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-17 — review 0% 탈락 루프 완화
+
+리뷰 재고가 0%로 떨어지는 원인을 분리한 결과, 로컬 draft 샘플은 규칙 게이트를 통과했지만 LLM 리뷰의 `generic`/`repetitive` 같은 주관 평가가 hard fail로 처리될 수 있었다. 규칙 게이트와 발행 게이트가 이미 길이·구조·이미지·중복·서비스 축을 차단하므로, LLM 리뷰는 치명 신호 중심의 2차 안전망으로 조정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `pipeline/review.py` | `review_blockers()` 추가. 60점 미만 또는 critical issue만 hard fail, 주관 개선 이슈는 advisory 처리 |
+| `config.py` | `REVIEW_HARD_FAIL_SCORE`, `REVIEW_CRITICAL_ISSUES` 추가. 오래된 `.env`의 섹션 토큰 상한은 1500으로 강제 클램프 |
+| `db.py` | 리뷰어/API 오류 시 본문과 grounding을 지우지 않고 draft로 보류하는 `defer_review()` 추가 |
+| `prompts.py` | 리뷰 프롬프트를 80점 목표선/60점 hard fail선 정책과 일치하도록 수정 |
+| `measure_passrate.py` | 실제 리뷰 판정 함수(`review_blockers`)를 재사용해 측정값과 운영 동작 불일치 제거 |
+| `quality_selftest.py` | 주관 이슈 통과, 저점수/주제이탈 차단, 유효 섹션 토큰 상한 회귀테스트 추가 |
+| `planning/02-검수게이트-모델운영-정책.md` | LLM 리뷰 hard fail 기준과 오류 보류 정책 갱신 |
+
+검증:
+- `python3 -m compileall -q blog_publisher`, `python3 blog_publisher/run.py quality_selftest`, `python3 blog_publisher/run.py selftest` PASS
+
+---
+
 ## 2026-06-17 — stale pipeline snapshot 표시 보정
 
 공개 `/api/pipeline/stats`가 15분 이상 오래된 로컬 SQLite 스냅샷을 현재 상태처럼 우선 표시해 자동 글쓰기가 정상인지 판단하기 어려웠다. 스냅샷이 stale이면 실시간 Firestore 집계로 fallback하고 운영 이슈를 명시하도록 Firebase Functions 응답을 보정했다.

@@ -273,11 +273,15 @@ REVIEW_SYSTEM = """\
 다음 JSON만 출력:
 {"score": 0~100, "issues": ["문제 키워드", ...], "verdict": "pass"|"fail"}
 issues 예시: factual_doubt, generic, repetitive, off_topic, unnatural_ko, thin_for_intent
-score 80 미만이면 verdict는 fail.
-추가 실패 기준:
-- 학회·학술대회·MICE·홈페이지·시스템·관리자·명찰·등록 주제인데 일반론만 있고 운영 장면이나 구축 판단 기준이 없으면 generic.
+score 기준:
+- 80 이상: 통과권.
+- 60~79: 개선 권고권. factual_doubt/off_topic/unnatural_ko/banned_words/unsafe가 없으면 verdict는 pass로 둔다.
+- 60 미만: 발행 불가권. verdict는 fail.
+issues 판단:
+- 학회·학술대회·MICE·홈페이지·시스템·관리자·명찰·등록 주제인데 일반론만 있고 운영 장면이나 구축 판단 기준이 약하면 generic.
 - 홍커뮤니케이션/MICE 맥락과 비오케이솔루션 개발 솔루션 맥락을 연결해야 하는 주제에서 한쪽만 얕게 언급하면 thin_for_intent.
 - 같은 결론, 같은 CTA, 같은 문장을 반복해 다른 글과 구별되지 않으면 repetitive.
+- 사실 의심, 주제 이탈, 부자연한 한국어, 금칙어/위험 표현은 각각 factual_doubt, off_topic, unnatural_ko, banned_words 또는 unsafe로 표시하고 verdict를 fail로 둔다.
 """
 
 REVIEW_USER = """\

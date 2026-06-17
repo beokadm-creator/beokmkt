@@ -83,9 +83,10 @@ def main() -> None:
         data = review.evaluate(llm, title, body)
         score = int(data.get("score", 0))
         scores.append(score)
-        if data.get("verdict") == "fail" or score < config.MIN_REVIEW_SCORE:
+        blockers = review.review_blockers(data)
+        if blockers:
             llm_fail += 1
-            print(f"[{i}/{n}] 품질탈락 score={score} {data.get('issues')}: {title}")
+            print(f"[{i}/{n}] 품질탈락 score={score} {blockers}: {title}")
         else:
             passed += 1
             print(f"[{i}/{n}] 통과 score={score} ground={ratio:.2f}: {title}")

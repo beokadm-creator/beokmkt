@@ -260,6 +260,16 @@ def mark_review_failed(post_id: int, issues: list[str]) -> None:
         )
 
 
+def defer_review(post_id: int, issues: list[str]) -> None:
+    """검수기 장애/응답 오류는 본문을 보존한 채 draft로 되돌려 재시도하게 한다."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE posts SET status = 'draft', review_issues = ?, updated_at = ? "
+            "WHERE id = ?",
+            (json.dumps(issues, ensure_ascii=False), _iso(_utcnow()), post_id),
+        )
+
+
 def enqueue(post_id: int, idem_key: str, run_at: datetime | None = None) -> None:
     """검수 통과분을 발행 큐에 넣는다. run_at으로 예약/분산 발행."""
     run_at = run_at or _utcnow()

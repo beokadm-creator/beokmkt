@@ -30,7 +30,7 @@ MAX_TOKENS_OUTLINE = int(os.getenv("MAX_TOKENS_OUTLINE", "600"))
 MAX_TOKENS_INTENT = int(os.getenv("MAX_TOKENS_INTENT", "800"))      # 의도/키워드 JSON은 짧고 빠르게
 MAX_TOKENS_OUTLINE_JSON = int(os.getenv("MAX_TOKENS_OUTLINE_JSON", "2200"))  # 개요 JSON 상한
 MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1500"))  # thinking=True 시 thinking+출력 합산 예산(1000은 thinking만 소진돼 빈 응답 반복)
-SECTION_TOKEN_CAP = int(os.getenv("SECTION_TOKEN_CAP", "1600"))    # 오래된 .env의 과도한 token 상한 방어
+SECTION_TOKEN_CAP = min(int(os.getenv("SECTION_TOKEN_CAP", "1500")), 1500)  # 오래된 .env의 과도한 token 상한 방어
 MAX_TOKENS_SEO    = int(os.getenv("MAX_TOKENS_SEO",     "300"))
 MAX_TOKENS_REVIEW = int(os.getenv("MAX_TOKENS_REVIEW",  "300"))
 
@@ -147,6 +147,15 @@ MIN_BODY_LEN = int(os.getenv("MIN_BODY_LEN", "800"))    # 가시 본문 최소 �
 MAX_DUP_RATIO = float(os.getenv("MAX_DUP_RATIO", "0.18"))
 MIN_HEADINGS = int(os.getenv("MIN_HEADINGS", "3"))
 MIN_REVIEW_SCORE = int(os.getenv("MIN_REVIEW_SCORE", "80"))
+REVIEW_HARD_FAIL_SCORE = int(os.getenv("REVIEW_HARD_FAIL_SCORE", "60"))
+REVIEW_CRITICAL_ISSUES = [
+    issue.strip()
+    for issue in os.getenv(
+        "REVIEW_CRITICAL_ISSUES",
+        "factual_doubt,off_topic,unnatural_ko,banned_words,unsafe,hallucination,privacy_risk",
+    ).split(",")
+    if issue.strip()
+]
 BANNED_WORDS = [w for w in os.getenv("BANNED_WORDS", "").split(",") if w]
 
 # ---- 발행 스케줄 ----

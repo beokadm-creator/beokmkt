@@ -77,8 +77,8 @@ def _test_phase_a_generation_contract() -> list[str]:
     from llm import prompts
 
     issues: list[str] = []
-    if config.SECTION_TOKEN_CAP > 1200:
-        issues.append(f"phase-a: SECTION_TOKEN_CAP > 1200 ({config.SECTION_TOKEN_CAP})")
+    if generate._section_max_tokens() > 1500:
+        issues.append(f"phase-a: 섹션 유효 토큰 상한 > 1500 ({generate._section_max_tokens()})")
     if config.SECTION_MAX_LEN > 1000:
         issues.append(f"phase-a: SECTION_MAX_LEN > 1000 ({config.SECTION_MAX_LEN})")
     for token in ["350~650자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
@@ -263,6 +263,57 @@ def _test_publish_quality_gate() -> list[str]:
             if not any(fragment in blocker for blocker in blockers):
                 issues.append(f"publish-gate: {name} 기대 차단 누락({fragment}): {blockers}")
     return issues
+
+
+def _test_review_llm_advisory_gate() -> list[str]:
+    """LLM 검수는 주관적 개선 의견만으로 운영 재고를 0%로 만들면 안 된다."""
+    import config
+    from pipeline import review
+
+    class MockReviewLLM:
+        def __init__(self, response: str):
+            self.response = response
+
+        def chat(self, system: str, user: str, **kw) -> str:
+            return self.response
+
+    original_min_score = config.MIN_REVIEW_SCORE
+    try:
+        config.MIN_REVIEW_SCORE = 80
+        cases = [
+            (
+                "subjective-soft-fail",
+                '{"score":72,"issues":["generic","repetitive"],"verdict":"fail"}',
+                [],
+            ),
+            (
+                "very-low-score",
+                '{"score":40,"issues":["generic"],"verdict":"fail"}',
+                ["low_score"],
+            ),
+            (
+                "critical-issue",
+                '{"score":72,"issues":["off_topic"],"verdict":"fail"}',
+                ["off_topic"],
+            ),
+            (
+                "normal-pass",
+                '{"score":84,"issues":[],"verdict":"pass"}',
+                [],
+            ),
+        ]
+        issues: list[str] = []
+        for name, response, expected_fragments in cases:
+            blockers = review.llm_gate(MockReviewLLM(response), "학회 등록 시스템", SAMPLE_MD)
+            if not expected_fragments and blockers:
+                issues.append(f"review-gate: {name} 주관 이슈를 hard fail 처리함: {blockers}")
+                continue
+            for fragment in expected_fragments:
+                if not any(fragment in blocker for blocker in blockers):
+                    issues.append(f"review-gate: {name} 기대 차단 누락({fragment}): {blockers}")
+        return issues
+    finally:
+        config.MIN_REVIEW_SCORE = original_min_score
 
 
 def _test_selfhosted_renderer() -> list[str]:
@@ -495,6 +546,7 @@ def run() -> bool:
         _test_phase_a_generation_contract()
         + _test_image_diversity()
         + _test_publish_quality_gate()
+        + _test_review_llm_advisory_gate()
         + _test_selfhosted_renderer()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
@@ -510,6 +562,7 @@ def run() -> bool:
     print("[OK] phase-a generation: 350~650자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
     print("[OK] image bank: 섹션별 이미지 다양성 유지")
     print("[OK] publish gate: 길이/이미지/구조/반복 이미지 차단 유지")
+    print("[OK] review gate: 주관적 LLM 이슈는 advisory, 치명 이슈/저점수는 차단")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
     print("[OK] renderer security: URL 스킴 세척·제목 이미지 분리·OG SVG escape 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")
