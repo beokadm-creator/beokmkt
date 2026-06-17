@@ -26,6 +26,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $PublisherDir = Join-Path $RepoRoot "blog_publisher"
+$GitUpdate = Join-Path $RepoRoot "blog_publisher\ops\windows\git-update.ps1"
 $LogDir = Join-Path $RepoRoot "logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
@@ -43,16 +44,8 @@ if (!(Test-Path $PublisherDir)) {
 Set-Location $RepoRoot
 
 if (!$NoPull) {
-  Write-Log "git fetch origin main; git merge --ff-only origin/main"
-  $prevEAP = $ErrorActionPreference
-  $ErrorActionPreference = "Continue"
-  # FETCH_HEAD에 의존하는 'git pull'은 여러 스케줄 작업이 동시에 돌면
-  # FETCH_HEAD를 경합해 "Cannot fast-forward to multiple branches"로 깨진다.
-  # 원격추적 ref(origin/main)는 단일 커밋이라 fetch+merge가 동시성에 안전하다.
-  git fetch origin main 2>&1 | Tee-Object -FilePath $logPath -Append
-  git merge --ff-only origin/main 2>&1 | Tee-Object -FilePath $logPath -Append
-  $ErrorActionPreference = $prevEAP
-  if ($LASTEXITCODE -ne 0) { throw "git update failed (exit=$LASTEXITCODE)" }
+  . $GitUpdate
+  Invoke-BlogGitUpdate -RepoRoot $RepoRoot -LogPath $logPath
 }
 
 $argsByTask = @{

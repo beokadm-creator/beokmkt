@@ -9,6 +9,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $WorkerDir = Join-Path $RepoRoot "executors\naver-blog-worker"
+$GitUpdate = Join-Path $RepoRoot "blog_publisher\ops\windows\git-update.ps1"
 $LogDir = Join-Path $RepoRoot "logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $logPath = Join-Path $LogDir "blog-keepalive.log"
@@ -30,14 +31,8 @@ if ($MaxJitterSeconds -gt 0) {
 Set-Location $RepoRoot
 
 if (!$NoPull) {
-  Write-Log "git fetch origin main; git merge --ff-only origin/main"
-  $prevEAP = $ErrorActionPreference
-  $ErrorActionPreference = "Continue"
-  # 동시 실행 시 FETCH_HEAD 경합을 피하려고 원격추적 ref로 merge한다.
-  git fetch origin main 2>&1 | Tee-Object -FilePath $logPath -Append
-  git merge --ff-only origin/main 2>&1 | Tee-Object -FilePath $logPath -Append
-  $ErrorActionPreference = $prevEAP
-  if ($LASTEXITCODE -ne 0) { throw "git update failed (exit=$LASTEXITCODE)" }
+  . $GitUpdate
+  Invoke-BlogGitUpdate -RepoRoot $RepoRoot -LogPath $logPath
 }
 
 Set-Location $WorkerDir

@@ -63,11 +63,12 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 - 매일 10:00, 22:00 `BEOK Blog Keepalive AM/PM`: 티스토리/네이버 세션 갱신 확인
 - 5분마다 `publish`
 - 15분마다 `factcheck`
-- 30분마다 `generate/review/schedule/recover/sync_snapshot`
-- 6시간마다 `stock_seed selfhosted 15`
+- 30분마다 `generate/review/recover/sync_snapshot`
+- 15분마다 `schedule`
+- 60분마다 `stock_seed selfhosted 40`
 - 매일 `backup/verify_public/quality_selftest/image_audit`
 
-각 작업은 실행 전에 `git pull --ff-only`를 수행한다. 운영 PC에 로컬 코드 수정이 있으면 pull이 실패하므로, 운영 PC에서는 코드를 수정하지 않는다.
+각 작업은 실행 전에 `git fetch origin main` + `git merge --ff-only origin/main`을 시도한다. 여러 예약 작업이 동시에 떠도 `.git/beok-update.lock`으로 Git 업데이트를 직렬화하며, GitHub 일시 장애나 잠금 경합이 있어도 현재 checkout으로 본 작업은 계속 실행한다. 운영 PC에 로컬 코드 수정이 있으면 merge가 실패하므로, 운영 PC에서는 코드를 수정하지 않는다.
 
 ## 4. 즉시 점검
 

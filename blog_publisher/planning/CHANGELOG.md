@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-17 — Windows 태스크 git update 경합 방지
+
+공개 `/api/pipeline/stats`가 `LOCAL_SNAPSHOT_STALE`을 표시했고, 마지막 로컬 SQLite 스냅샷이 `2026-06-15T05:59:20Z` 이후 갱신되지 않았다. Windows 작업 스케줄러의 여러 태스크가 같은 시각에 `git fetch/merge`를 동시에 실행하면 `.git/index.lock` 경합으로 본 작업(`generate/review/publish/sync_snapshot`)까지 실행되지 않을 수 있어, Git 업데이트를 잠금으로 직렬화하고 업데이트 실패가 본 작업 실패로 전파되지 않게 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `ops/windows/git-update.ps1` | 공용 Git 업데이트 함수 추가. `.git/beok-update.lock`으로 fetch/merge 직렬화, stale lock 정리, 실패 시 경고 후 현재 checkout으로 계속 실행 |
+| `ops/windows/run-task.ps1` | 모든 예약 태스크가 공용 Git 업데이트 함수를 사용하도록 변경 |
+| `ops/windows/run-worker.ps1` | 워커 시작 전 Git 업데이트도 동일 잠금 정책 적용 |
+| `ops/windows/run-keepalive.ps1` | keepalive 실행 전 Git 업데이트도 동일 잠금 정책 적용 |
+
+검증:
+- `git diff --check` PASS
+- PowerShell 런타임은 이 Mac에 없어 Windows에서 `run-task.ps1 -Task status`로 최종 확인 필요
+
+---
+
 ## 2026-06-17 — review 0% 탈락 루프 완화
 
 리뷰 재고가 0%로 떨어지는 원인을 분리한 결과, 로컬 draft 샘플은 규칙 게이트를 통과했지만 LLM 리뷰의 `generic`/`repetitive` 같은 주관 평가가 hard fail로 처리될 수 있었다. 규칙 게이트와 발행 게이트가 이미 길이·구조·이미지·중복·서비스 축을 차단하므로, LLM 리뷰는 치명 신호 중심의 2차 안전망으로 조정했다.
