@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-06-17 — stale pipeline snapshot 표시 보정
+
+공개 `/api/pipeline/stats`가 15분 이상 오래된 로컬 SQLite 스냅샷을 현재 상태처럼 우선 표시해 자동 글쓰기가 정상인지 판단하기 어려웠다. 스냅샷이 stale이면 실시간 Firestore 집계로 fallback하고 운영 이슈를 명시하도록 Firebase Functions 응답을 보정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `functions/index.mjs` | `snapshotStale`일 때 local snapshot의 `by_status`, `recent`, `published_today` 등을 사용하지 않고 live 집계로 fallback |
+| `functions/index.mjs` | `ops.issue=LOCAL_SNAPSHOT_STALE` 및 Windows 태스크/log 확인 액션 추가 |
+
+검증:
+- `node --check functions/index.mjs` PASS
+
+---
+
 ## 2026-06-16 — review 탈락 draft 재생성 루프 복구
 
 공개 대시보드와 로컬 DB 모두 `draft=17`, `reviewed=0`, `queued=0` 상태로 확인되어 발행이 멈춘 원인을 점검했다. 일부 글이 review 탈락 후 본문을 유지한 채 draft에 남아 같은 글을 반복 검수하는 문제가 있어 실제 재생성 대상으로 돌아가도록 수정했다.

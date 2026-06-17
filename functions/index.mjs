@@ -2462,6 +2462,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
     ? Math.max(0, Math.round((Date.now() - snapshotDate.getTime()) / 1000))
     : null
   const snapshotStale = snapshotAgeSec == null || snapshotAgeSec > 15 * 60
+  const useLocalSnapshot = Boolean(localSnapshot && !snapshotStale)
   const snapshotOps = localSnapshot?.ops && typeof localSnapshot.ops === 'object'
     ? {
         ...localSnapshot.ops,
@@ -2472,30 +2473,42 @@ app.get('/api/pipeline/stats', async (req, res) => {
         snapshot_stale: snapshotStale,
       }
     : null
-  const responseByStatus = localSnapshot?.by_status && typeof localSnapshot.by_status === 'object'
+  const staleSnapshotOps = snapshotStale ? {
+    snapshot_source: localSnapshot ? 'cloud_firestore_fallback_stale_local_sqlite' : 'cloud_firestore_no_local_snapshot',
+    snapshot_generated_at: snapshotGeneratedAt,
+    snapshot_synced_at: snapshotSyncedAt,
+    snapshot_age_sec: snapshotAgeSec,
+    snapshot_stale: true,
+    issue: 'LOCAL_SNAPSHOT_STALE',
+    action: 'Windows 운영 PC에서 BEOK Blog Sync Snapshot/Generate/Review/Schedule/Publish 태스크와 C:\\beokmkt\\logs\\blog-*.log를 확인하세요.',
+  } : {}
+  const responseOps = useLocalSnapshot && snapshotOps
+    ? snapshotOps
+    : { ...ops, ...staleSnapshotOps }
+  const responseByStatus = useLocalSnapshot && localSnapshot?.by_status && typeof localSnapshot.by_status === 'object'
     ? localSnapshot.by_status
     : by_status
-  const responseByChannel = localSnapshot?.by_channel && typeof localSnapshot.by_channel === 'object'
+  const responseByChannel = useLocalSnapshot && localSnapshot?.by_channel && typeof localSnapshot.by_channel === 'object'
     ? localSnapshot.by_channel
     : by_channel
-  const responseQuality = localSnapshot?.quality && typeof localSnapshot.quality === 'object'
+  const responseQuality = useLocalSnapshot && localSnapshot?.quality && typeof localSnapshot.quality === 'object'
     ? localSnapshot.quality
     : quality
-  const responseQualityItems = Array.isArray(localSnapshot?.quality_items) ? localSnapshot.quality_items : quality_items
-  const responseRecent = Array.isArray(localSnapshot?.recent) ? localSnapshot.recent : recent
-  const responseNeedsHuman = Array.isArray(localSnapshot?.needs_human_posts) ? localSnapshot.needs_human_posts : needs_human_posts
-  const responsePublicQuality = localSnapshot?.public_quality && typeof localSnapshot.public_quality === 'object'
+  const responseQualityItems = useLocalSnapshot && Array.isArray(localSnapshot?.quality_items) ? localSnapshot.quality_items : quality_items
+  const responseRecent = useLocalSnapshot && Array.isArray(localSnapshot?.recent) ? localSnapshot.recent : recent
+  const responseNeedsHuman = useLocalSnapshot && Array.isArray(localSnapshot?.needs_human_posts) ? localSnapshot.needs_human_posts : needs_human_posts
+  const responsePublicQuality = useLocalSnapshot && localSnapshot?.public_quality && typeof localSnapshot.public_quality === 'object'
     ? localSnapshot.public_quality
     : public_quality
 
   ok(res, {
     by_status: responseByStatus,
     by_channel: responseByChannel,
-    published_today: Number.isFinite(Number(localSnapshot?.published_today)) ? Number(localSnapshot.published_today) : published_today,
-    published_this_week: Number.isFinite(Number(localSnapshot?.published_this_week)) ? Number(localSnapshot.published_this_week) : published_this_week,
+    published_today: useLocalSnapshot && Number.isFinite(Number(localSnapshot?.published_today)) ? Number(localSnapshot.published_today) : published_today,
+    published_this_week: useLocalSnapshot && Number.isFinite(Number(localSnapshot?.published_this_week)) ? Number(localSnapshot.published_this_week) : published_this_week,
     quality: responseQuality,
     quality_items: responseQualityItems,
-    ops: snapshotOps ?? ops,
+    ops: responseOps,
     public_quality: responsePublicQuality,
     needs_human_posts: responseNeedsHuman,
     local_snapshot: localSnapshot ? {
