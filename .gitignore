@@ -27,6 +27,11 @@ functions/node_modules
 firebase-debug.log*
 .runtimeconfig.json
 
+# 서비스계정 키 등 로컬 시크릿 (절대 커밋 금지)
+.secrets/
+*serviceaccount*.json
+*firebase-adminsdk*.json
+
 # misc
 .DS_Store
 *.pem

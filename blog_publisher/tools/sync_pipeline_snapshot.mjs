@@ -3,8 +3,8 @@ import path from 'path'
 import os from 'os'
 import { fileURLToPath } from 'url'
 import Database from 'better-sqlite3'
-import { readFileSync, statSync } from 'fs'
-import { initializeApp } from 'firebase-admin/app'
+import { existsSync, readFileSync, statSync } from 'fs'
+import { initializeApp, cert, applicationDefault } from 'firebase-admin/app'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -736,13 +736,50 @@ async function collectSnapshot() {
   }
 }
 
-initializeApp({ projectId: FIREBASE_PROJECT_ID })
+// 자격증명 우선순위: 명시적 서비스계정 키(.secrets/firebase-admin.json 또는
+// GOOGLE_APPLICATION_CREDENTIALS) → ADC. 키가 전혀 없으면 친절한 안내 후 종료.
+const SECRET_KEY_PATH = path.resolve(__dirname, '../.secrets/firebase-admin.json')
+const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || (existsSync(SECRET_KEY_PATH) ? SECRET_KEY_PATH : '')
+
+try {
+  if (credPath && existsSync(credPath)) {
+    const sa = JSON.parse(readFileSync(credPath, 'utf-8'))
+    initializeApp({ projectId: sa.project_id || FIREBASE_PROJECT_ID, credential: cert(sa) })
+  } else {
+    initializeApp({ projectId: FIREBASE_PROJECT_ID, credential: applicationDefault() })
+  }
+} catch (err) {
+  // 예상된 skip(자격증명 없음)은 stdout으로 출력해야 PowerShell이 NativeCommandError로
+  // 처리하지 않는다. 실제 예외만 stderr/throw로 남긴다.
+  console.log(
+    '[sync_snapshot] Firebase 자격증명을 찾지 못해 스냅샷 동기화를 건너뜁니다.\n' +
+    '  해결: Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성 후\n' +
+    `        ${SECRET_KEY_PATH} 에 저장하세요(이 경로는 .gitignore 처리됨).\n` +
+    `  원인: ${err?.message || err}`
+  )
+  process.exit(3)
+}
 const firestore = getFirestore()
 const snapshot = await collectSnapshot()
-await firestore.collection('pipeline_snapshots').doc('local').set({
-  ...snapshot,
-  synced_at: FieldValue.serverTimestamp(),
-}, { merge: true })
+try {
+  await firestore.collection('pipeline_snapshots').doc('local').set({
+    ...snapshot,
+    synced_at: FieldValue.serverTimestamp(),
+  }, { merge: true })
+} catch (err) {
+  const msg = String(err?.message || err)
+  if (/credential|default credentials|UNAUTHENTICATED|PERMISSION_DENIED|getApplicationDefault/i.test(msg)) {
+    // 예상된 skip은 stdout으로(아래 throw만 실제 실패로 stderr 처리).
+    console.log(
+      '[sync_snapshot] Firebase 자격증명이 없어 스냅샷을 Firestore에 쓰지 못했습니다.\n' +
+      '  해결: Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성 후\n' +
+      `        ${SECRET_KEY_PATH} 에 저장하세요(.gitignore 처리됨).\n` +
+      `  원인: ${msg}`
+    )
+    process.exit(3)
+  }
+  throw err
+}
 
 console.log(JSON.stringify({
   ok: true,

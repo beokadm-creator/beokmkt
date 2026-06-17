@@ -191,7 +191,12 @@ def main() -> None:
     elif cmd == "sync_snapshot":
         script = ROOT_DIR / "blog_publisher" / "tools" / "sync_pipeline_snapshot.mjs"
         _node = os.environ.get("NODE_EXE") or shutil.which("node") or str(ROOT_DIR / "bin" / "node.cmd")
-        subprocess.run([_node, str(script)], cwd=ROOT_DIR, check=True)
+        result = subprocess.run([_node, str(script)], cwd=ROOT_DIR)
+        if result.returncode == 3:
+            # Firebase 자격증명 미설정: 스냅샷 동기화만 건너뛰고 워커는 정상 종료.
+            print("sync_snapshot 건너뜀: Firebase 자격증명 미설정(.secrets/firebase-admin.json)")
+        elif result.returncode != 0:
+            raise SystemExit(result.returncode)
 
     elif cmd == "archive_local":
         from tools import archive_local_posts

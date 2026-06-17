@@ -65,6 +65,16 @@ $argsByTask = @{
   "status"           = @("run.py", "status")
 }
 
+# Firebase 서비스계정 키가 있으면 ADC 경로로 연결(sync-snapshot의 Firestore 쓰기용).
+# 키는 .secrets/firebase-admin.json (gitignore됨)에 두면 자동 인식된다.
+if (-not $env:GOOGLE_APPLICATION_CREDENTIALS) {
+  $saKey = Join-Path $PublisherDir ".secrets\firebase-admin.json"
+  if (Test-Path $saKey) {
+    $env:GOOGLE_APPLICATION_CREDENTIALS = $saKey
+    Write-Log "GOOGLE_APPLICATION_CREDENTIALS=$saKey"
+  }
+}
+
 Set-Location $PublisherDir
 Write-Log "$Python $($argsByTask[$Task] -join ' ')"
 & $Python @($argsByTask[$Task]) 2>&1 | Tee-Object -FilePath $logPath -Append
