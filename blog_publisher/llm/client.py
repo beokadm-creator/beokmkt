@@ -41,11 +41,13 @@ class LLMClient:
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]
-        # GLM thinking 토글: 모델/엔드포인트에 따라 파라미터명이 다를 수 있어 extra_body로 전달.
-        extra_body = {"thinking": {"type": "enabled" if thinking else "disabled"}}
-
         last_err: Exception | None = None
         for attempt in range(retries):
+            # thinking ON일 때 GLM이 reasoning 토큰을 max_tokens까지 다 써버려
+            # 본문이 빈 응답으로 오는 경우가 있다. 한 번이라도 빈 응답이 났으면
+            # 이후 시도는 thinking을 끄고 호출해 본문을 보장한다(과소비 폴백).
+            use_thinking = thinking and attempt == 0
+            extra_body = {"thinking": {"type": "enabled" if use_thinking else "disabled"}}
             try:
                 resp = self.client.chat.completions.create(
                     model=model,
