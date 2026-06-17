@@ -30,12 +30,14 @@ if ($MaxJitterSeconds -gt 0) {
 Set-Location $RepoRoot
 
 if (!$NoPull) {
-  Write-Log "git pull --ff-only origin main"
+  Write-Log "git fetch origin main; git merge --ff-only origin/main"
   $prevEAP = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  git pull --ff-only origin main 2>&1 | Tee-Object -FilePath $logPath -Append
+  # 동시 실행 시 FETCH_HEAD 경합을 피하려고 원격추적 ref로 merge한다.
+  git fetch origin main 2>&1 | Tee-Object -FilePath $logPath -Append
+  git merge --ff-only origin/main 2>&1 | Tee-Object -FilePath $logPath -Append
   $ErrorActionPreference = $prevEAP
-  if ($LASTEXITCODE -ne 0) { throw "git pull failed (exit=$LASTEXITCODE)" }
+  if ($LASTEXITCODE -ne 0) { throw "git update failed (exit=$LASTEXITCODE)" }
 }
 
 Set-Location $WorkerDir

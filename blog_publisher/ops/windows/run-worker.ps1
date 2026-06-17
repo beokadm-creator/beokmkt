@@ -18,12 +18,14 @@ if (!(Test-Path $WorkerDir)) {
 Set-Location $RepoRoot
 
 if (!$NoPull) {
-  "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] git pull --ff-only origin main" | Tee-Object -FilePath $logPath -Append
+  "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] git fetch origin main; git merge --ff-only origin/main" | Tee-Object -FilePath $logPath -Append
   $prevEAP = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  git pull --ff-only origin main 2>&1 | Tee-Object -FilePath $logPath -Append
+  # 동시 실행 시 FETCH_HEAD 경합을 피하려고 원격추적 ref로 merge한다.
+  git fetch origin main 2>&1 | Tee-Object -FilePath $logPath -Append
+  git merge --ff-only origin/main 2>&1 | Tee-Object -FilePath $logPath -Append
   $ErrorActionPreference = $prevEAP
-  if ($LASTEXITCODE -ne 0) { throw "git pull failed (exit=$LASTEXITCODE)" }
+  if ($LASTEXITCODE -ne 0) { throw "git update failed (exit=$LASTEXITCODE)" }
 }
 
 Set-Location $WorkerDir
