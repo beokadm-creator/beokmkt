@@ -43,10 +43,10 @@ if (!(Test-Path $PublisherDir)) {
 Set-Location $RepoRoot
 
 if (!$NoPull) {
-  Write-Log "git pull --ff-only"
+  Write-Log "git pull --ff-only origin main"
   $prevEAP = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  git pull --ff-only 2>&1 | Tee-Object -FilePath $logPath -Append
+  git pull --ff-only origin main 2>&1 | Tee-Object -FilePath $logPath -Append
   $ErrorActionPreference = $prevEAP
   if ($LASTEXITCODE -ne 0) { throw "git pull failed (exit=$LASTEXITCODE)" }
 }
