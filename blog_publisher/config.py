@@ -29,8 +29,8 @@ MODEL_REVIEW = os.getenv("MODEL_REVIEW", "glm-4.5")     # 검수: 저온, 짧게
 MAX_TOKENS_OUTLINE = int(os.getenv("MAX_TOKENS_OUTLINE", "600"))
 MAX_TOKENS_INTENT = int(os.getenv("MAX_TOKENS_INTENT", "800"))      # 의도/키워드 JSON은 짧고 빠르게
 MAX_TOKENS_OUTLINE_JSON = int(os.getenv("MAX_TOKENS_OUTLINE_JSON", "2200"))  # 개요 JSON 상한
-MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1000"))  # 짧고 밀도 있는 섹션 생성
-SECTION_TOKEN_CAP = int(os.getenv("SECTION_TOKEN_CAP", "1100"))    # 오래된 .env의 과도한 token 상한 방어
+MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1500"))  # thinking=True 시 thinking+출력 합산 예산(1000은 thinking만 소진돼 빈 응답 반복)
+SECTION_TOKEN_CAP = int(os.getenv("SECTION_TOKEN_CAP", "1600"))    # 오래된 .env의 과도한 token 상한 방어
 MAX_TOKENS_SEO    = int(os.getenv("MAX_TOKENS_SEO",     "300"))
 MAX_TOKENS_REVIEW = int(os.getenv("MAX_TOKENS_REVIEW",  "300"))
 

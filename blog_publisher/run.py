@@ -36,6 +36,8 @@ cron 예시(독립 실행)
 """
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -188,7 +190,8 @@ def main() -> None:
 
     elif cmd == "sync_snapshot":
         script = ROOT_DIR / "blog_publisher" / "tools" / "sync_pipeline_snapshot.mjs"
-        subprocess.run(["node", str(script)], cwd=ROOT_DIR, check=True)
+        _node = os.environ.get("NODE_EXE") or shutil.which("node") or str(ROOT_DIR / "bin" / "node.cmd")
+        subprocess.run([_node, str(script)], cwd=ROOT_DIR, check=True)
 
     elif cmd == "archive_local":
         from tools import archive_local_posts
