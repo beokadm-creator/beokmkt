@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-18 — Firebase 기반 Windows 운영 제어 큐 추가
+
+운영자가 Windows PC에 직접 명령어를 복붙해야 하는 구조를 없애기 위해 Firebase Functions가 Firestore 명령 큐를 만들고, Windows 운영 PC가 outbound 방식으로 명령을 가져가 실행하는 control plane을 추가했다. Windows PC 인바운드 포트는 열지 않으며, Function은 `BLOG_API_KEY`/Firebase admin auth로 보호되고 Windows는 허용된 작업 whitelist만 실행한다.
+
+| 대상 | 내용 |
+|---|---|
+| `functions/index.mjs` | `/api/pipeline/commands` 생성/조회, `/claim`, `/:id/complete` 추가. `status-refresh`, `drain-once`, `reset-draft-backlog-and-drain` runbook 지원 |
+| `functions/index.mjs` | `/api/pipeline/stats`의 `ops.control`에 최근 명령, pending/running 수 노출 |
+| `ops/windows/run-control.ps1` | Firebase 명령 claim → whitelisted `run-task.ps1` 실행 → complete 보고 |
+| `ops/windows/run-task.ps1` | 일반 예약 작업 시작 시 control queue도 확인. 재귀 방지를 위해 `-SkipControl` 추가 |
+| `ops/windows/install-windows-tasks.ps1` | 신규 설치 시 `BEOK Blog Control` 1분 주기 태스크 등록 |
+| `ops/windows/README.md` | Firebase Function runbook 호출 예시와 지원 runbook 문서화 |
+
+검증:
+- `node --check functions/index.mjs` PASS
+- PowerShell 스크립트는 Mac에 PowerShell 런타임이 없어 Windows에서 최종 실행 확인 필요
+
+---
+
 ## 2026-06-18 — 미공개 draft 병목 리셋 명령 추가
 
 품질 조정 이전 원고가 미공개 draft/reviewed/queued에 남아 있으면 스케줄러가 발행을 강제하지 않아도 재고가 낮은 품질의 병목으로 보인다. 공개 글은 건드리지 않고, 미공개 active 원고만 `archived`로 격리한 뒤 beoksolution 홈페이지 구축·학회/기관 홈페이지·MICE 레퍼런스·명찰/접수 운영 축을 섞어 새 draft를 만드는 수동 운영 명령을 추가했다.

@@ -13,6 +13,7 @@ $RunTask = Join-Path $OpsDir "run-task.ps1"
 $RunWorker = Join-Path $OpsDir "run-worker.ps1"
 $RunKeepalive = Join-Path $OpsDir "run-keepalive.ps1"
 $RunMonitor   = Join-Path $OpsDir "run-session-monitor.ps1"
+$RunControl   = Join-Path $OpsDir "run-control.ps1"
 
 if (!(Test-Path $RunTask) -or !(Test-Path $RunWorker) -or !(Test-Path $RunKeepalive)) {
   throw "Windows ops scripts not found. Clone/pull repo first: $RepoRoot"
@@ -49,6 +50,12 @@ function Register-SessionMonitor() {
   schtasks /Create /F /TN $tn /SC HOURLY /MO 2 /TR $tr | Out-Host
 }
 
+function Register-ControlTask() {
+  $tn = "$TaskPrefix Control"
+  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunControl) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -MaxCommands 3"
+  schtasks /Create /F /TN $tn /SC MINUTE /MO 1 /TR $tr | Out-Host
+}
+
 function Register-StartupWorker() {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix Worker"
@@ -58,6 +65,7 @@ function Register-StartupWorker() {
 
 Register-StartupWorker
 Register-SessionMonitor
+Register-ControlTask
 Register-DailyKeepalive "Keepalive AM" "10:00"
 Register-DailyKeepalive "Keepalive PM" "22:00"
 Register-MinuteTask "Stock Seed" "stock-seed" 60
@@ -81,3 +89,5 @@ Write-Host "Run keepalive now:"
 Write-Host "  schtasks /Run /TN `"$TaskPrefix Keepalive AM`""
 Write-Host "Run status check:"
 Write-Host "  powershell -ExecutionPolicy Bypass -File `"$RunTask`" -RepoRoot `"$RepoRoot`" -Task status"
+Write-Host "Run control check:"
+Write-Host "  powershell -ExecutionPolicy Bypass -File `"$RunControl`" -RepoRoot `"$RepoRoot`" -MaxCommands 1"

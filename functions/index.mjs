@@ -38,6 +38,74 @@ function isAllowedAdminUser(user = {}) {
 const app = express()
 app.use(express.json({ limit: '1mb' }))
 
+const PIPELINE_COMMAND_TASKS = new Set([
+  'status',
+  'quality-selftest',
+  'reset-draft-backlog',
+  'stock-seed',
+  'generate',
+  'factcheck',
+  'review',
+  'schedule',
+  'publish',
+  'sync-snapshot',
+  'recover',
+  'verify-public',
+  'image-audit',
+  'backup',
+])
+
+const PIPELINE_COMMAND_RUNBOOKS = {
+  'status-refresh': ['status', 'sync-snapshot'],
+  'drain-once': ['generate', 'factcheck', 'review', 'schedule', 'publish', 'sync-snapshot'],
+  'reset-draft-backlog-and-drain': [
+    'reset-draft-backlog',
+    'generate',
+    'factcheck',
+    'review',
+    'schedule',
+    'sync-snapshot',
+  ],
+}
+
+function normalizePipelineCommandRequest(body = {}) {
+  let tasks = []
+  const runbook = typeof body.runbook === 'string' ? body.runbook.trim() : ''
+  if (runbook) {
+    tasks = PIPELINE_COMMAND_RUNBOOKS[runbook] ?? []
+    if (!tasks.length) {
+      throw Object.assign(new Error(`unknown runbook: ${runbook}`), { status: 400, code: 'UNKNOWN_RUNBOOK' })
+    }
+  } else if (Array.isArray(body.tasks)) {
+    tasks = body.tasks
+  } else if (typeof body.task === 'string') {
+    tasks = [body.task]
+  }
+
+  tasks = tasks.map((task) => String(task ?? '').trim()).filter(Boolean)
+  if (!tasks.length) {
+    throw Object.assign(new Error('task, tasks, or runbook is required'), { status: 400, code: 'VALIDATION_ERROR' })
+  }
+
+  const invalid = tasks.filter((task) => !PIPELINE_COMMAND_TASKS.has(task))
+  if (invalid.length) {
+    throw Object.assign(new Error(`unsupported task: ${invalid.join(', ')}`), {
+      status: 400,
+      code: 'UNSUPPORTED_TASK',
+      details: { allowed: [...PIPELINE_COMMAND_TASKS].sort() },
+    })
+  }
+  return { tasks, runbook: runbook || null }
+}
+
+function pipelineCommandTimeMs(command = {}) {
+  const value = command.created_at
+  if (value instanceof Date) return value.getTime()
+  if (value && typeof value.toDate === 'function') return value.toDate().getTime()
+  const parsed = new Date(value ?? 0).getTime()
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/api/')) return next()
   if (req.path === '/api/health') return next()
@@ -2204,6 +2272,131 @@ app.get('/api/dashboard', (req, res) => {
   res.redirect('/api/pipeline/stats')
 })
 
+app.post('/api/pipeline/commands', async (req, res) => {
+  let normalized
+  try {
+    normalized = normalizePipelineCommandRequest(req.body ?? {})
+  } catch (e) {
+    return fail(res, e.status || 400, e.code || 'VALIDATION_ERROR', e.message, e.details || {})
+  }
+
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 500) : ''
+  const requestedBy = req.user?.email ?? req.user?.uid ?? 'api-key'
+  const batchId = randomUUID()
+  const nowMs = Date.now()
+  const created = []
+  const batch = db.batch()
+  normalized.tasks.forEach((task, index) => {
+    const ref = db.collection('pipeline_commands').doc()
+    created.push(ref.id)
+    batch.set(ref, {
+      task,
+      runbook: normalized.runbook,
+      batch_id: batchId,
+      sequence: index,
+      status: 'pending',
+      active: true,
+      attempts: 0,
+      reason,
+      requested_by: requestedBy,
+      created_at: new Date(nowMs + index),
+      updated_at: FieldValue.serverTimestamp(),
+    })
+  })
+  await batch.commit()
+  ok(res, {
+    batch_id: batchId,
+    command_ids: created,
+    tasks: normalized.tasks,
+    status: 'pending',
+  })
+})
+
+app.get('/api/pipeline/commands', async (req, res) => {
+  const status = typeof req.query.status === 'string' ? req.query.status.trim() : ''
+  const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 100)
+  const query = status
+    ? db.collection('pipeline_commands').where('status', '==', status).limit(100)
+    : db.collection('pipeline_commands').orderBy('created_at', 'desc').limit(limit)
+  const snap = await query.get()
+  ok(res, {
+    commands: snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => pipelineCommandTimeMs(b) - pipelineCommandTimeMs(a))
+      .slice(0, limit),
+  })
+})
+
+app.post('/api/pipeline/commands/claim', async (req, res) => {
+  const workerId = typeof req.body?.worker_id === 'string' && req.body.worker_id.trim()
+    ? req.body.worker_id.trim().slice(0, 120)
+    : 'windows-worker'
+  const leaseMs = Math.min(Math.max(Number(req.body?.lease_ms || 30 * 60 * 1000), 60_000), 2 * 60 * 60 * 1000)
+  const now = new Date()
+  const leaseUntil = new Date(now.getTime() + leaseMs)
+
+  const claimed = await db.runTransaction(async (tx) => {
+    const activeQuery = db.collection('pipeline_commands')
+      .where('active', '==', true)
+      .limit(100)
+    const activeSnap = await tx.get(activeQuery)
+    const candidates = activeSnap.docs
+      .filter((doc) => {
+        const data = doc.data()
+        if (data.status === 'pending') return true
+        if (data.status !== 'running') return false
+        const leaseUntil = data.lease_until && typeof data.lease_until.toDate === 'function'
+          ? data.lease_until.toDate()
+          : new Date(data.lease_until ?? 0)
+        return leaseUntil <= now
+      })
+      .sort((a, b) => pipelineCommandTimeMs(a.data()) - pipelineCommandTimeMs(b.data()))
+    const doc = candidates[0] ?? null
+    if (!doc) return null
+
+    const data = doc.data()
+    tx.update(doc.ref, {
+      status: 'running',
+      active: true,
+      worker_id: workerId,
+      attempts: Number(data.attempts || 0) + 1,
+      started_at: data.started_at || FieldValue.serverTimestamp(),
+      lease_until: leaseUntil,
+      updated_at: FieldValue.serverTimestamp(),
+    })
+    return { id: doc.id, ...data, status: 'running', worker_id: workerId, lease_until: leaseUntil.toISOString() }
+  })
+
+  ok(res, { command: claimed })
+})
+
+app.post('/api/pipeline/commands/:id/complete', async (req, res) => {
+  const id = String(req.params.id ?? '').trim()
+  if (!id) return fail(res, 400, 'VALIDATION_ERROR', 'command id is required', {})
+
+  const okFlag = Boolean(req.body?.ok)
+  const exitCode = Number.isFinite(Number(req.body?.exit_code)) ? Number(req.body.exit_code) : null
+  const output = typeof req.body?.output === 'string' ? req.body.output.slice(-20000) : ''
+  const error = typeof req.body?.error === 'string' ? req.body.error.slice(-4000) : ''
+  const workerId = typeof req.body?.worker_id === 'string' ? req.body.worker_id.slice(0, 120) : null
+  const ref = db.collection('pipeline_commands').doc(id)
+  const snap = await ref.get()
+  if (!snap.exists) return fail(res, 404, 'NOT_FOUND', 'pipeline command not found', { id })
+
+  await ref.set({
+    status: okFlag ? 'succeeded' : 'failed',
+    active: false,
+    ok: okFlag,
+    exit_code: exitCode,
+    output,
+    error,
+    worker_id: workerId || snap.data()?.worker_id || null,
+    finished_at: FieldValue.serverTimestamp(),
+    updated_at: FieldValue.serverTimestamp(),
+  }, { merge: true })
+  ok(res, { id, status: okFlag ? 'succeeded' : 'failed', ok: okFlag, exit_code: exitCode })
+})
+
 app.get('/api/pipeline/stats', async (req, res) => {
   const ALL_STATUSES = ['draft', 'generating', 'factchecking', 'reviewing', 'reviewed', 'queued', 'publishing', 'published', 'needs_human', 'failed', 'archived']
   const CHANNELS = ['naver', 'tistory', 'selfhosted']
@@ -2500,6 +2693,27 @@ app.get('/api/pipeline/stats', async (req, res) => {
   const responsePublicQuality = useLocalSnapshot && localSnapshot?.public_quality && typeof localSnapshot.public_quality === 'object'
     ? localSnapshot.public_quality
     : public_quality
+  const commandSnap = await db.collection('pipeline_commands')
+    .orderBy('created_at', 'desc')
+    .limit(8)
+    .get()
+    .catch(() => null)
+  const activeCommandSnap = await db.collection('pipeline_commands')
+    .where('active', '==', true)
+    .limit(100)
+    .get()
+    .catch(() => null)
+  const recentCommands = commandSnap
+    ? commandSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    : []
+  const activeCommands = activeCommandSnap
+    ? activeCommandSnap.docs.map((doc) => doc.data())
+    : []
+  const control = {
+    pending: activeCommands.filter((cmd) => cmd.status === 'pending').length,
+    running: activeCommands.filter((cmd) => cmd.status === 'running').length,
+    recent: recentCommands,
+  }
 
   ok(res, {
     by_status: responseByStatus,
@@ -2508,7 +2722,7 @@ app.get('/api/pipeline/stats', async (req, res) => {
     published_this_week: useLocalSnapshot && Number.isFinite(Number(localSnapshot?.published_this_week)) ? Number(localSnapshot.published_this_week) : published_this_week,
     quality: responseQuality,
     quality_items: responseQualityItems,
-    ops: responseOps,
+    ops: { ...responseOps, control },
     public_quality: responsePublicQuality,
     needs_human_posts: responseNeedsHuman,
     local_snapshot: localSnapshot ? {

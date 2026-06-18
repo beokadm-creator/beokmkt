@@ -81,6 +81,23 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\r
 powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\run-task.ps1 -RepoRoot C:\beokmkt -Task verify-public
 ```
 
+Firebase Functions에서 Windows 운영 PC에 작업을 지시할 수 있다. Function은 Firestore에 명령을 넣고, Windows의 `run-control.ps1`이 outbound로 가져가 허용된 작업만 실행한다.
+
+```bash
+curl -X POST https://beokmkt.web.app/api/pipeline/commands \
+  -H "X-API-Key: $BLOG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"runbook":"reset-draft-backlog-and-drain","reason":"품질 낮은 미공개 draft 리셋 후 새 원고 생성"}'
+```
+
+지원 runbook:
+
+- `status-refresh`: `status` → `sync-snapshot`
+- `drain-once`: `generate` → `factcheck` → `review` → `schedule` → `publish` → `sync-snapshot`
+- `reset-draft-backlog-and-drain`: `reset-draft-backlog` → `generate` → `factcheck` → `review` → `schedule` → `sync-snapshot`
+
+명령 폴링은 새 설치 시 `BEOK Blog Control` 태스크가 1분마다 수행한다. 기존 설치에서도 각 예약 작업의 `run-task.ps1`이 시작될 때 control queue를 함께 확인한다.
+
 미공개 draft가 품질 조정 이전 원고로 막혀 있으면, 먼저 dry-run으로 대상과 새 주제를 확인한 뒤 적용한다.
 
 ```powershell

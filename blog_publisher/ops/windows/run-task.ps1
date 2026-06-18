@@ -21,13 +21,15 @@ param(
 
   [string]$RepoRoot = "C:\beokmkt",
   [string]$Python = "python",
-  [switch]$NoPull
+  [switch]$NoPull,
+  [switch]$SkipControl
 )
 
 $ErrorActionPreference = "Stop"
 
 $PublisherDir = Join-Path $RepoRoot "blog_publisher"
 $GitUpdate = Join-Path $RepoRoot "blog_publisher\ops\windows\git-update.ps1"
+$RunControl = Join-Path $RepoRoot "blog_publisher\ops\windows\run-control.ps1"
 $LogDir = Join-Path $RepoRoot "logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
@@ -47,6 +49,14 @@ Set-Location $RepoRoot
 if (!$NoPull) {
   . $GitUpdate
   Invoke-BlogGitUpdate -RepoRoot $RepoRoot -LogPath $logPath
+}
+
+if (!$SkipControl -and (Test-Path $RunControl)) {
+  Write-Log "pipeline control poll"
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RunControl `
+    -RepoRoot $RepoRoot `
+    -Python $Python `
+    -MaxCommands 2 2>&1 | Tee-Object -FilePath $logPath -Append
 }
 
 $argsByTask = @{
