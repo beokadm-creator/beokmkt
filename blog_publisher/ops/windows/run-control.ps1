@@ -49,6 +49,17 @@ function Invoke-JsonApi([string]$Path, [hashtable]$Body) {
     -TimeoutSec 120
 }
 
+function Get-LatestTaskLogTail([string]$Task, [int]$Tail = 120) {
+  $safeTask = $Task -replace '[^A-Za-z0-9_-]', '-'
+  $latest = Get-ChildItem -Path $LogDir -Filter "blog-$safeTask-*.log" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+  if (!$latest) { return "" }
+  $body = Get-Content -Path $latest.FullName -Tail $Tail -ErrorAction SilentlyContinue | Out-String
+  if (!$body) { return "" }
+  return "`n--- latest task log: $($latest.FullName) ---`n$body"
+}
+
 if (!(Test-Path $RunTask)) {
   throw "run-task.ps1 not found: $RunTask"
 }
@@ -132,18 +143,26 @@ for ($i = 0; $i -lt $MaxCommands; $i++) {
   $output = ""
   $exitCode = 1
   try {
-    $lines = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RunTask `
-      -RepoRoot $RepoRoot `
-      -Python $Python `
-      -Task $task `
-      -NoPull `
-      -SkipControl 2>&1
-    $exitCode = $LASTEXITCODE
-    $output = ($lines | Out-String)
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      $lines = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RunTask `
+        -RepoRoot $RepoRoot `
+        -Python $Python `
+        -Task $task `
+        -NoPull `
+        -SkipControl 2>&1
+      $exitCode = $LASTEXITCODE
+      $output = ($lines | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+    } finally {
+      $ErrorActionPreference = $previousErrorActionPreference
+    }
   } catch {
     $exitCode = 1
     $output = $_ | Out-String
   }
+  $logTail = Get-LatestTaskLogTail -Task $task
+  if ($logTail) { $output = "$output$logTail" }
 
   $ok = $exitCode -eq 0
   try {
