@@ -689,6 +689,29 @@ def _test_reset_draft_backlog_default_scope() -> list[str]:
     return []
 
 
+def _test_content_reboot_plan() -> list[str]:
+    from collections import Counter
+    from tools import content_reboot
+
+    topics = content_reboot.balanced_topics(24)
+    axis_counts = Counter(axis for _topic, _ctype, _brand, axis in topics)
+    titles = [topic for topic, _ctype, _brand, _axis in topics]
+    joined = "\n".join(titles)
+    issues: list[str] = []
+
+    for axis in {"homepage", "system", "mice", "conference"}:
+        if axis_counts[axis] != 6:
+            issues.append(f"content-reboot: {axis} 주제 수 불균형({axis_counts[axis]}/6)")
+    if len(titles) != len(set(titles)):
+        issues.append("content-reboot: 중복 주제 포함")
+    if joined.count("명찰") > 1 or joined.count("사무국") > 1:
+        issues.append("content-reboot: 명찰/사무국 편중 주제가 다시 포함됨")
+    for token in ["홈페이지", "시스템", "홍커뮤니케이션", "MICE", "학술대회"]:
+        if token not in joined:
+            issues.append(f"content-reboot: 필수 홍보 아젠다 누락: {token}")
+    return issues
+
+
 def _test_selfhosted_renderer() -> list[str]:
     from render.renderer import render_body
 
@@ -938,6 +961,7 @@ def run() -> bool:
         + _test_reset_draft_backlog_plan()
         + _test_reset_draft_backlog_avoids_archived_topics()
         + _test_reset_draft_backlog_default_scope()
+        + _test_content_reboot_plan()
         + _test_selfhosted_renderer()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
@@ -957,6 +981,7 @@ def run() -> bool:
     print("[OK] review gate: 주관적 LLM 이슈는 advisory, 치명 이슈/저점수는 차단")
     print("[OK] ops defaults: 홈페이지 구축 아젠다·generate batch 유지")
     print("[OK] draft reset: 미공개 병목 리셋 시 다양한 주제축 재시드")
+    print("[OK] content reboot: 기존 재고 폐기 후 홈페이지/시스템/MICE/학술대회 주제축 균등 재시드")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
     print("[OK] renderer security: URL 스킴 세척·제목 이미지 분리·OG SVG escape 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")

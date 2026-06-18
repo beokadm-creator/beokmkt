@@ -12,6 +12,7 @@ param(
     "verify-public",
     "reset-pre-quality",
     "reset-draft-backlog",
+    "content-reboot",
     "cleanup-selfhosted-blocked",
     "sync-snapshot",
     "quality-selftest",
@@ -84,6 +85,7 @@ $argsByTask = @{
   "verify-public"    = @("run.py", "verify_public", "20")
   "reset-pre-quality" = @("run.py", "reset_pre_quality", "--apply")
   "reset-draft-backlog" = @("run.py", "reset_draft_backlog", "--apply")
+  "content-reboot"   = @("run.py", "content_reboot", "--apply")
   "cleanup-selfhosted-blocked" = @("run.py", "cleanup_selfhosted_blocked")
   "sync-snapshot"    = @("run.py", "sync_snapshot")
   "quality-selftest" = @("run.py", "quality_selftest")
