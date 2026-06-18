@@ -43,9 +43,12 @@ def run_once(batch: int = 5) -> tuple[int, int]:
     """
     llm = LLMClient()
     passed = failed = 0
+    attempted = 0
+    errors: list[str] = []
     for post in db.fetch_factcheck_ready(limit=batch):
         if not db.claim(post["id"], "draft", "factchecking"):
             continue
+        attempted += 1
 
         try:
             evidence = json.loads(post["evidence"]) if post["evidence"] else {}
@@ -61,6 +64,7 @@ def run_once(batch: int = 5) -> tuple[int, int]:
         except Exception as e:  # noqa: BLE001
             db.claim(post["id"], "factchecking", "draft")
             print(f"[factcheck] id={post['id']} 오류: {e}")
+            errors.append(f"id={post['id']}: {e}")
             continue
 
         ratio = float(result.get("grounding_ratio", 0.0))
@@ -78,6 +82,11 @@ def run_once(batch: int = 5) -> tuple[int, int]:
             failed += 1
         else:
             passed += 1
+    if attempted and passed == 0 and failed == 0 and len(errors) == attempted:
+        detail = "; ".join(errors[:3])
+        if len(errors) > 3:
+            detail += f"; 외 {len(errors) - 3}건"
+        raise RuntimeError(f"사실검증 대상 {attempted}건 모두 오류: {detail}")
     return passed, failed
 
 

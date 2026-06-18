@@ -224,6 +224,76 @@ def _test_generate_all_failures_stop_runbook() -> list[str]:
         generate.config.can_generate_with_evidence = original_can_generate
 
 
+def _test_factcheck_all_errors_stop_runbook() -> list[str]:
+    from pipeline import factcheck
+
+    class FakeDb:
+        def fetch_factcheck_ready(self, limit=5):
+            return [{
+                "id": 1,
+                "body": "학술대회 등록 시스템 본문",
+                "evidence": '{"facts":[{"statement":"근거"}]}',
+            }]
+
+        def claim(self, _post_id, _from_status, _to_status):
+            return True
+
+    original_db = factcheck.db
+    original_check = factcheck.check
+    original_client = factcheck.LLMClient
+    try:
+        factcheck.db = FakeDb()
+        factcheck.LLMClient = lambda: object()
+        factcheck.check = lambda _llm, _body, _evidence: (_ for _ in ()).throw(RuntimeError("LLM 429"))
+        try:
+            factcheck.run_once(batch=1)
+        except RuntimeError:
+            return []
+        return ["factcheck: 모든 검증 오류를 성공 명령으로 처리함"]
+    finally:
+        factcheck.db = original_db
+        factcheck.check = original_check
+        factcheck.LLMClient = original_client
+
+
+def _test_review_all_errors_stop_runbook() -> list[str]:
+    from pipeline import review
+
+    class FakeDb:
+        def fetch_review_ready(self, limit=5, min_grounding=0.9):
+            return [{
+                "id": 1,
+                "title": "학술대회 등록 시스템",
+                "body": SAMPLE_MD,
+            }]
+
+        def claim(self, _post_id, _from_status, _to_status):
+            return True
+
+        def defer_review(self, _post_id, _issues):
+            return None
+
+    original_db = review.db
+    original_client = review.LLMClient
+    original_rule_gate = review.rule_gate
+    original_llm_gate = review.llm_gate
+    try:
+        review.db = FakeDb()
+        review.LLMClient = lambda: object()
+        review.rule_gate = lambda _body: []
+        review.llm_gate = lambda _llm, _title, _body: (_ for _ in ()).throw(RuntimeError("LLM 429"))
+        try:
+            review.run_once(batch=1)
+        except RuntimeError:
+            return []
+        return ["review: 모든 검수 오류를 성공 명령으로 처리함"]
+    finally:
+        review.db = original_db
+        review.LLMClient = original_client
+        review.rule_gate = original_rule_gate
+        review.llm_gate = original_llm_gate
+
+
 def _test_image_diversity() -> list[str]:
     from tools.image_bank import inject_images
 
@@ -678,6 +748,8 @@ def run() -> bool:
         _test_phase_a_generation_contract()
         + _test_generate_rejects_empty_article()
         + _test_generate_all_failures_stop_runbook()
+        + _test_factcheck_all_errors_stop_runbook()
+        + _test_review_all_errors_stop_runbook()
         + _test_image_diversity()
         + _test_publish_quality_gate()
         + _test_review_llm_advisory_gate()

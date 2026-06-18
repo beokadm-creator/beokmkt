@@ -105,9 +105,12 @@ def run_once(batch: int = 5) -> tuple[int, int]:
     """
     llm = LLMClient()
     passed = failed = 0
+    attempted = 0
+    errors: list[str] = []
     for post in db.fetch_review_ready(limit=batch, min_grounding=config.MIN_GROUNDING_RATIO):
         if not db.claim(post["id"], "draft", "reviewing"):
             continue
+        attempted += 1
 
         issues = rule_gate(post["body"])
         if not issues:
@@ -117,6 +120,7 @@ def run_once(batch: int = 5) -> tuple[int, int]:
                 # 검수기 자체 오류는 본문을 폐기하지 않고 보류한다.
                 # LLM/API 일시 오류가 양호한 글을 재생성 루프로 밀어 넣으면 재고가 0%로 고갈된다.
                 db.defer_review(post["id"], [f"reviewer_error:{e}"])
+                errors.append(f"id={post['id']}: {e}")
                 continue
 
         if issues:
@@ -125,6 +129,11 @@ def run_once(batch: int = 5) -> tuple[int, int]:
         else:
             db.mark_reviewed(post["id"])
             passed += 1
+    if attempted and passed == 0 and failed == 0 and len(errors) == attempted:
+        detail = "; ".join(errors[:3])
+        if len(errors) > 3:
+            detail += f"; 외 {len(errors) - 3}건"
+        raise RuntimeError(f"검수 대상 {attempted}건 모두 오류: {detail}")
     return passed, failed
 
 
