@@ -43,7 +43,9 @@ $LogDir = Join-Path $RepoRoot "logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
 $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-$logPath = Join-Path $LogDir "blog-$Task.log"
+$runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$safeTask = $Task -replace '[^A-Za-z0-9_-]', '-'
+$logPath = Join-Path $LogDir "blog-$safeTask-$runStamp-$PID.log"
 
 function Write-Log([string]$Message) {
   "[$stamp] $Message" | Tee-Object -FilePath $logPath -Append

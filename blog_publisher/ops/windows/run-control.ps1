@@ -23,7 +23,8 @@ $PublisherDir = Join-Path $RepoRoot "blog_publisher"
 $EnvPath = Join-Path $PublisherDir ".env"
 $LogDir = Join-Path $RepoRoot "logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-$logPath = Join-Path $LogDir "blog-control.log"
+$runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$logPath = Join-Path $LogDir "blog-control-$runStamp-$PID.log"
 
 function Write-Log([string]$Message) {
   "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message" | Tee-Object -FilePath $logPath -Append
