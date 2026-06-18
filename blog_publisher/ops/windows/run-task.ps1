@@ -11,6 +11,7 @@ param(
     "backup",
     "verify-public",
     "reset-pre-quality",
+    "reset-draft-backlog",
     "sync-snapshot",
     "quality-selftest",
     "image-audit",
@@ -59,6 +60,7 @@ $argsByTask = @{
   "backup"           = @("run.py", "backup")
   "verify-public"    = @("run.py", "verify_public", "20")
   "reset-pre-quality" = @("run.py", "reset_pre_quality", "--apply")
+  "reset-draft-backlog" = @("run.py", "reset_draft_backlog", "--apply")
   "sync-snapshot"    = @("run.py", "sync_snapshot")
   "quality-selftest" = @("run.py", "quality_selftest")
   "image-audit"      = @("run.py", "image_audit")

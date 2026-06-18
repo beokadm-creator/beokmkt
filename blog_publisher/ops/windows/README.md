@@ -81,6 +81,16 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\r
 powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\run-task.ps1 -RepoRoot C:\beokmkt -Task verify-public
 ```
 
+미공개 draft가 품질 조정 이전 원고로 막혀 있으면, 먼저 dry-run으로 대상과 새 주제를 확인한 뒤 적용한다.
+
+```powershell
+cd C:\beokmkt\blog_publisher
+python run.py reset_draft_backlog
+
+# 확인 후 적용
+powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\run-task.ps1 -RepoRoot C:\beokmkt -Task reset-draft-backlog -NoPull
+```
+
 워커 헬스체크:
 
 ```powershell

@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-18 — 미공개 draft 병목 리셋 명령 추가
+
+품질 조정 이전 원고가 미공개 draft/reviewed/queued에 남아 있으면 스케줄러가 발행을 강제하지 않아도 재고가 낮은 품질의 병목으로 보인다. 공개 글은 건드리지 않고, 미공개 active 원고만 `archived`로 격리한 뒤 beoksolution 홈페이지 구축·학회/기관 홈페이지·MICE 레퍼런스·명찰/접수 운영 축을 섞어 새 draft를 만드는 수동 운영 명령을 추가했다.
+
+| 대상 | 내용 |
+|---|---|
+| `tools/reset_draft_backlog.py` | 기본 dry-run. `--apply` 시 active 미공개 원고를 archive하고 selfhosted replacement draft 24건을 축별 round-robin으로 시드 |
+| `run.py` | `python run.py reset_draft_backlog [--apply]` 명령 추가 |
+| `ops/windows/run-task.ps1` | Windows에서 `-Task reset-draft-backlog`로 적용 가능 |
+| `quality_selftest.py` | 리셋 후 새 주제축이 홈페이지/MICE/학회시스템/명찰운영으로 분산되는지 회귀테스트 추가 |
+| `ops/windows/README.md` | dry-run 확인 후 적용하는 운영 절차 추가 |
+
+검증:
+- `python3 blog_publisher/run.py reset_draft_backlog` dry-run PASS
+- `python3 -m compileall -q blog_publisher`, `python3 blog_publisher/run.py quality_selftest`, `python3 blog_publisher/run.py selftest` PASS
+
+---
+
 ## 2026-06-18 — 자체 블로그 주제·생성 적체 가시화 보강
 
 운영 대시보드 기준 selfhosted 최신 글은 `2026-06-17T14:23:02Z` 1건 이후 오늘 발행이 없고, 로컬 상태 리포트는 `reviewed=0`, `queued=0`으로 보였다. 실제로는 주제 부족이 아니라 body 없는 draft가 쌓인 상태였으므로, beoksolution.com의 운영형 홈페이지 구축 아젠다를 키워드 우선순위에 올리고 generate 처리량과 상태 리포트의 적체 진단을 보강했다.

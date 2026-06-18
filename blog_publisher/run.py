@@ -15,6 +15,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py verify_public  # published 공개 URL 실제 HTML 품질 검증
   python run.py cleanup_audit   # 공개 글 삭제/비공개 후보(중복·무이미지·테스트 제목) 감사
   python run.py reset_pre_quality [--apply] # 품질 조정 이전 글 archive + 자체블로그 공개삭제 + 재작성 draft 생성
+  python run.py reset_draft_backlog [--apply] # 미공개 draft 병목 archive + 다양한 새 draft 시드
   python run.py strategy_audit   # 공개 블로그 주제축/리라이트/삭제 후보 감사
   python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
   python run.py image_audit    # 이미지 뱅크 공개 URL 도달성 검증
@@ -170,6 +171,10 @@ def main() -> None:
     elif cmd == "reset_pre_quality":
         from tools import reset_pre_quality_posts
         raise SystemExit(0 if reset_pre_quality_posts.run(sys.argv[2:]) else 1)
+
+    elif cmd == "reset_draft_backlog":
+        from tools import reset_draft_backlog
+        raise SystemExit(0 if reset_draft_backlog.run(sys.argv[2:]) else 1)
 
     elif cmd == "strategy_audit":
         from tools import strategy_audit

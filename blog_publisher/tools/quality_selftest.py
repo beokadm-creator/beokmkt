@@ -333,6 +333,25 @@ def _test_operational_agenda_defaults() -> list[str]:
     return issues
 
 
+def _test_reset_draft_backlog_plan() -> list[str]:
+    from tools import reset_draft_backlog
+
+    original_protected = reset_draft_backlog._protected_topic_keys
+    try:
+        reset_draft_backlog._protected_topic_keys = lambda _channels, _archive_ids: set()
+        topics = reset_draft_backlog.replacement_topics(8, "selfhosted", archive_ids=[])
+        axes = {axis for _topic, _ctype, _brand, axis in topics}
+        issues: list[str] = []
+        for axis in {"homepage", "conference_system", "mice_reference", "badge_ops"}:
+            if axis not in axes:
+                issues.append(f"draft-reset: replacement plan axis 누락: {axis}")
+        if not topics or "초기 제작비" not in topics[0][0]:
+            issues.append("draft-reset: beoksolution 홈페이지 운영형 주제가 우선 배치되지 않음")
+        return issues
+    finally:
+        reset_draft_backlog._protected_topic_keys = original_protected
+
+
 def _test_selfhosted_renderer() -> list[str]:
     from render.renderer import render_body
 
@@ -571,6 +590,7 @@ def run() -> bool:
         + _test_publish_quality_gate()
         + _test_review_llm_advisory_gate()
         + _test_operational_agenda_defaults()
+        + _test_reset_draft_backlog_plan()
         + _test_selfhosted_renderer()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
@@ -588,6 +608,7 @@ def run() -> bool:
     print("[OK] publish gate: 길이/이미지/구조/반복 이미지 차단 유지")
     print("[OK] review gate: 주관적 LLM 이슈는 advisory, 치명 이슈/저점수는 차단")
     print("[OK] ops defaults: 홈페이지 구축 아젠다·generate batch 유지")
+    print("[OK] draft reset: 미공개 병목 리셋 시 다양한 주제축 재시드")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
     print("[OK] renderer security: URL 스킴 세척·제목 이미지 분리·OG SVG escape 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")
