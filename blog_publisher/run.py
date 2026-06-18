@@ -16,6 +16,7 @@ cron/스케줄러에서 단계별로 호출하는 것을 권장한다(서로 격
   python run.py cleanup_audit   # 공개 글 삭제/비공개 후보(중복·무이미지·테스트 제목) 감사
   python run.py reset_pre_quality [--apply] # 품질 조정 이전 글 archive + 자체블로그 공개삭제 + 재작성 draft 생성
   python run.py reset_draft_backlog [--apply] # 미공개 draft 병목 archive + 다양한 새 draft 시드
+  python run.py cleanup_selfhosted_blocked # 자체 블로그 발행 불가 미공개 글 archive
   python run.py strategy_audit   # 공개 블로그 주제축/리라이트/삭제 후보 감사
   python run.py quality_selftest # 렌더러/티스토리 리치 HTML 품질 회귀 검증
   python run.py image_audit    # 이미지 뱅크 공개 URL 도달성 검증
@@ -167,6 +168,10 @@ def main() -> None:
         from tools import audit_published_cleanup
         limit = int(sys.argv[2]) if len(sys.argv) > 2 else 80
         raise SystemExit(0 if audit_published_cleanup.run(limit) else 1)
+
+    elif cmd == "cleanup_selfhosted_blocked":
+        from tools import cleanup_selfhosted_blocked
+        raise SystemExit(0 if cleanup_selfhosted_blocked.run() else 1)
 
     elif cmd == "reset_pre_quality":
         from tools import reset_pre_quality_posts

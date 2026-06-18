@@ -65,7 +65,7 @@ def _publish_lock():
 
 
 def _empty_stats() -> dict:
-    return {"published": 0, "retried": 0, "needs_human": 0, "failed": 0, "skipped": 0}
+    return {"attempted": 0, "published": 0, "retried": 0, "needs_human": 0, "failed": 0, "skipped": 0}
 
 
 def _assert_publish_quality_gate(post) -> None:
@@ -171,7 +171,13 @@ def publish_one(post_id: int) -> dict:
             return stats
 
         post = db.fetch_by_id(post_id)
-        return _publish_claimed_post(post)
+        stats["attempted"] += 1
+        result = _publish_claimed_post(post)
+        for key, value in result.items():
+            stats[key] += value
+        if stats["published"] == 0 and any(stats[key] for key in ("retried", "needs_human", "failed")):
+            raise RuntimeError(f"발행 대상 {stats['attempted']}건 처리했지만 공개 발행 0건: {stats}")
+        return stats
 
 
 def run_once(batch: int = 5) -> dict:
@@ -189,10 +195,13 @@ def run_once(batch: int = 5) -> dict:
                 continue
 
             post = db.fetch_by_id(post["id"])
+            stats["attempted"] += 1
             result = _publish_claimed_post(post)
             for key, value in result.items():
                 stats[key] += value
 
+    if stats["attempted"] and stats["published"] == 0 and any(stats[key] for key in ("retried", "needs_human", "failed")):
+        raise RuntimeError(f"발행 대상 {stats['attempted']}건 처리했지만 공개 발행 0건: {stats}")
     return stats
 
 

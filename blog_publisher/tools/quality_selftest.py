@@ -180,6 +180,17 @@ def _test_generate_rejects_empty_article() -> list[str]:
     return ["generate: 빈 본문 결과를 성공으로 처리함"]
 
 
+def _test_generate_hard_compacts_long_section() -> list[str]:
+    import config
+    from pipeline import generate
+
+    body = "이 문장은 매우 길게 생성된 첫 문단입니다. " + ("가" * 1600)
+    compacted = generate._compact_section_body(body)
+    if len(compacted) > config.SECTION_MAX_LEN:
+        return [f"generate: 긴 섹션 hard cap 미작동({len(compacted)}/{config.SECTION_MAX_LEN})"]
+    return []
+
+
 def _test_generate_all_failures_stop_runbook() -> list[str]:
     from contextlib import contextmanager
     from pipeline import generate
@@ -263,8 +274,12 @@ def _test_review_all_errors_stop_runbook() -> list[str]:
         def fetch_review_ready(self, limit=5, min_grounding=0.9):
             return [{
                 "id": 1,
+                "channel": "selfhosted",
+                "category": "",
                 "title": "학술대회 등록 시스템",
+                "topic": "학술대회 등록 시스템",
                 "body": SAMPLE_MD,
+                "updated_at": "2099-01-01 00:00:00",
             }]
 
         def claim(self, _post_id, _from_status, _to_status):
@@ -277,10 +292,12 @@ def _test_review_all_errors_stop_runbook() -> list[str]:
     original_client = review.LLMClient
     original_rule_gate = review.rule_gate
     original_llm_gate = review.llm_gate
+    original_publish_blockers = review.publish_blockers
     try:
         review.db = FakeDb()
         review.LLMClient = lambda: object()
         review.rule_gate = lambda _body: []
+        review.publish_blockers = lambda _post: []
         review.llm_gate = lambda _llm, _title, _body: (_ for _ in ()).throw(RuntimeError("LLM 429"))
         try:
             review.run_once(batch=1)
@@ -292,6 +309,118 @@ def _test_review_all_errors_stop_runbook() -> list[str]:
         review.LLMClient = original_client
         review.rule_gate = original_rule_gate
         review.llm_gate = original_llm_gate
+        review.publish_blockers = original_publish_blockers
+
+
+def _test_review_applies_publish_gate_before_queue() -> list[str]:
+    from pipeline import review
+
+    class FakeDb:
+        def __init__(self):
+            self.failed: list[list[str]] = []
+
+        def fetch_review_ready(self, limit=5, min_grounding=0.9):
+            return [{
+                "id": 1,
+                "channel": "selfhosted",
+                "category": "beok",
+                "title": "긴 원고 테스트",
+                "topic": "학술대회 홈페이지 시스템",
+                "body": SAMPLE_MD,
+                "updated_at": "2099-01-01 00:00:00",
+            }]
+
+        def claim(self, _post_id, _from_status, _to_status):
+            return True
+
+        def mark_review_failed(self, _post_id, issues):
+            self.failed.append(issues)
+
+        def mark_reviewed(self, _post_id):
+            return None
+
+    original_db = review.db
+    original_client = review.LLMClient
+    original_rule_gate = review.rule_gate
+    original_publish_blockers = review.publish_blockers
+    original_llm_gate = review.llm_gate
+    fake_db = FakeDb()
+    called_llm = {"value": False}
+    try:
+        review.db = fake_db
+        review.LLMClient = lambda: object()
+        review.rule_gate = lambda _body: []
+        review.publish_blockers = lambda _post: ["운영 글 본문 과다(3200/2600자)"]
+        review.llm_gate = lambda _llm, _title, _body: called_llm.__setitem__("value", True) or []
+        passed, failed = review.run_once(batch=1)
+        issues: list[str] = []
+        if (passed, failed) != (0, 1):
+            issues.append(f"review-prepublish: 차단 결과 불일치({passed}, {failed})")
+        if not fake_db.failed or "본문 과다" not in fake_db.failed[0][0]:
+            issues.append(f"review-prepublish: 발행 게이트 이슈 미전파({fake_db.failed})")
+        if called_llm["value"]:
+            issues.append("review-prepublish: 명백한 발행 차단 원고에 LLM 검수를 호출함")
+        return issues
+    finally:
+        review.db = original_db
+        review.LLMClient = original_client
+        review.rule_gate = original_rule_gate
+        review.publish_blockers = original_publish_blockers
+        review.llm_gate = original_llm_gate
+
+
+def _test_publish_zero_success_fails_runbook() -> list[str]:
+    from contextlib import contextmanager
+    from pipeline import publish
+
+    class FakeDb:
+        def fetch_by_status(self, _status, limit=5, due=False):
+            return [{"id": 1}]
+
+        def claim(self, _post_id, _from_status, _to_status):
+            return True
+
+        def fetch_by_id(self, _post_id):
+            return {
+                "id": 1,
+                "channel": "selfhosted",
+                "title": "발행 실패 테스트",
+                "topic": "학술대회 홈페이지 시스템",
+                "body": SAMPLE_MD,
+                "attempts": 0,
+                "max_attempts": 3,
+            }
+
+        def mark_needs_human(self, _post_id, _error, attempts=1):
+            return None
+
+    class BlockingPublisher:
+        def publish(self, _post):
+            raise publish.NeedsHumanError("발행 전 품질 게이트 차단")
+
+    @contextmanager
+    def fake_lock():
+        yield True
+
+    original_db = publish.db
+    original_publishers = publish.PUBLISHERS
+    original_gate = publish._assert_publish_quality_gate
+    original_lock = publish._publish_lock
+    try:
+        publish.db = FakeDb()
+        publish.PUBLISHERS = {"selfhosted": BlockingPublisher()}
+        publish._assert_publish_quality_gate = lambda _post: None
+        publish._publish_lock = fake_lock
+        try:
+            publish.run_once(batch=1)
+        except RuntimeError:
+            return []
+        return ["publish: 발행 대상이 전부 차단됐는데 성공 명령으로 처리함"]
+    finally:
+        publish.db = original_db
+        publish.PUBLISHERS = original_publishers
+        publish._assert_publish_quality_gate = original_gate
+        publish._publish_lock = original_lock
 
 
 def _test_image_diversity() -> list[str]:
@@ -747,9 +876,12 @@ def run() -> bool:
     issues = (
         _test_phase_a_generation_contract()
         + _test_generate_rejects_empty_article()
+        + _test_generate_hard_compacts_long_section()
         + _test_generate_all_failures_stop_runbook()
         + _test_factcheck_all_errors_stop_runbook()
         + _test_review_all_errors_stop_runbook()
+        + _test_review_applies_publish_gate_before_queue()
+        + _test_publish_zero_success_fails_runbook()
         + _test_image_diversity()
         + _test_publish_quality_gate()
         + _test_review_llm_advisory_gate()

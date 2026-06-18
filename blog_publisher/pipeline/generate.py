@@ -239,7 +239,25 @@ def _compact_section_body(body: str) -> str:
         has_table = has_table or block_has_table
         if total >= max_len * 0.85 and has_list:
             break
-    return "\n\n".join(kept).strip() or text[:max_len].rstrip()
+    compacted = "\n\n".join(kept).strip()
+    if compacted and len(compacted) <= max_len:
+        return compacted
+    source = compacted or text
+    sentences = _re.findall(r".+?(?:[.!?。]|다\.|요\.|니다\.|$)", source, flags=_re.S)
+    out: list[str] = []
+    total = 0
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        extra = len(sentence) + (1 if out else 0)
+        if out and total + extra > max_len:
+            break
+        if not out and len(sentence) > max_len:
+            return sentence[:max_len].rstrip()
+        out.append(sentence)
+        total += extra
+    return " ".join(out).strip() or source[:max_len].rstrip()
 
 
 def _log_stage(topic: str, stage: str) -> None:

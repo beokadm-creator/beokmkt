@@ -18,6 +18,7 @@ from db import db
 from llm import prompts
 from llm.parse import chat_json
 from llm.client import LLMClient
+from tools.content_quality import publish_blockers
 from utils import text as T
 
 
@@ -98,6 +99,11 @@ def llm_gate(llm: LLMClient, title: str, body: str) -> list[str]:
     return review_blockers(evaluate(llm, title, body))
 
 
+def prepublish_gate(post) -> list[str]:
+    """발행 게이트와 같은 치명 이슈를 review 단계에서 먼저 차단한다."""
+    return publish_blockers(post)
+
+
 def run_once(batch: int = 5) -> tuple[int, int]:
     """
     검수 대상: 본문이 있고 '사실검증을 통과한'(grounding_ratio >= 임계) draft.
@@ -112,7 +118,7 @@ def run_once(batch: int = 5) -> tuple[int, int]:
             continue
         attempted += 1
 
-        issues = rule_gate(post["body"])
+        issues = rule_gate(post["body"]) + prepublish_gate(post)
         if not issues:
             try:
                 issues = llm_gate(llm, post["title"], post["body"])

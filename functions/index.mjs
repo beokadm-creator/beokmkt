@@ -47,6 +47,7 @@ const PIPELINE_COMMAND_TASKS = new Set([
   'status',
   'quality-selftest',
   'reset-draft-backlog',
+  'cleanup-selfhosted-blocked',
   'stock-seed',
   'generate',
   'factcheck',
