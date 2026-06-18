@@ -1,7 +1,8 @@
 param(
   [string]$RepoRoot = "C:\beokmkt",
   [string]$Python = "python",
-  [int]$MaxCommands = 2
+  [int]$MaxCommands = 2,
+  [switch]$NoPull
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +16,7 @@ try {
 
 $OpsDir = Join-Path $RepoRoot "blog_publisher\ops\windows"
 $RunTask = Join-Path $OpsDir "run-task.ps1"
+$GitUpdate = Join-Path $OpsDir "git-update.ps1"
 $PublisherDir = Join-Path $RepoRoot "blog_publisher"
 $EnvPath = Join-Path $PublisherDir ".env"
 $LogDir = Join-Path $RepoRoot "logs"
@@ -46,6 +48,12 @@ function Invoke-JsonApi([string]$Path, [hashtable]$Body) {
 
 if (!(Test-Path $RunTask)) {
   throw "run-task.ps1 not found: $RunTask"
+}
+
+Set-Location $RepoRoot
+if (!$NoPull -and (Test-Path $GitUpdate)) {
+  . $GitUpdate
+  Invoke-BlogGitUpdate -RepoRoot $RepoRoot -LogPath $logPath
 }
 
 $BaseUrl = $env:PIPELINE_CONTROL_API_URL

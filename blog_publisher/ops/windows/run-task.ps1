@@ -63,7 +63,8 @@ if (!$SkipControl -and (Test-Path $RunControl)) {
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RunControl `
     -RepoRoot $RepoRoot `
     -Python $Python `
-    -MaxCommands 2 2>&1 | Tee-Object -FilePath $logPath -Append
+    -MaxCommands 2 `
+    -NoPull 2>&1 | Tee-Object -FilePath $logPath -Append
 }
 
 $argsByTask = @{

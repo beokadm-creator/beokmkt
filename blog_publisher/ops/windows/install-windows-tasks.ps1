@@ -51,8 +51,9 @@ function Register-SessionMonitor() {
 }
 
 function Register-ControlTask() {
+  $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix Control"
-  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunControl) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -MaxCommands 3"
+  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunControl) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -MaxCommands 3$pullArg"
   schtasks /Create /F /TN $tn /SC MINUTE /MO 1 /TR $tr | Out-Host
 }
 
