@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-18 — 운영 글 생성 길이와 발행 게이트 정합
+
+Windows 운영 PC에서 새 selfhosted 원고가 factcheck를 통과해도 review 단계에서 `운영 글 본문 과다(.../2600자)`로 전부 탈락해 `reviewed=0`, `queued=0`에 고착되는 문제가 있었다. 원인은 생성 계약(5섹션 × 섹션 최대 380자)과 발행 게이트(운영 글 plain text 2600자 이하)가 맞지 않는 것이므로, 생성 쪽을 줄이는 A안으로 정합시켰다.
+
+| 대상 | 내용 |
+|---|---|
+| `config.py` | `SECTION_MAX_LEN` 기본값 380 → 300 |
+| `pipeline/generate.py` | 개요 섹션 상한 5 → 4. 5개 이상 개요는 4개로 보정 |
+| `llm/prompts.py` | 개요는 3~4섹션, 섹션 본문은 220~300자로 작성하도록 생성 프롬프트 조정 |
+| `quality_selftest.py` | 운영 글 mock이 실제 generate→factcheck→review→schedule을 지나 `queued`가 되는 회귀테스트 추가. `SECTION_MAX_LEN<=300`, `SECTION_MAX<=4` 계약 검증 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS (`ops flow: 운영 글 생성 길이와 발행 게이트 길이 상한 정합, queued 전환 유지`)
+- `python3 blog_publisher/run.py selftest` PASS (`reviewed → queued → published`)
+- `python3 -m compileall -q blog_publisher`, `git diff --check` PASS
+
+---
+
 ## 2026-06-18 — Firebase 기반 Windows 운영 제어 큐 추가
 
 운영자가 Windows PC에 직접 명령어를 복붙해야 하는 구조를 없애기 위해 Firebase Functions가 Firestore 명령 큐를 만들고, Windows 운영 PC가 outbound 방식으로 명령을 가져가 실행하는 control plane을 추가했다. Windows PC 인바운드 포트는 열지 않으며, Function은 `BLOG_API_KEY`/Firebase admin auth로 보호되고 Windows는 허용된 작업 whitelist만 실행한다.

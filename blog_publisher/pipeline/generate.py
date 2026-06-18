@@ -506,7 +506,7 @@ def _generate_one(llm: LLMClient, post: dict) -> None:
 
 
 SECTION_MIN = 2   # 하한(이하면 실패)
-SECTION_MAX = 5   # 상한(초과분은 잘라서 보정)
+SECTION_MAX = 4   # 상한(초과분은 잘라서 보정). 운영 글은 이미지/표 주입 후 2600자 이하여야 한다.
 
 
 def _validate_outline(outline: dict) -> dict:

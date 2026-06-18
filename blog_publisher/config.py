@@ -41,7 +41,7 @@ GENERATE_POST_TIMEOUT_SEC = int(os.getenv("GENERATE_POST_TIMEOUT_SEC", "900"))  
 GENERATE_PROCESS_ISOLATION = os.getenv("GENERATE_PROCESS_ISOLATION", "true").lower() == "true"
 GENERATE_BATCH = int(os.getenv("GENERATE_BATCH", "1"))  # 원격 제어 명령 lease 안에서 안전하게 1건씩 생성
 SECTION_MIN_LEN       = int(os.getenv("SECTION_MIN_LEN",       "100"))  # 섹션 최소 글자
-SECTION_MAX_LEN       = int(os.getenv("SECTION_MAX_LEN",       "380"))  # 섹션 최대 글자(문단 단위 압축) — 5섹션 기준 운영 글 발행 상한(2600자)을 넘지 않도록 설정(여유 마진 포함)
+SECTION_MAX_LEN       = int(os.getenv("SECTION_MAX_LEN",       "300"))  # 섹션 최대 글자(문단 단위 압축) — 4섹션+이미지/표 주입 후 운영 글 2600자 상한 안에 두기 위한 값
 STUCK_THRESHOLD_MIN   = int(os.getenv("STUCK_THRESHOLD_MIN",   "35"))   # stuck 판단 기준(분)
 
 # 번역(기획 11)

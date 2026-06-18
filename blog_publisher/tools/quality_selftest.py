@@ -6,9 +6,11 @@ Phase A/B 품질 셀프테스트.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -79,9 +81,9 @@ def _test_phase_a_generation_contract() -> list[str]:
     issues: list[str] = []
     if generate._section_max_tokens() > 1500:
         issues.append(f"phase-a: 섹션 유효 토큰 상한 > 1500 ({generate._section_max_tokens()})")
-    if config.SECTION_MAX_LEN > 1000:
-        issues.append(f"phase-a: SECTION_MAX_LEN > 1000 ({config.SECTION_MAX_LEN})")
-    for token in ["350~650자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
+    if config.SECTION_MAX_LEN > 300:
+        issues.append(f"phase-a: SECTION_MAX_LEN > 300 ({config.SECTION_MAX_LEN})")
+    for token in ["220~300자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
         if token not in prompts.SECTION_SYSTEM:
             issues.append(f"phase-a: SECTION_SYSTEM 품질 지시 누락: {token}")
 
@@ -233,6 +235,207 @@ def _test_generate_all_failures_stop_runbook() -> list[str]:
         generate._generate_lock = original_lock
         generate._generate_one_with_timeout = original_generate
         generate.config.can_generate_with_evidence = original_can_generate
+
+
+def _test_operational_generation_length_contract_queues() -> list[str]:
+    """운영 글은 생성 직후 발행 게이트 길이 계약을 만족하고 queued까지 가야 한다."""
+    import config
+    from db import db
+    from pipeline import factcheck, generate, review, schedule_publish
+    from research import collect
+    from research.collect import CollectedSource
+    from tools.content_quality import plain_text, publish_blockers
+
+    issues: list[str] = []
+    if config.SECTION_MAX_LEN > 300:
+        issues.append(f"ops-length: SECTION_MAX_LEN이 300을 초과함({config.SECTION_MAX_LEN})")
+    if generate.SECTION_MAX > 4:
+        issues.append(f"ops-length: 운영 글 섹션 상한이 4를 초과함({generate.SECTION_MAX})")
+
+    class MockLLM:
+        section_calls = 0
+
+        def chat(self, system: str, user: str, **_kw) -> str:
+            if "SEO 콘텐츠 전략가" in system or "검색 의도를 분석" in system:
+                return json.dumps({
+                    "intent": "서비스업 홈페이지 제작 전 예약과 결제 흐름 검토",
+                    "primary_keyword": "서비스업 홈페이지 제작",
+                    "secondary_keywords": ["예약 시스템", "결제 연동", "알림톡"],
+                    "subquestions": ["예약 접수", "결제 확인", "관리자 화면"],
+                }, ensure_ascii=False)
+            if "사실 추출기" in system:
+                return json.dumps({
+                    "facts": [
+                        {"id": "f1", "statement": "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공한다", "source_id": "s1", "confidence": "high"},
+                        {"id": "f2", "statement": "홍커뮤니케이션은 MICE 행사 운영과 학술대회 운영 레퍼런스를 보유한다", "source_id": "s2", "confidence": "high"},
+                        {"id": "f3", "statement": "서비스업 홈페이지는 예약, 결제, 고객 응대 흐름을 함께 설계해야 한다", "source_id": "s1", "confidence": "med"},
+                    ],
+                    "entities": [{"name": "비오케이솔루션", "type": "brand", "note": "홈페이지 제작", "source_id": "s1"}],
+                }, ensure_ascii=False)
+            if "콘텐츠 기획자" in system:
+                return json.dumps({"coverage_targets": ["홈페이지 목적", "예약 접수", "결제 연동", "관리자 화면", "상담 전 체크"]}, ensure_ascii=False)
+            if "한국어 블로그 편집장" in system or "개요를 짠다" in system:
+                return json.dumps({
+                    "title": "예약과 결제를 함께 보는 서비스업 홈페이지 제작 기준",
+                    "meta_description": "예약, 결제, 알림톡, 관리자 화면을 함께 고려하는 홈페이지 제작 기준입니다.",
+                    "sections": [
+                        {"h2": "홈페이지 목적을 먼저 운영 흐름으로 정리합니다", "point": "문의, 예약, 결제 중 어떤 흐름이 핵심인지 정한다"},
+                        {"h2": "예약 접수는 관리자 화면과 같이 설계합니다", "point": "신청폼과 관리자 확인 화면을 같은 데이터로 연결한다"},
+                        {"h2": "결제와 알림톡은 고객 응대 기준까지 포함합니다", "point": "결제 확인과 안내 메시지 기준을 함께 정한다"},
+                        {"h2": "학술대회와 MICE 운영처럼 데이터 흐름을 남깁니다", "point": "홍커뮤니케이션 레퍼런스처럼 접수와 사후 데이터를 운영 자산으로 남긴다"},
+                        {"h2": "상담 전 체크리스트를 준비합니다", "point": "비오케이솔루션 상담 전 필요한 화면과 권한을 정리한다"},
+                    ],
+                }, ensure_ascii=False)
+            if "한국어 블로그 전문 작가" in system:
+                MockLLM.section_calls += 1
+                variants = [
+                    (
+                        "서비스업 홈페이지는 예쁜 화면보다 **운영 흐름**을 먼저 정해야 합니다. "
+                        "문의, 예약, 결제 중 어느 지점이 실제 매출과 응대 시간을 좌우하는지 정리해야 화면 구성이 흔들리지 않습니다.\n\n"
+                        "- 첫 화면의 문의 버튼과 예약 버튼을 분리합니다.\n"
+                        "- 고객이 남기는 필수 정보와 선택 정보를 구분합니다.\n"
+                        "- 담당자가 확인할 관리자 항목을 먼저 정합니다.\n\n"
+                        "비오케이솔루션은 홈페이지 제작 단계에서 신청폼과 관리자 화면을 함께 검토합니다. "
+                        "이렇게 해야 방문자가 남긴 정보가 운영자가 바로 처리할 수 있는 데이터로 이어집니다."
+                    ),
+                    (
+                        "예약 접수는 단순한 달력 기능이 아니라 **관리자 확인 화면**과 같이 설계해야 합니다. "
+                        "예약 시간, 신청자 정보, 변경 요청, 취소 상태가 따로 관리되면 현장 응대가 늦어집니다.\n\n"
+                        "- 예약 가능 시간과 마감 기준을 정합니다.\n"
+                        "- 중복 신청과 변경 요청을 표시합니다.\n"
+                        "- 관리자에게 필요한 검색 조건을 먼저 고릅니다.\n\n"
+                        "학술대회 접수처럼 참가자 유형이 나뉘는 업무도 같은 원리입니다. "
+                        "접수 데이터가 정리되어야 결제 확인과 안내 발송이 자연스럽게 이어집니다."
+                    ),
+                    (
+                        "결제 연동은 결제 버튼을 붙이는 일에서 끝나지 않습니다. "
+                        "**완료, 취소, 미입금, 환불** 상태를 운영자가 같은 화면에서 구분할 수 있어야 문의 대응이 빨라집니다.\n\n"
+                        "- 결제 완료 후 자동 안내 문구를 준비합니다.\n"
+                        "- 미입금 고객에게 보낼 알림 기준을 정합니다.\n"
+                        "- 환불과 변경 요청의 담당 권한을 나눕니다.\n\n"
+                        "알림톡이나 이메일은 고객에게 보이는 운영 품질입니다. "
+                        "홈페이지 제작 전에 안내 시점과 문구를 정하면 반복 문의를 줄일 수 있습니다."
+                    ),
+                    (
+                        "홍커뮤니케이션의 MICE 운영처럼 행사는 접수 이후의 데이터가 중요합니다. "
+                        "참가자, 세션, 결제, 체크인 기록이 남아야 사후 보고와 다음 행사 기획에 쓸 수 있습니다.\n\n"
+                        "- 참가자 구분과 참석 상태를 남깁니다.\n"
+                        "- QR 체크인이나 현장 확인 기준을 정합니다.\n"
+                        "- 행사 후 집계할 항목을 미리 고릅니다.\n\n"
+                        "이 관점은 일반 서비스업 홈페이지에도 적용됩니다. "
+                        "고객 신청 데이터를 운영 자산으로 남기면 관리자 대시보드와 마케팅 개선까지 연결됩니다."
+                    ),
+                    (
+                        "상담 전에는 디자인 취향보다 **운영자가 매일 확인할 화면**을 먼저 정리하는 편이 좋습니다. "
+                        "필요한 화면과 권한이 정리되면 홈페이지와 맞춤형 시스템의 경계도 분명해집니다.\n\n"
+                        "- 고객이 입력할 항목을 정리합니다.\n"
+                        "- 담당자가 수정할 수 있는 범위를 나눕니다.\n"
+                        "- 결제, 알림, 통계가 필요한지 확인합니다.\n\n"
+                        "비오케이솔루션 상담에서는 이 기준을 바탕으로 홈페이지 제작, 관리자 시스템, API 연동 범위를 나눠 검토할 수 있습니다."
+                    ),
+                ]
+                return variants[(MockLLM.section_calls - 1) % len(variants)]
+            if "구글 SEO 에디터" in system or "네이버 블로그 상위노출 에디터" in system:
+                return json.dumps({
+                    "seo_title": "서비스업 홈페이지 제작 기준",
+                    "meta_description": "예약, 결제, 관리자 화면을 함께 설계하는 홈페이지 제작 기준입니다.",
+                    "tags": ["홈페이지 제작", "예약 시스템", "결제 연동"],
+                }, ensure_ascii=False)
+            if "팩트체커" in system:
+                return json.dumps({"claims": [{"claim": "홈페이지 제작", "status": "supported"}], "grounding_ratio": 0.95, "unsupported": []}, ensure_ascii=False)
+            if "품질 검수자" in system:
+                return json.dumps({"score": 86, "issues": [], "verdict": "pass"}, ensure_ascii=False)
+            return "{}"
+
+    original_db_path = db.DB_PATH
+    originals = {
+        "section_max_len": config.SECTION_MAX_LEN,
+        "generate_process_isolation": config.GENERATE_PROCESS_ISOLATION,
+        "min_body_len": config.MIN_BODY_LEN,
+        "min_grounding_ratio": config.MIN_GROUNDING_RATIO,
+        "min_review_score": config.MIN_REVIEW_SCORE,
+        "publish_spacing_min": config.PUBLISH_SPACING_MIN,
+        "publish_window_start": config.PUBLISH_WINDOW_START,
+        "publish_window_end": config.PUBLISH_WINDOW_END,
+        "auto_seed_required_terms": list(config.AUTO_SEED_REQUIRED_TERMS),
+        "search_provider": config.SEARCH_PROVIDER,
+        "tavily_api_key": config.TAVILY_API_KEY,
+        "collect": collect.collect,
+        "analyze_serp": collect.analyze_serp,
+        "generate_llm": generate.LLMClient,
+        "factcheck_llm": factcheck.LLMClient,
+        "review_llm": review.LLMClient,
+    }
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db.DB_PATH = Path(tmpdir) / "blog.db"
+            db.init_db()
+            config.GENERATE_PROCESS_ISOLATION = False
+            config.MIN_BODY_LEN = 800
+            config.MIN_GROUNDING_RATIO = 0.9
+            config.MIN_REVIEW_SCORE = 80
+            config.PUBLISH_SPACING_MIN = 0
+            config.PUBLISH_WINDOW_START = 0
+            config.PUBLISH_WINDOW_END = 24
+            config.AUTO_SEED_REQUIRED_TERMS = []
+            config.SEARCH_PROVIDER = "tavily"
+            config.TAVILY_API_KEY = "mock"
+            collect.collect = lambda _queries: [
+                CollectedSource("비오케이솔루션", "https://beoksolution.com/", "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공한다.", "high"),
+                CollectedSource("홍커뮤니케이션", "https://hongcomm.kr/", "홍커뮤니케이션은 MICE 행사 운영과 학술대회 운영 레퍼런스를 보유한다.", "high"),
+            ]
+            collect.analyze_serp = lambda _engine, _keyword: [
+                {"title": "서비스업 홈페이지 제작 기준", "snippet": "예약 결제 관리자 화면", "url": "https://example.com"}
+            ]
+            generate.LLMClient = MockLLM
+            factcheck.LLMClient = MockLLM
+            review.LLMClient = MockLLM
+
+            post_id = db.insert_draft(
+                "selfhosted",
+                "예약, 결제, 알림톡이 필요한 서비스업 홈페이지 설계 기준",
+                "howto",
+                category="beok",
+            )
+            generated = generate.run_once(batch=1)
+            row = db.fetch_by_id(post_id)
+            blockers = publish_blockers(row)
+            body_chars = len(plain_text(row["body"]))
+            if generated != 1:
+                issues.append(f"ops-flow: generate 처리 수 불일치({generated})")
+            if blockers:
+                issues.append(f"ops-flow: 생성 직후 발행 게이트 차단({body_chars}자): {blockers}")
+            try:
+                factcheck.run_once(batch=1)
+                review.run_once(batch=1)
+            except RuntimeError as exc:
+                failed_row = db.fetch_by_id(post_id)
+                issues.append(f"ops-flow: factcheck/review 통과 실패: {exc}; review_issues={failed_row['review_issues']}")
+                queued = 0
+            else:
+                queued = schedule_publish.run_once()
+            final = db.fetch_by_id(post_id)
+            if final["status"] != "queued":
+                issues.append(f"ops-flow: reviewed→queued 실패(status={final['status']}, queued={queued})")
+    finally:
+        db.DB_PATH = original_db_path
+        config.SECTION_MAX_LEN = originals["section_max_len"]
+        config.GENERATE_PROCESS_ISOLATION = originals["generate_process_isolation"]
+        config.MIN_BODY_LEN = originals["min_body_len"]
+        config.MIN_GROUNDING_RATIO = originals["min_grounding_ratio"]
+        config.MIN_REVIEW_SCORE = originals["min_review_score"]
+        config.PUBLISH_SPACING_MIN = originals["publish_spacing_min"]
+        config.PUBLISH_WINDOW_START = originals["publish_window_start"]
+        config.PUBLISH_WINDOW_END = originals["publish_window_end"]
+        config.AUTO_SEED_REQUIRED_TERMS = originals["auto_seed_required_terms"]
+        config.SEARCH_PROVIDER = originals["search_provider"]
+        config.TAVILY_API_KEY = originals["tavily_api_key"]
+        collect.collect = originals["collect"]
+        collect.analyze_serp = originals["analyze_serp"]
+        generate.LLMClient = originals["generate_llm"]
+        factcheck.LLMClient = originals["factcheck_llm"]
+        review.LLMClient = originals["review_llm"]
+    return issues
 
 
 def _test_factcheck_all_errors_stop_runbook() -> list[str]:
@@ -949,6 +1152,7 @@ def run() -> bool:
         + _test_generate_rejects_empty_article()
         + _test_generate_hard_compacts_long_section()
         + _test_generate_all_failures_stop_runbook()
+        + _test_operational_generation_length_contract_queues()
         + _test_factcheck_all_errors_stop_runbook()
         + _test_factcheck_all_failed_stop_runbook()
         + _test_review_all_errors_stop_runbook()
@@ -974,8 +1178,9 @@ def run() -> bool:
             print(f"[FAIL] {issue}")
         print(f"\n결과: FAIL ({len(issues)}건)")
         return False
-    print("[OK] phase-a generation: 350~650자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
+    print("[OK] phase-a generation: 220~300자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
     print("[OK] generate gate: 빈 본문/불완전 생성 결과 저장 차단")
+    print("[OK] ops flow: 운영 글 생성 길이와 발행 게이트 길이 상한 정합, queued 전환 유지")
     print("[OK] image bank: 섹션별 이미지 다양성 유지")
     print("[OK] publish gate: 길이/이미지/구조/반복 이미지 차단 유지")
     print("[OK] review gate: 주관적 LLM 이슈는 advisory, 치명 이슈/저점수는 차단")
