@@ -494,8 +494,9 @@ def _validate_outline(outline: dict) -> dict:
     return outline
 
 
-def run_once(batch: int = 1) -> int:
+def run_once(batch: int | None = None) -> int:
     """본문이 없는 draft(next_run_at 지난 것)를 근거기반 생성. 처리 건수 반환."""
+    batch = batch or config.GENERATE_BATCH
     processed = 0
     with _generate_lock() as acquired:
         if not acquired:

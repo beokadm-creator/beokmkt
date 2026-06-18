@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-18 — 자체 블로그 주제·생성 적체 가시화 보강
+
+운영 대시보드 기준 selfhosted 최신 글은 `2026-06-17T14:23:02Z` 1건 이후 오늘 발행이 없고, 로컬 상태 리포트는 `reviewed=0`, `queued=0`으로 보였다. 실제로는 주제 부족이 아니라 body 없는 draft가 쌓인 상태였으므로, beoksolution.com의 운영형 홈페이지 구축 아젠다를 키워드 우선순위에 올리고 generate 처리량과 상태 리포트의 적체 진단을 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `keyword_bank.py` | beoksolution.com 핵심 서비스(초기 제작비 0원, 월 5만원, 서버/SSL/SEO, 예약·결제·알림톡, AI 상담/견적, 학회·기관 홈페이지)를 selfhosted 우선 시드 주제로 추가 |
+| `config.py`, `generate.py`, `run.py` | `GENERATE_BATCH` 기본값 2 추가. `run.py generate [batch]`로 1회 생성 처리량 지정 가능 |
+| `status_report.py` | draft를 생성 대기(empty body), factcheck 대기, review 대기로 분해해 적체 위치를 표시 |
+| `quality_selftest.py` | 홈페이지 구축 아젠다와 generate batch 기본값 회귀테스트 추가 |
+
+검증:
+- `python3 -m compileall -q blog_publisher`, `python3 blog_publisher/run.py quality_selftest`, `python3 blog_publisher/run.py selftest` PASS
+- `python3 blog_publisher/run.py status`에서 생성 대기 15건, factcheck 대기 1건, review 대기 1건으로 적체 위치 확인
+
+---
+
 ## 2026-06-17 — Windows 태스크 git update 경합 방지
 
 공개 `/api/pipeline/stats`가 `LOCAL_SNAPSHOT_STALE`을 표시했고, 마지막 로컬 SQLite 스냅샷이 `2026-06-15T05:59:20Z` 이후 갱신되지 않았다. Windows 작업 스케줄러의 여러 태스크가 같은 시각에 `git fetch/merge`를 동시에 실행하면 `.git/index.lock` 경합으로 본 작업(`generate/review/publish/sync_snapshot`)까지 실행되지 않을 수 있어, Git 업데이트를 잠금으로 직렬화하고 업데이트 실패가 본 작업 실패로 전파되지 않게 보강했다.

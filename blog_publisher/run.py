@@ -71,7 +71,8 @@ def main() -> None:
 
     elif cmd == "generate":
         from pipeline import generate
-        print(f"생성 {generate.run_once()}건")
+        batch = int(sys.argv[2]) if len(sys.argv) > 2 else None
+        print(f"생성 {generate.run_once(batch=batch)}건")
 
     elif cmd == "factcheck":
         from pipeline import factcheck

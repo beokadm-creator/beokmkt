@@ -316,6 +316,23 @@ def _test_review_llm_advisory_gate() -> list[str]:
         config.MIN_REVIEW_SCORE = original_min_score
 
 
+def _test_operational_agenda_defaults() -> list[str]:
+    import config
+    from tools.keyword_bank import KEYWORDS
+
+    issues: list[str] = []
+    if config.GENERATE_BATCH < 2:
+        issues.append(f"ops-defaults: GENERATE_BATCH < 2 ({config.GENERATE_BATCH})")
+
+    topics = [topic for topic, _ctype, brand in KEYWORDS[:12] if brand == "beok"]
+    required = ["초기 제작비", "월 5만원", "예약", "결제", "알림톡", "Search Console", "AI 상담", "학회 기관 홈페이지"]
+    joined = "\n".join(topics)
+    for token in required:
+        if token not in joined:
+            issues.append(f"agenda: beoksolution 홈페이지 구축 주제 누락: {token}")
+    return issues
+
+
 def _test_selfhosted_renderer() -> list[str]:
     from render.renderer import render_body
 
@@ -553,6 +570,7 @@ def run() -> bool:
         + _test_image_diversity()
         + _test_publish_quality_gate()
         + _test_review_llm_advisory_gate()
+        + _test_operational_agenda_defaults()
         + _test_selfhosted_renderer()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
@@ -569,6 +587,7 @@ def run() -> bool:
     print("[OK] image bank: 섹션별 이미지 다양성 유지")
     print("[OK] publish gate: 길이/이미지/구조/반복 이미지 차단 유지")
     print("[OK] review gate: 주관적 LLM 이슈는 advisory, 치명 이슈/저점수는 차단")
+    print("[OK] ops defaults: 홈페이지 구축 아젠다·generate batch 유지")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
     print("[OK] renderer security: URL 스킴 세척·제목 이미지 분리·OG SVG escape 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")

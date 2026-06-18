@@ -45,6 +45,23 @@ def _focus_inventory_by_channel() -> dict[str, int]:
     return {row["channel"]: int(row["n"]) for row in rows}
 
 
+def _stage_backlog(now: str) -> dict[str, int]:
+    with db.connect() as conn:
+        row = conn.execute(
+            """
+            SELECT
+              SUM(CASE WHEN status = 'draft' AND (body IS NULL OR body = '') THEN 1 ELSE 0 END) AS empty_draft,
+              SUM(CASE WHEN status = 'draft' AND (body IS NULL OR body = '') AND (next_run_at IS NULL OR next_run_at <= ?) THEN 1 ELSE 0 END) AS generate_due,
+              SUM(CASE WHEN status = 'draft' AND body IS NOT NULL AND body != '' AND grounding_ratio IS NULL THEN 1 ELSE 0 END) AS factcheck_ready,
+              SUM(CASE WHEN status = 'draft' AND body IS NOT NULL AND body != '' AND grounding_ratio IS NOT NULL AND grounding_ratio >= ? THEN 1 ELSE 0 END) AS review_ready,
+              SUM(CASE WHEN status = 'draft' AND body IS NOT NULL AND body != '' AND grounding_ratio IS NOT NULL AND grounding_ratio < ? THEN 1 ELSE 0 END) AS low_grounding_body
+            FROM posts
+            """,
+            (now, config.MIN_GROUNDING_RATIO, config.MIN_GROUNDING_RATIO),
+        ).fetchone()
+    return {key: int(row[key] or 0) for key in row.keys()}
+
+
 def report() -> dict[str, int]:
     counts = {s: db.count_by_status(s) for s in STATUSES}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -68,10 +85,18 @@ def report() -> dict[str, int]:
             ORDER BY channel, status
             """
         ).fetchall()
+    backlog = _stage_backlog(now)
 
     print("=== 파이프라인 상태 ===")
     for s in STATUSES:
         print(f"  {s:12} {counts[s]:>5}")
+
+    print("\n=== draft 적체 분석 ===")
+    print(f"  생성 대기(empty body)      {backlog['empty_draft']:>5}  due={backlog['generate_due']}")
+    print(f"  사실검증 대기(body 있음)   {backlog['factcheck_ready']:>5}")
+    print(f"  리뷰 대기(grounding 통과)  {backlog['review_ready']:>5}")
+    if backlog["low_grounding_body"]:
+        print(f"  근거 미달 body 보유        {backlog['low_grounding_body']:>5}")
 
     by_channel: dict[str, dict[str, int]] = {}
     for row in channel_rows:
@@ -128,6 +153,13 @@ def report() -> dict[str, int]:
     if counts["reviewed"] < buffer_target:
         print(f"  [진행] reviewed 전환 대기: reviewed={counts['reviewed']} < 목표 {buffer_target} "
               f"(factcheck/review 주기에 따라 보충)")
+        if backlog["generate_due"]:
+            print(f"  [확인] 생성 대기 적체: generate_due={backlog['generate_due']} "
+                  f"(현재 GENERATE_BATCH={config.GENERATE_BATCH})")
+        elif backlog["factcheck_ready"]:
+            print(f"  [확인] 사실검증 대기 적체: factcheck_ready={backlog['factcheck_ready']}")
+        elif backlog["review_ready"]:
+            print(f"  [확인] 리뷰 대기 적체: review_ready={backlog['review_ready']}")
     else:
         print(f"  [정상] 재고 충분: reviewed={counts['reviewed']} (목표 {buffer_target})")
 
