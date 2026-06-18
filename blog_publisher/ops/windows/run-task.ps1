@@ -33,6 +33,8 @@ try {
 } catch {
   # Best effort: old PowerShell hosts may not allow changing code pages.
 }
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 
 $PublisherDir = Join-Path $RepoRoot "blog_publisher"
 $GitUpdate = Join-Path $RepoRoot "blog_publisher\ops\windows\git-update.ps1"

@@ -13,6 +13,8 @@ try {
 } catch {
   # Best effort: old PowerShell hosts may not allow changing code pages.
 }
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 
 $OpsDir = Join-Path $RepoRoot "blog_publisher\ops\windows"
 $RunTask = Join-Path $OpsDir "run-task.ps1"
