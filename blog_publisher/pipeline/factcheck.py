@@ -87,6 +87,8 @@ def run_once(batch: int = 5) -> tuple[int, int]:
         if len(errors) > 3:
             detail += f"; 외 {len(errors) - 3}건"
         raise RuntimeError(f"사실검증 대상 {attempted}건 모두 오류: {detail}")
+    if attempted and passed == 0 and failed > 0:
+        raise RuntimeError(f"사실검증 대상 {attempted}건 중 통과 0건 / 탈락 {failed}건")
     return passed, failed
 
 

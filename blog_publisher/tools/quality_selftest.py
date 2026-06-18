@@ -267,6 +267,51 @@ def _test_factcheck_all_errors_stop_runbook() -> list[str]:
         factcheck.LLMClient = original_client
 
 
+def _test_factcheck_all_failed_stop_runbook() -> list[str]:
+    from pipeline import factcheck
+
+    class FakeDb:
+        def __init__(self):
+            self.failed = 0
+
+        def fetch_factcheck_ready(self, limit=5):
+            return [{
+                "id": 1,
+                "body": "근거와 맞지 않는 본문",
+                "evidence": '{"facts":[{"statement":"근거"}]}',
+            }]
+
+        def claim(self, _post_id, _from_status, _to_status):
+            return True
+
+        def save_grounding(self, _post_id, _ratio):
+            return None
+
+        def mark_review_failed(self, _post_id, _issues):
+            self.failed += 1
+
+        def save_body(self, _post_id, _body, to_status="draft"):
+            return None
+
+    original_db = factcheck.db
+    original_check = factcheck.check
+    original_client = factcheck.LLMClient
+    fake_db = FakeDb()
+    try:
+        factcheck.db = fake_db
+        factcheck.LLMClient = lambda: object()
+        factcheck.check = lambda _llm, _body, _evidence: {"grounding_ratio": 0.0, "unsupported": ["x"]}
+        try:
+            factcheck.run_once(batch=1)
+        except RuntimeError:
+            return [] if fake_db.failed == 1 else ["factcheck: 탈락 처리 기록 누락"]
+        return ["factcheck: 모든 사실검증 탈락을 성공 명령으로 처리함"]
+    finally:
+        factcheck.db = original_db
+        factcheck.check = original_check
+        factcheck.LLMClient = original_client
+
+
 def _test_review_all_errors_stop_runbook() -> list[str]:
     from pipeline import review
 
@@ -352,10 +397,13 @@ def _test_review_applies_publish_gate_before_queue() -> list[str]:
         review.rule_gate = lambda _body: []
         review.publish_blockers = lambda _post: ["운영 글 본문 과다(3200/2600자)"]
         review.llm_gate = lambda _llm, _title, _body: called_llm.__setitem__("value", True) or []
-        passed, failed = review.run_once(batch=1)
         issues: list[str] = []
-        if (passed, failed) != (0, 1):
-            issues.append(f"review-prepublish: 차단 결과 불일치({passed}, {failed})")
+        try:
+            review.run_once(batch=1)
+        except RuntimeError:
+            pass
+        else:
+            issues.append("review-prepublish: 전부 차단된 검수를 성공 명령으로 처리함")
         if not fake_db.failed or "본문 과다" not in fake_db.failed[0][0]:
             issues.append(f"review-prepublish: 발행 게이트 이슈 미전파({fake_db.failed})")
         if called_llm["value"]:
@@ -879,6 +927,7 @@ def run() -> bool:
         + _test_generate_hard_compacts_long_section()
         + _test_generate_all_failures_stop_runbook()
         + _test_factcheck_all_errors_stop_runbook()
+        + _test_factcheck_all_failed_stop_runbook()
         + _test_review_all_errors_stop_runbook()
         + _test_review_applies_publish_gate_before_queue()
         + _test_publish_zero_success_fails_runbook()
