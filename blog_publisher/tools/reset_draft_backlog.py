@@ -17,7 +17,7 @@ from typing import Iterable
 from db import db
 from tools.keyword_bank import KEYWORDS
 
-ACTIVE_STATUSES = ("draft", "generating", "factchecking", "reviewing", "reviewed", "queued")
+ACTIVE_STATUSES = ("draft", "generating", "factchecking", "reviewing")
 DEFAULT_CHANNELS = ("selfhosted",)
 DEFAULT_SEED_TARGET = 24
 AXIS_ORDER = ("homepage", "conference_system", "mice_reference", "badge_ops")

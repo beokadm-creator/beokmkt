@@ -388,6 +388,16 @@ def _test_reset_draft_backlog_avoids_archived_topics() -> list[str]:
         db.DB_PATH = original_db_path
 
 
+def _test_reset_draft_backlog_default_scope() -> list[str]:
+    from tools import reset_draft_backlog
+
+    unsafe = {"reviewed", "queued", "published"}
+    overlap = unsafe & set(reset_draft_backlog.ACTIVE_STATUSES)
+    if overlap:
+        return [f"draft-reset: 기본 reset 범위가 발행 후보 상태까지 포함함: {sorted(overlap)}"]
+    return []
+
+
 def _test_selfhosted_renderer() -> list[str]:
     from render.renderer import render_body
 
@@ -629,6 +639,7 @@ def run() -> bool:
         + _test_operational_agenda_defaults()
         + _test_reset_draft_backlog_plan()
         + _test_reset_draft_backlog_avoids_archived_topics()
+        + _test_reset_draft_backlog_default_scope()
         + _test_selfhosted_renderer()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
