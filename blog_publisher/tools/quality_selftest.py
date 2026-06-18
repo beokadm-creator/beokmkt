@@ -366,6 +366,28 @@ def _test_reset_draft_backlog_plan() -> list[str]:
         reset_draft_backlog._protected_topic_keys = original_protected
 
 
+def _test_reset_draft_backlog_avoids_archived_topics() -> list[str]:
+    import tempfile
+    from db import db
+    from tools import reset_draft_backlog
+    from tools.keyword_bank import KEYWORDS
+
+    original_db_path = db.DB_PATH
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db.DB_PATH = Path(tmpdir) / "blog.db"
+            db.init_db()
+            topic, content_type, category = KEYWORDS[0]
+            post_id = db.insert_draft("selfhosted", topic, content_type, category=category)
+            replacements = reset_draft_backlog.replacement_topics(4, "selfhosted", archive_ids=[post_id])
+        repeated = [candidate for candidate, _ctype, _brand, _axis in replacements if candidate == topic]
+        if repeated:
+            return [f"draft-reset: archive 대상 주제를 즉시 재시드함: {topic}"]
+        return []
+    finally:
+        db.DB_PATH = original_db_path
+
+
 def _test_selfhosted_renderer() -> list[str]:
     from render.renderer import render_body
 
@@ -606,6 +628,7 @@ def run() -> bool:
         + _test_review_llm_advisory_gate()
         + _test_operational_agenda_defaults()
         + _test_reset_draft_backlog_plan()
+        + _test_reset_draft_backlog_avoids_archived_topics()
         + _test_selfhosted_renderer()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()

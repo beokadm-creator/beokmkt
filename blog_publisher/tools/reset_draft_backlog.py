@@ -71,15 +71,9 @@ def _candidate_rows(channels: Iterable[str], statuses: Iterable[str]):
 
 
 def _protected_topic_keys(channels: Iterable[str], archive_ids: Iterable[int]) -> set[str]:
-    ids = tuple(int(i) for i in archive_ids)
     channels = tuple(channels)
     channel_marks = ",".join("?" for _ in channels)
-    archive_clause = ""
     params: list = [*channels]
-    if ids:
-        id_marks = ",".join("?" for _ in ids)
-        archive_clause = f"AND id NOT IN ({id_marks})"
-        params.extend(ids)
     with db.connect() as conn:
         rows = conn.execute(
             f"""
@@ -87,7 +81,6 @@ def _protected_topic_keys(channels: Iterable[str], archive_ids: Iterable[int]) -
             FROM posts
             WHERE channel IN ({channel_marks})
               AND status != 'archived'
-              {archive_clause}
             """,
             params,
         ).fetchall()
