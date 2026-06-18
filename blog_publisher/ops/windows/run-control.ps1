@@ -135,7 +135,7 @@ for ($i = 0; $i -lt $MaxCommands; $i++) {
       error = if ($ok) { "" } else { $output }
     } | Out-Null
   } catch {
-    Write-Log "complete failed id=$commandId: $($_.Exception.Message)"
+    Write-Log "complete failed id=${commandId}: $($_.Exception.Message)"
     exit 1
   }
   Write-Log "command done id=$commandId task=$task exit=$exitCode"
