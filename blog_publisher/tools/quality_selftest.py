@@ -379,8 +379,8 @@ def _test_operational_agenda_defaults() -> list[str]:
     from tools.keyword_bank import KEYWORDS
 
     issues: list[str] = []
-    if config.GENERATE_BATCH < 2:
-        issues.append(f"ops-defaults: GENERATE_BATCH < 2 ({config.GENERATE_BATCH})")
+    if config.GENERATE_BATCH != 1:
+        issues.append(f"ops-defaults: 원격 제어 generate batch는 1이어야 함 ({config.GENERATE_BATCH})")
 
     topics = [topic for topic, _ctype, brand in KEYWORDS[:12] if brand == "beok"]
     required = ["초기 제작비", "월 5만원", "예약", "결제", "알림톡", "Search Console", "AI 상담", "학회 기관 홈페이지"]
