@@ -180,6 +180,50 @@ def _test_generate_rejects_empty_article() -> list[str]:
     return ["generate: 빈 본문 결과를 성공으로 처리함"]
 
 
+def _test_generate_all_failures_stop_runbook() -> list[str]:
+    from contextlib import contextmanager
+    from pipeline import generate
+
+    class FakeDb:
+        def __init__(self):
+            self.requeued = 0
+
+        def fetch_generate_ready(self, limit=10):
+            return [{"id": 1, "topic": "LLM 과부하 테스트", "attempts": 0}]
+
+        def claim(self, _post_id, _from_status, _to_status):
+            return True
+
+        def requeue_draft(self, _post_id, _attempts, _error, max_attempts=5):
+            self.requeued += 1
+            return "draft"
+
+    @contextmanager
+    def fake_lock():
+        yield True
+
+    original_db = generate.db
+    original_lock = generate._generate_lock
+    original_generate = generate._generate_one_with_timeout
+    original_can_generate = generate.config.can_generate_with_evidence
+    fake_db = FakeDb()
+    try:
+        generate.db = fake_db
+        generate._generate_lock = fake_lock
+        generate._generate_one_with_timeout = lambda _post: (_ for _ in ()).throw(RuntimeError("LLM 429"))
+        generate.config.can_generate_with_evidence = lambda: True
+        try:
+            generate.run_once(batch=1)
+        except RuntimeError:
+            return []
+        return ["generate: 모든 생성 대상 실패를 성공 명령으로 처리함"]
+    finally:
+        generate.db = original_db
+        generate._generate_lock = original_lock
+        generate._generate_one_with_timeout = original_generate
+        generate.config.can_generate_with_evidence = original_can_generate
+
+
 def _test_image_diversity() -> list[str]:
     from tools.image_bank import inject_images
 
@@ -633,6 +677,7 @@ def run() -> bool:
     issues = (
         _test_phase_a_generation_contract()
         + _test_generate_rejects_empty_article()
+        + _test_generate_all_failures_stop_runbook()
         + _test_image_diversity()
         + _test_publish_quality_gate()
         + _test_review_llm_advisory_gate()

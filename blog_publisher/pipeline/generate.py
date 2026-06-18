@@ -522,6 +522,8 @@ def run_once(batch: int | None = None) -> int:
     """본문이 없는 draft(next_run_at 지난 것)를 근거기반 생성. 처리 건수 반환."""
     batch = batch or config.GENERATE_BATCH
     processed = 0
+    attempted = 0
+    failures: list[str] = []
     with _generate_lock() as acquired:
         if not acquired:
             print("[generate] 다른 생성 프로세스가 실행 중이라 이번 주기는 건너뜀", flush=True)
@@ -534,6 +536,7 @@ def run_once(batch: int | None = None) -> int:
         for post in db.fetch_generate_ready(limit=batch):
             if not db.claim(post["id"], "draft", "generating"):
                 continue
+            attempted += 1
             try:
                 print(f"[generate] id={post['id']} 시작 topic={post['topic']!r}", flush=True)
                 _generate_one_with_timeout(dict(post))
@@ -547,8 +550,14 @@ def run_once(batch: int | None = None) -> int:
                 )
                 print(f"[generate] id={post['id']} 시도{attempts}/{config.GENERATE_MAX_ATTEMPTS} "
                       f"실패→{new_status}: {e}", flush=True)
+                failures.append(f"id={post['id']} {new_status}: {e}")
                 if new_status == "needs_human":
                     notify(f"생성 실패 격리: id={post['id']} topic={post['topic']!r} — {e}", "error")
+    if attempted and processed == 0 and len(failures) == attempted:
+        detail = "; ".join(failures[:3])
+        if len(failures) > 3:
+            detail += f"; 외 {len(failures) - 3}건"
+        raise RuntimeError(f"생성 대상 {attempted}건 모두 실패: {detail}")
     return processed
 
 
