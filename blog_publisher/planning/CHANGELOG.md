@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-18 — review LLM 55점 스타일 이슈로 인한 0% 탈락 해소
+
+길이 정합 이후 Windows 실측에서 새 원고가 factcheck와 publish length gate는 통과했지만, review LLM이 `score=55`, `unnatural_ko`, `generic`을 반환해 전부 탈락하는 2차 병목이 드러났다. 규칙 게이트와 발행 게이트가 이미 길이·이미지·구조·중복·서비스 축을 차단하므로, LLM review는 사실성/주제이탈/위험/환각 중심의 안전망으로 조정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `config.py` | `REVIEW_HARD_FAIL_SCORE` 기본값 60 → 50. 기본 critical issue에서 `unnatural_ko` 제거 |
+| `pipeline/review.py` | `unnatural_ko/generic/repetitive`는 규칙·발행 게이트 통과 글에서 advisory로 둔다는 정책 주석 반영 |
+| `llm/prompts.py` | 섹션 작성 프롬프트에 번역투/보고서투 회피와 문단 리듬 변경 지시 추가. review 프롬프트도 50점 기준과 hard/advisory issue 구분으로 조정 |
+| `quality_selftest.py` | Windows 실측 패턴(`score=55`, `unnatural_ko`, `generic`)이 review→schedule을 통과해 `queued`가 되는 회귀테스트 추가. `factual_doubt/off_topic`은 계속 차단 검증 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher`, `git diff --check` PASS
+
+---
+
 ## 2026-06-18 — 운영 글 생성 길이와 발행 게이트 정합
 
 Windows 운영 PC에서 새 selfhosted 원고가 factcheck를 통과해도 review 단계에서 `운영 글 본문 과다(.../2600자)`로 전부 탈락해 `reviewed=0`, `queued=0`에 고착되는 문제가 있었다. 원인은 생성 계약(5섹션 × 섹션 최대 380자)과 발행 게이트(운영 글 plain text 2600자 이하)가 맞지 않는 것이므로, 생성 쪽을 줄이는 A안으로 정합시켰다.

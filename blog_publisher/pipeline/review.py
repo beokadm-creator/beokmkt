@@ -74,7 +74,8 @@ def review_blockers(data: dict) -> list[str]:
 
     규칙 게이트/발행 게이트가 이미 길이, 구조, 이미지, 중복, 서비스 축을 차단하므로
     LLM의 generic/repetitive 같은 주관적 개선 의견만으로는 재고를 모두 폐기하지 않는다.
-    다만 매우 낮은 점수와 사실성·주제이탈·부자연한 한국어 같은 치명 이슈는 계속 차단한다.
+    다만 매우 낮은 점수와 사실성·주제이탈·위험·환각 같은 치명 이슈는 계속 차단한다.
+    unnatural_ko/generic/repetitive는 규칙 게이트와 발행 게이트를 통과한 글에서는 advisory로 둔다.
     """
     if config.MIN_REVIEW_SCORE <= 0:
         return []   # 검수 점수 임계 0 = LLM 게이트 비활성

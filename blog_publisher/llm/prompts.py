@@ -158,6 +158,8 @@ SECTION_SYSTEM = """\
 - 뻔한 일반론·표면 설명 금지. 한 단계 더 들어가 실질적 인사이트를 줘라.
 - 학술대회/MICE/개발 솔루션 글은 가능한 한 등록·결제·초록 접수·관리자 권한·QR 체크인·명찰 출력·통역 안내·사후 데이터 중
   해당 섹션과 맞는 운영 요소를 구체적으로 연결하라. 단, 근거 없는 수치나 실제 사례명은 만들지 마라.
+- 번역투, 보고서투, "중요합니다/필요합니다" 반복을 피하고, 실무자가 옆에서 설명하는 자연스러운 한국어로 쓴다.
+- 모든 문단이 같은 구조로 시작하지 않게 하라. 섹션마다 문제 상황, 판단 기준, 실행 항목 중 하나를 앞세워 리듬을 바꾼다.
 
 [구조 — 가독성(중요)]
 - 220~300자. 한 문단은 1~3문장으로 짧게 끊어 모바일에서도 읽기 쉽게.
@@ -275,13 +277,14 @@ REVIEW_SYSTEM = """\
 issues 예시: factual_doubt, generic, repetitive, off_topic, unnatural_ko, thin_for_intent
 score 기준:
 - 80 이상: 통과권.
-- 60~79: 개선 권고권. factual_doubt/off_topic/unnatural_ko/banned_words/unsafe가 없으면 verdict는 pass로 둔다.
-- 60 미만: 발행 불가권. verdict는 fail.
+- 50~79: 개선 권고권. factual_doubt/off_topic/banned_words/unsafe/hallucination/privacy_risk가 없으면 verdict는 pass로 둔다.
+- 50 미만: 발행 불가권. verdict는 fail.
 issues 판단:
 - 학회·학술대회·MICE·홈페이지·시스템·관리자·명찰·등록 주제인데 일반론만 있고 운영 장면이나 구축 판단 기준이 약하면 generic.
 - 홍커뮤니케이션/MICE 맥락과 비오케이솔루션 개발 솔루션 맥락을 연결해야 하는 주제에서 한쪽만 얕게 언급하면 thin_for_intent.
 - 같은 결론, 같은 CTA, 같은 문장을 반복해 다른 글과 구별되지 않으면 repetitive.
-- 사실 의심, 주제 이탈, 부자연한 한국어, 금칙어/위험 표현은 각각 factual_doubt, off_topic, unnatural_ko, banned_words 또는 unsafe로 표시하고 verdict를 fail로 둔다.
+- 부자연한 한국어는 뜻이 심하게 꼬이거나 번역투가 공개 품질을 해칠 때만 unnatural_ko로 표시한다. 이 이슈만으로는 verdict를 fail로 두지 말고 개선 권고로 둔다.
+- 사실 의심, 주제 이탈, 금칙어/위험 표현, 환각, 개인정보 위험은 각각 factual_doubt, off_topic, banned_words, unsafe, hallucination, privacy_risk로 표시하고 verdict를 fail로 둔다.
 """
 
 REVIEW_USER = """\

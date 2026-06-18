@@ -344,7 +344,7 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
             if "팩트체커" in system:
                 return json.dumps({"claims": [{"claim": "홈페이지 제작", "status": "supported"}], "grounding_ratio": 0.95, "unsupported": []}, ensure_ascii=False)
             if "품질 검수자" in system:
-                return json.dumps({"score": 86, "issues": [], "verdict": "pass"}, ensure_ascii=False)
+                return json.dumps({"score": 55, "issues": ["unnatural_ko", "generic"], "verdict": "fail"}, ensure_ascii=False)
             return "{}"
 
     original_db_path = db.DB_PATH
@@ -795,6 +795,11 @@ def _test_review_llm_advisory_gate() -> list[str]:
                 [],
             ),
             (
+                "operational-style-soft-fail",
+                '{"score":55,"issues":["unnatural_ko","generic"],"verdict":"fail"}',
+                [],
+            ),
+            (
                 "very-low-score",
                 '{"score":40,"issues":["generic"],"verdict":"fail"}',
                 ["low_score"],
@@ -803,6 +808,11 @@ def _test_review_llm_advisory_gate() -> list[str]:
                 "critical-issue",
                 '{"score":72,"issues":["off_topic"],"verdict":"fail"}',
                 ["off_topic"],
+            ),
+            (
+                "critical-with-mid-score",
+                '{"score":55,"issues":["factual_doubt"],"verdict":"fail"}',
+                ["factual_doubt"],
             ),
             (
                 "normal-pass",

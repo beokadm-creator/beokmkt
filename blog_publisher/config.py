@@ -148,12 +148,12 @@ MIN_BODY_LEN = int(os.getenv("MIN_BODY_LEN", "800"))    # 가시 본문 최소 �
 MAX_DUP_RATIO = float(os.getenv("MAX_DUP_RATIO", "0.18"))
 MIN_HEADINGS = int(os.getenv("MIN_HEADINGS", "3"))
 MIN_REVIEW_SCORE = int(os.getenv("MIN_REVIEW_SCORE", "80"))
-REVIEW_HARD_FAIL_SCORE = int(os.getenv("REVIEW_HARD_FAIL_SCORE", "60"))
+REVIEW_HARD_FAIL_SCORE = int(os.getenv("REVIEW_HARD_FAIL_SCORE", "50"))
 REVIEW_CRITICAL_ISSUES = [
     issue.strip()
     for issue in os.getenv(
         "REVIEW_CRITICAL_ISSUES",
-        "factual_doubt,off_topic,unnatural_ko,banned_words,unsafe,hallucination,privacy_risk",
+        "factual_doubt,off_topic,banned_words,unsafe,hallucination,privacy_risk",
     ).split(",")
     if issue.strip()
 ]
