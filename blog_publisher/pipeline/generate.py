@@ -336,6 +336,30 @@ def _ensure_summary_table(body_text: str, outline: dict, allow_table: bool = Tru
     return body_text + "\n\n## 실행 전 점검표\n\n" + "\n".join(rows)
 
 
+def _visible_text_len(body: str) -> int:
+    text = _re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", body or "")
+    text = _re.sub(r"\[[^\]]+\]\([^)]*\)", " ", text)
+    text = _re.sub(r"[#>*_`|\\-]+", " ", text)
+    text = _re.sub(r"\s+", " ", text).strip()
+    return len(text)
+
+
+def _validate_generated_article(result: dict) -> dict:
+    title = str(result.get("title") or "").strip()
+    body = str(result.get("body") or "").strip()
+    if not title:
+        raise ValueError("생성 결과 제목이 비어 있음")
+    if not body:
+        raise ValueError("생성 결과 본문이 비어 있음")
+    if body.count("## ") < SECTION_MIN:
+        raise ValueError(f"생성 결과 소제목 부족({body.count('## ')}/{SECTION_MIN})")
+    min_visible_chars = max(250, config.SECTION_MIN_LEN * SECTION_MIN)
+    visible_chars = _visible_text_len(body)
+    if visible_chars < min_visible_chars:
+        raise ValueError(f"생성 결과 본문 부족({visible_chars}/{min_visible_chars}자)")
+    return result
+
+
 def generate_article(
     llm: LLMClient, topic: str, content_type: str, channel: str = "selfhosted",
     brand_key: str = "",
@@ -439,7 +463,7 @@ def compose_article(
     meta = _strip_run_meta_text(meta)
     body_text = _strip_run_meta_text(body_text)
 
-    return {
+    return _validate_generated_article({
         "title": final_title,
         "meta_description": meta,
         "body": body_text,
@@ -447,7 +471,7 @@ def compose_article(
         "target_engine": engine,
         "evidence": evidence,
         "seo": seo_data,
-    }
+    })
 
 
 def _generate_one(llm: LLMClient, post: dict) -> None:

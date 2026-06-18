@@ -166,6 +166,20 @@ def _test_phase_a_generation_contract() -> list[str]:
     return issues
 
 
+def _test_generate_rejects_empty_article() -> list[str]:
+    from pipeline import generate
+
+    try:
+        generate._validate_generated_article({
+            "title": "빈 본문 테스트",
+            "meta_description": "본문이 비면 저장하면 안 됩니다.",
+            "body": "",
+        })
+    except ValueError:
+        return []
+    return ["generate: 빈 본문 결과를 성공으로 처리함"]
+
+
 def _test_image_diversity() -> list[str]:
     from tools.image_bank import inject_images
 
@@ -586,6 +600,7 @@ process.exit(issues.length ? 1 : 0)
 def run() -> bool:
     issues = (
         _test_phase_a_generation_contract()
+        + _test_generate_rejects_empty_article()
         + _test_image_diversity()
         + _test_publish_quality_gate()
         + _test_review_llm_advisory_gate()
@@ -604,6 +619,7 @@ def run() -> bool:
         print(f"\n결과: FAIL ({len(issues)}건)")
         return False
     print("[OK] phase-a generation: 350~650자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
+    print("[OK] generate gate: 빈 본문/불완전 생성 결과 저장 차단")
     print("[OK] image bank: 섹션별 이미지 다양성 유지")
     print("[OK] publish gate: 길이/이미지/구조/반복 이미지 차단 유지")
     print("[OK] review gate: 주관적 LLM 이슈는 advisory, 치명 이슈/저점수는 차단")
