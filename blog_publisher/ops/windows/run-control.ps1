@@ -5,6 +5,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+try {
+  [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
+  $OutputEncoding = [Console]::OutputEncoding
+  chcp 65001 | Out-Null
+} catch {
+  # Best effort: old PowerShell hosts may not allow changing code pages.
+}
 
 $OpsDir = Join-Path $RepoRoot "blog_publisher\ops\windows"
 $RunTask = Join-Path $OpsDir "run-task.ps1"

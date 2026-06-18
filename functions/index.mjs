@@ -10,6 +10,11 @@ import { ssrTemplate, assetPaths } from './ssr-template.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 import { getBlogPromptTemplate, resolveLengthGuide } from './blog-pipeline/prompts.mjs'
 import { researchKeywords, KeywordResearchError } from './blog-pipeline/keyword-research.mjs'
+import {
+  isRunnablePipelineCommand,
+  pipelineCommandTimeMs,
+  selectClaimablePipelineCommand,
+} from './pipeline-command-queue.mjs'
 
 initializeApp()
 const db = getFirestore()
@@ -96,14 +101,6 @@ function normalizePipelineCommandRequest(body = {}) {
     })
   }
   return { tasks, runbook: runbook || null }
-}
-
-function pipelineCommandTimeMs(command = {}) {
-  const value = command.created_at
-  if (value instanceof Date) return value.getTime()
-  if (value && typeof value.toDate === 'function') return value.toDate().getTime()
-  const parsed = new Date(value ?? 0).getTime()
-  return Number.isFinite(parsed) ? parsed : 0
 }
 
 app.use(async (req, res, next) => {
@@ -2340,22 +2337,31 @@ app.post('/api/pipeline/commands/claim', async (req, res) => {
       .where('active', '==', true)
       .limit(100)
     const activeSnap = await tx.get(activeQuery)
-    const candidates = activeSnap.docs
-      .filter((doc) => {
-        const data = doc.data()
-        if (data.status === 'pending') return true
-        if (data.status !== 'running') return false
-        const leaseUntil = data.lease_until && typeof data.lease_until.toDate === 'function'
-          ? data.lease_until.toDate()
-          : new Date(data.lease_until ?? 0)
-        return leaseUntil <= now
-      })
-      .sort((a, b) => pipelineCommandTimeMs(a.data()) - pipelineCommandTimeMs(b.data()))
-    const doc = candidates[0] ?? null
-    if (!doc) return null
+    const activeCommands = activeSnap.docs.map((doc) => ({ id: doc.id, ref: doc.ref, ...doc.data() }))
+    const candidates = activeCommands
+      .filter((command) => isRunnablePipelineCommand(command, now))
+      .sort((a, b) => pipelineCommandTimeMs(a) - pipelineCommandTimeMs(b))
+    let command = null
+    for (const candidate of candidates) {
+      let commandScope = activeCommands
+      if (candidate.batch_id) {
+        const batchSnap = await tx.get(
+          db.collection('pipeline_commands')
+            .where('batch_id', '==', candidate.batch_id)
+            .limit(100),
+        )
+        commandScope = batchSnap.docs.map((doc) => ({ id: doc.id, ref: doc.ref, ...doc.data() }))
+      }
+      const claimable = selectClaimablePipelineCommand(commandScope, now)
+      if (claimable?.id === candidate.id) {
+        command = candidate
+        break
+      }
+    }
+    if (!command) return null
 
-    const data = doc.data()
-    tx.update(doc.ref, {
+    const { id, ref, ...data } = command
+    tx.update(ref, {
       status: 'running',
       active: true,
       worker_id: workerId,
@@ -2364,7 +2370,7 @@ app.post('/api/pipeline/commands/claim', async (req, res) => {
       lease_until: leaseUntil,
       updated_at: FieldValue.serverTimestamp(),
     })
-    return { id: doc.id, ...data, status: 'running', worker_id: workerId, lease_until: leaseUntil.toISOString() }
+    return { id, ...data, status: 'running', worker_id: workerId, lease_until: leaseUntil.toISOString() }
   })
 
   ok(res, { command: claimed })
