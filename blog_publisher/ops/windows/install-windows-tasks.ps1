@@ -23,11 +23,35 @@ function Quote([string]$Value) {
   return '"' + $Value.Replace('"', '\"') + '"'
 }
 
+function Set-TaskRuntimePolicy(
+  [string]$TaskName,
+  [int]$Minutes = 20,
+  [switch]$NoTimeLimit,
+  [switch]$RestartOnFailure
+) {
+  $limit = if ($NoTimeLimit) { [TimeSpan]::Zero } else { New-TimeSpan -Minutes $Minutes }
+  if ($RestartOnFailure) {
+    $settings = New-ScheduledTaskSettingsSet `
+      -ExecutionTimeLimit $limit `
+      -MultipleInstances IgnoreNew `
+      -Hidden `
+      -RestartCount 999 `
+      -RestartInterval (New-TimeSpan -Minutes 1)
+  } else {
+    $settings = New-ScheduledTaskSettingsSet `
+      -ExecutionTimeLimit $limit `
+      -MultipleInstances IgnoreNew `
+      -Hidden
+  }
+  Set-ScheduledTask -TaskName $TaskName -Settings $settings | Out-Host
+}
+
 function Register-MinuteTask([string]$Name, [string]$Task, [int]$Minutes) {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix $Name"
   $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunTask) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -Task $Task$pullArg"
   schtasks /Create /F /TN $tn /SC MINUTE /MO $Minutes /TR $tr | Out-Host
+  Set-TaskRuntimePolicy -TaskName $tn -Minutes 20
 }
 
 function Register-DailyTask([string]$Name, [string]$Task, [string]$Time) {
@@ -55,6 +79,7 @@ function Register-ControlTask() {
   $tn = "$TaskPrefix Control"
   $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunControl) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -MaxCommands 3$pullArg"
   schtasks /Create /F /TN $tn /SC MINUTE /MO 1 /TR $tr | Out-Host
+  Set-TaskRuntimePolicy -TaskName $tn -Minutes 20
 }
 
 function Register-StartupWorker() {
@@ -62,6 +87,7 @@ function Register-StartupWorker() {
   $tn = "$TaskPrefix Worker"
   $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunWorker) -RepoRoot $(Quote $RepoRoot) -Node $(Quote $Node)$pullArg"
   schtasks /Create /F /TN $tn /SC ONSTART /RL HIGHEST /TR $tr | Out-Host
+  Set-TaskRuntimePolicy -TaskName $tn -NoTimeLimit -RestartOnFailure
 }
 
 Register-StartupWorker

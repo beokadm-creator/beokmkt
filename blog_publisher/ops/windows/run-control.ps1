@@ -1,6 +1,7 @@
 param(
   [string]$RepoRoot = "C:\beokmkt",
   [string]$Python = "python",
+  [string]$TaskPrefix = "BEOK Blog",
   [int]$MaxCommands = 2,
   [switch]$NoPull
 )
@@ -47,6 +48,28 @@ function Invoke-JsonApi([string]$Path, [hashtable]$Body) {
     -Headers @{ "X-API-Key" = $ApiKey } `
     -Body $json `
     -TimeoutSec 120
+}
+
+function Resolve-WorkerHealthUrl() {
+  $url = $env:NAVER_WORKER_URL
+  if (!$url) { $url = Read-DotEnvValue "NAVER_WORKER_URL" }
+  if (!$url) { return "http://127.0.0.1:8788/health" }
+  return "$($url.TrimEnd('/'))/health"
+}
+
+function Ensure-WorkerHealthy() {
+  $healthUrl = Resolve-WorkerHealthUrl
+  try {
+    $health = Invoke-RestMethod -Uri $healthUrl -Method Get -TimeoutSec 5
+    if ($health.ok) { return }
+    Write-Log "worker health unhealthy response from ${healthUrl}: $($health | ConvertTo-Json -Compress)"
+  } catch {
+    Write-Log "worker health check failed ${healthUrl}: $($_.Exception.Message)"
+  }
+
+  $workerTask = "$TaskPrefix Worker"
+  Write-Log "starting worker task: $workerTask"
+  schtasks /Run /TN $workerTask 2>&1 | Tee-Object -FilePath $logPath -Append | Out-Null
 }
 
 function Get-LatestTaskLogTail([string]$Task, [int]$Tail = 120) {
@@ -107,6 +130,8 @@ $allowed = @(
   "image-audit",
   "backup"
 )
+
+Ensure-WorkerHealthy
 
 for ($i = 0; $i -lt $MaxCommands; $i++) {
   try {

@@ -61,6 +61,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 
 - 부팅 시 `BEOK Blog Worker`: Node 워커 실행
 - 매일 10:00, 22:00 `BEOK Blog Keepalive AM/PM`: 티스토리/네이버 세션 갱신 확인
+- 1분마다 `BEOK Blog Control`: Firebase 명령 큐 폴링, worker health watchdog
 - 5분마다 `publish`
 - 15분마다 `factcheck`
 - 30분마다 `generate/review/recover/sync_snapshot`
@@ -68,7 +69,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 - 60분마다 `stock_seed selfhosted 40`
 - 매일 `backup/verify_public/quality_selftest/image_audit`
 
-각 작업은 실행 전에 `git fetch origin main` + `git merge --ff-only origin/main`을 시도한다. 여러 예약 작업이 동시에 떠도 `.git/beok-update.lock`으로 Git 업데이트를 직렬화하며, GitHub 일시 장애나 잠금 경합이 있어도 현재 checkout으로 본 작업은 계속 실행한다. 운영 PC에 로컬 코드 수정이 있으면 merge가 실패하므로, 운영 PC에서는 코드를 수정하지 않는다.
+각 작업은 실행 전에 `git fetch origin main` + `git merge --ff-only origin/main`을 시도한다. 여러 예약 작업이 동시에 떠도 `.git/beok-update.lock`으로 Git 업데이트를 직렬화하며, GitHub 일시 장애나 잠금 경합이 있어도 현재 checkout으로 본 작업은 계속 실행한다. 운영 PC에 로컬 코드 수정이 있으면 merge가 실패하므로, 운영 PC에서는 코드를 수정하지 않는다. 분 단위 작업은 20분 실행 제한과 `IgnoreNew`로 등록되어, 멈춘 작업이 기본 72시간 동안 다음 실행을 막지 않게 한다.
 
 ## 4. 즉시 점검
 
@@ -96,7 +97,7 @@ curl -X POST https://beokmkt.web.app/api/pipeline/commands \
 - `drain-once`: `generate` → `factcheck` → `review` → `schedule` → `publish` → `sync-snapshot`
 - `reset-draft-backlog-and-drain`: `reset-draft-backlog` → `generate` → `factcheck` → `review` → `schedule` → `sync-snapshot`
 
-명령 폴링은 새 설치 시 `BEOK Blog Control` 태스크가 1분마다 수행한다. 기존 설치에서도 각 예약 작업의 `run-task.ps1`이 시작될 때 control queue를 함께 확인한다.
+명령 폴링은 `BEOK Blog Control` 태스크가 1분마다 전담한다. `generate/factcheck/review/schedule/publish` 예약 작업은 자기 단계만 실행하므로, 5분 주기 `Publish`가 긴 `generate` 큐 명령에 점유되지 않는다. Control 태스크는 Node worker health도 확인하고 죽어 있으면 `BEOK Blog Worker` 태스크를 다시 실행한다.
 
 미공개 draft가 품질 조정 이전 원고로 막혀 있으면, 먼저 dry-run으로 대상과 새 주제를 확인한 뒤 적용한다.
 

@@ -925,6 +925,30 @@ def _test_content_reboot_plan() -> list[str]:
     return issues
 
 
+def _test_windows_ops_orchestration_contract() -> list[str]:
+    windows_dir = ROOT / "blog_publisher" / "ops" / "windows"
+    run_task = (windows_dir / "run-task.ps1").read_text(encoding="utf-8")
+    install = (windows_dir / "install-windows-tasks.ps1").read_text(encoding="utf-8")
+    run_control = (windows_dir / "run-control.ps1").read_text(encoding="utf-8")
+    issues: list[str] = []
+
+    if "[switch]$RunControl" not in run_task:
+        issues.append("windows-ops: run-task 기본 실행에서 control queue를 끌 수 없음")
+    if "if ($RunControl -and !$SkipControl" not in run_task:
+        issues.append("windows-ops: 예약 태스크가 기본으로 inline control을 실행할 위험")
+    if "Register-ControlTask" not in install or "-MaxCommands 3" not in install:
+        issues.append("windows-ops: 전용 BEOK Blog Control 태스크 등록 누락")
+    if "Set-TaskRuntimePolicy" not in install:
+        issues.append("windows-ops: ScheduledTask ExecutionTimeLimit 보정 함수 누락")
+    if install.count("Set-TaskRuntimePolicy -TaskName $tn -Minutes 20") < 2:
+        issues.append("windows-ops: minute/control 태스크 20분 제한 보정 누락")
+    if "RestartOnFailure" not in install or "Register-StartupWorker" not in install:
+        issues.append("windows-ops: Worker 실패 재시작 설정 누락")
+    if "Ensure-WorkerHealthy" not in run_control or "127.0.0.1:8788/health" not in run_control:
+        issues.append("windows-ops: Control 태스크의 Worker health watchdog 누락")
+    return issues
+
+
 def _test_selfhosted_renderer() -> list[str]:
     from render.renderer import render_body
 
@@ -1176,6 +1200,7 @@ def run() -> bool:
         + _test_reset_draft_backlog_avoids_archived_topics()
         + _test_reset_draft_backlog_default_scope()
         + _test_content_reboot_plan()
+        + _test_windows_ops_orchestration_contract()
         + _test_selfhosted_renderer()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
@@ -1197,6 +1222,7 @@ def run() -> bool:
     print("[OK] ops defaults: 홈페이지 구축 아젠다·generate batch 유지")
     print("[OK] draft reset: 미공개 병목 리셋 시 다양한 주제축 재시드")
     print("[OK] content reboot: 기존 재고 폐기 후 홈페이지/시스템/MICE/학술대회 주제축 균등 재시드")
+    print("[OK] windows ops: Control 전용 큐 처리·20분 제한·Worker watchdog 계약 유지")
     print("[OK] selfhosted renderer: summary/service-proof/toc/cta/table/image/callout 유지")
     print("[OK] renderer security: URL 스킴 세척·제목 이미지 분리·OG SVG escape 유지")
     print("[OK] tistory adapter: h2/list/table/callout/image/strong/service-proof/CTA 유지")

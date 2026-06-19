@@ -24,6 +24,7 @@ param(
   [string]$RepoRoot = "C:\beokmkt",
   [string]$Python = "python",
   [switch]$NoPull,
+  [switch]$RunControl,
   [switch]$SkipControl
 )
 
@@ -40,7 +41,7 @@ $env:PYTHONIOENCODING = "utf-8"
 
 $PublisherDir = Join-Path $RepoRoot "blog_publisher"
 $GitUpdate = Join-Path $RepoRoot "blog_publisher\ops\windows\git-update.ps1"
-$RunControl = Join-Path $RepoRoot "blog_publisher\ops\windows\run-control.ps1"
+$RunControlScript = Join-Path $RepoRoot "blog_publisher\ops\windows\run-control.ps1"
 $LogDir = Join-Path $RepoRoot "logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
@@ -64,9 +65,9 @@ if (!$NoPull) {
   Invoke-BlogGitUpdate -RepoRoot $RepoRoot -LogPath $logPath
 }
 
-if (!$SkipControl -and (Test-Path $RunControl)) {
+if ($RunControl -and !$SkipControl -and (Test-Path $RunControlScript)) {
   Write-Log "pipeline control poll"
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RunControl `
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RunControlScript `
     -RepoRoot $RepoRoot `
     -Python $Python `
     -MaxCommands 2 `

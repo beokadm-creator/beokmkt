@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-19 — Windows Publish 태스크와 Control 큐 분리
+
+Windows 운영 PC에서 `reviewed/queued`는 쌓이지만 `published`가 거의 늘지 않는 병목을 점검했다. 원인은 5분 주기 `Publish` 태스크가 발행 전에 inline control queue를 먼저 폴링하면서 긴 `generate` 명령을 잡고, `IgnoreNew`/긴 실행 제한과 겹쳐 실제 발행 시간이 밀리는 구조였다. Control 명령 실행은 전용 태스크 하나로 일원화하고, 예약 태스크는 자기 단계만 실행하도록 분리했다.
+
+| 대상 | 내용 |
+|---|---|
+| `ops/windows/run-task.ps1` | control queue 폴링을 기본 off로 변경하고, 필요할 때만 `-RunControl`로 opt-in. `publish/schedule/generate/review` 예약 태스크는 자기 작업만 수행 |
+| `ops/windows/install-windows-tasks.ps1` | 분 단위 태스크와 `BEOK Blog Control`에 20분 `ExecutionTimeLimit`, `IgnoreNew`, `Hidden` 설정을 등록 직후 적용. `BEOK Blog Worker`는 no time limit과 실패 시 재시작 설정 |
+| `ops/windows/run-control.ps1` | Firebase command queue 전담 폴링 전에 `http://127.0.0.1:8788/health`를 확인하고 worker가 죽어 있으면 `BEOK Blog Worker` 태스크를 재실행 |
+| `ops/windows/README.md` | Control 전담 큐 처리, Publish 점유 방지, worker watchdog, 20분 실행 제한 운영 계약 문서화 |
+| `quality_selftest.py` | Windows ops 계약 회귀테스트 추가. inline control 기본 실행 재발, 72시간 제한 회귀, worker watchdog 누락을 차단 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher`, `git diff --check` PASS
+
+---
+
 ## 2026-06-18 — review LLM 55점 스타일 이슈로 인한 0% 탈락 해소
 
 길이 정합 이후 Windows 실측에서 새 원고가 factcheck와 publish length gate는 통과했지만, review LLM이 `score=55`, `unnatural_ko`, `generic`을 반환해 전부 탈락하는 2차 병목이 드러났다. 규칙 게이트와 발행 게이트가 이미 길이·이미지·구조·중복·서비스 축을 차단하므로, LLM review는 사실성/주제이탈/위험/환각 중심의 안전망으로 조정했다.
