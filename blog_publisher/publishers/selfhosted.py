@@ -47,9 +47,16 @@ class SelfHostedPublisher:
 
         tags = _loads(post.get("tags"))
         from tools.category_map import pick_category
-        from tools.image_bank import featured_image
+        from tools.image_bank import featured_image, image_urls, recent_published_image_urls
 
-        image = featured_image(post.get("category", ""), f"{post.get('topic', '')} {post.get('title', '')}")
+        avoid_images = recent_published_image_urls(limit=18, exclude_id=post.get("id"))
+        avoid_images.update(image_urls(content))
+        image = featured_image(
+            post.get("category", ""),
+            f"{post.get('topic', '')} {post.get('title', '')}",
+            avoid=avoid_images,
+            salt=str(post.get("id") or post.get("topic") or post.get("title") or ""),
+        )
 
         payload = {
             "title": post["title"],

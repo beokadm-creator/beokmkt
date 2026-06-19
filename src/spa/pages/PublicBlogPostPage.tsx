@@ -2,16 +2,11 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { applySeo } from '../lib/seo'
 import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
+import { HONGCOMM_BLOG_IMAGES } from '../lib/blogImages'
 import { BLOG_BRANDS, classifyBlogAxis } from '../lib/blogTaxonomy'
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
-const CONFERENCE_IMAGES = [
-  { url: 'https://hongcomm.kr/img/page/c1.jpg', alt: '학회 현장 지류 명찰 자동 출력 시스템' },
-  { url: 'https://hongcomm.kr/img/page/2.jpg', alt: '고속 명찰 자동 출력 장비 운영 현장' },
-  { url: 'https://hongcomm.kr/img/page/b2.png', alt: '모바일 디지털 명찰 시스템 화면' },
-  { url: 'https://hongcomm.kr/img/page/a1.png', alt: '학술대회 등록 시스템 화면' },
-  { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 마스터 컨트롤러 통합 운영 시스템' },
-]
+const CONFERENCE_IMAGES = HONGCOMM_BLOG_IMAGES
 
 type TocItem = {
   id: string

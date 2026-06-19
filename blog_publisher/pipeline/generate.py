@@ -474,8 +474,13 @@ def compose_article(
     if engine == "naver":
         body_text = _sanitize_naver_body(body_text)
     elif brand_key in {"hong", "beok"}:
-        from tools.image_bank import inject_images
-        body_text = inject_images(body_text, brand_key=brand_key)
+        from tools.image_bank import inject_images, recent_published_image_urls
+        body_text = inject_images(
+            body_text,
+            brand_key=brand_key,
+            avoid=recent_published_image_urls(limit=18),
+            salt=topic,
+        )
 
     final_title = _strip_run_meta_text(final_title)
     meta = _strip_run_meta_text(meta)

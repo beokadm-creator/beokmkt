@@ -10,6 +10,7 @@ import { ssrTemplate, assetPaths } from './ssr-template.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 import { getBlogPromptTemplate, resolveLengthGuide } from './blog-pipeline/prompts.mjs'
 import { researchKeywords, KeywordResearchError } from './blog-pipeline/keyword-research.mjs'
+import { HONGCOMM_BLOG_IMAGES } from './blog-images.mjs'
 import {
   isRunnablePipelineCommand,
   pipelineCommandTimeMs,
@@ -5598,13 +5599,7 @@ function publicDisplayCategory(post = {}) {
   return post.category || '운영 글'
 }
 
-const CONFERENCE_IMAGES = [
-  { url: 'https://hongcomm.kr/img/page/c1.jpg', alt: '학회 현장 지류 명찰 자동 출력 시스템' },
-  { url: 'https://hongcomm.kr/img/page/2.jpg', alt: '고속 명찰 자동 출력 장비 운영 현장' },
-  { url: 'https://hongcomm.kr/img/page/b2.png', alt: '모바일 디지털 명찰 시스템 화면' },
-  { url: 'https://hongcomm.kr/img/page/a1.png', alt: '학술대회 등록 시스템 화면' },
-  { url: 'https://hongcomm.kr/img/page/6.jpg', alt: '행사 마스터 컨트롤러 통합 운영 시스템' },
-]
+const CONFERENCE_IMAGES = HONGCOMM_BLOG_IMAGES
 
 function stableIndex(value, length) {
   if (!length) return 0

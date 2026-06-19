@@ -29,6 +29,7 @@ def _catalog() -> list[tuple[str, list[dict]]]:
     return [
         ("hong_solution", image_bank._HONG_SOLUTION),
         ("hong_conference", image_bank._HONG_CONFERENCE),
+        ("hong_portfolio", image_bank._HONG_PORTFOLIO),
         ("beok_brand", image_bank._BEOK_BRAND),
         ("beok_conference", image_bank._BEOK_CONFERENCE),
     ]

@@ -675,7 +675,7 @@ def _test_publish_zero_success_fails_runbook() -> list[str]:
 
 
 def _test_image_diversity() -> list[str]:
-    from tools.image_bank import inject_images
+    from tools.image_bank import _HONG_PORTFOLIO, featured_image, inject_images
 
     body = """## 학술대회 등록 시스템
 
@@ -705,6 +705,19 @@ def _test_image_diversity() -> list[str]:
         issues.append(f"image-bank: hong 이미지 다양성 부족(unique={len(unique)}, urls={urls})")
     if len(urls) != len(unique):
         issues.append("image-bank: 같은 글 안에서 이미지 URL 중복")
+
+    if len(_HONG_PORTFOLIO) < 40:
+        issues.append(f"image-bank: hongcomm 포트폴리오 이미지 풀 부족({len(_HONG_PORTFOLIO)}/40)")
+
+    context = "홍커뮤니케이션 MICE 학술대회 포트폴리오 레퍼런스"
+    featured = [featured_image("hong", context, salt=str(i)).get("url", "") for i in range(12)]
+    if len(set(featured)) < 6:
+        issues.append(f"image-bank: 글별 대표 이미지 회전 부족(unique={len(set(featured))}, urls={featured})")
+
+    first = featured_image("hong", context, salt="same-post")
+    second = featured_image("hong", context, salt="same-post", avoid={first.get("url", "")})
+    if first and second and first.get("url") == second.get("url"):
+        issues.append("image-bank: avoid 이미지가 대표 이미지 선택에서 제외되지 않음")
     return issues
 
 

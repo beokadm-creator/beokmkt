@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-06-19 — hongcomm 이미지 반복 방지와 포트폴리오 이미지 풀 확장
+
+블로그 글이 매번 같은 사진을 쓰면 검색 품질과 사용자 신뢰가 떨어지므로, hongcomm.kr 공개 포트폴리오 이미지를 발행 파이프라인과 공개 블로그 fallback에 반영했다. 본문 안 중복뿐 아니라 글 간 대표 이미지 반복도 줄이기 위해 이미지 선택에 글별 salt와 최근 공개 이미지 회피를 추가했다.
+
+| 대상 | 내용 |
+|---|---|
+| `tools/image_bank.py` | hongcomm.kr 포트폴리오 공개 썸네일 48개를 `_HONG_PORTFOLIO` 풀로 추가. `pick_image/featured_image/inject_images`에 `salt`와 `avoid`를 도입해 같은 문맥도 글마다 회전 |
+| `pipeline/generate.py` | 생성 시 최근 published 본문 이미지를 피해서 본문 이미지를 삽입 |
+| `publishers/selfhosted.py` | 대표 이미지가 본문 이미지나 최근 공개 글 이미지와 겹치지 않도록 발행 직전 회피 |
+| `functions/blog-images.mjs`, `functions/index.mjs` | Firebase SSR fallback/OG 이미지 후보를 5장 고정에서 hongcomm 공개 이미지 풀로 확장 |
+| `functions/blog-pipeline/image-pool.mjs` | AI 블로그 생성 이미지 후보와 선택 로직을 hongcomm 포트폴리오 기반 회전 방식으로 보강 |
+| `src/spa/lib/blogImages.ts`, 공개 블로그 페이지 | 클라이언트 라우팅 fallback도 SSR과 같은 이미지 풀 사용 |
+| `image_asset_audit.py`, `quality_selftest.py` | hongcomm 포트폴리오 이미지 도달성 및 대표 이미지 회전 회귀테스트 추가 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py image_audit` PASS (`73/73`)
+- `python3 blog_publisher/run.py selftest`, `python3 -m compileall -q blog_publisher` PASS
+- `node --check functions/index.mjs functions/blog-images.mjs functions/blog-pipeline/image-pool.mjs` PASS
+- `npx tsc --noEmit`, `npm run build:spa`, `git diff --check` PASS
+
+---
+
 ## 2026-06-19 — Windows Publish 태스크와 Control 큐 분리
 
 Windows 운영 PC에서 `reviewed/queued`는 쌓이지만 `published`가 거의 늘지 않는 병목을 점검했다. 원인은 5분 주기 `Publish` 태스크가 발행 전에 inline control queue를 먼저 폴링하면서 긴 `generate` 명령을 잡고, `IgnoreNew`/긴 실행 제한과 겹쳐 실제 발행 시간이 밀리는 구조였다. Control 명령 실행은 전용 태스크 하나로 일원화하고, 예약 태스크는 자기 단계만 실행하도록 분리했다.

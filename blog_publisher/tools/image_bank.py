@@ -94,6 +94,71 @@ _HONG_CONFERENCE: list[dict] = [
     },
 ]
 
+_HONG_PORTFOLIO_URLS: list[str] = [
+    "https://hongcomm.kr/data/file/portfolio/thumb-1893359140_d5enziOm_87302a566d3ee90c05f2bbd089925995547392a7_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1893359140_cEz0pwlo_eca151a6d417ba4c67aa0219d039ee6c844b7558_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1893359140_xkSPUYRC_2dbfb04bc08a8cc3b048d54482078495ce32bb76_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1893359140_dY5IKA41_fc0b672c1483e7f7f8e861e5decc6f890a54ac46_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1846156130_RY0bVlOv_b1245ee9369ce00968fa994e6e66700dd283fa2b_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1930951907_Xyzixkop_bf0edc10dbefefb051f495809553a7482d47a3b9_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_9fhzVstC_5ecc46e423b5cbf773e6222712f5326796d1131b_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_cAK9SFmk_5dc85838e3f01ed7625059783c347b0b92b73cc8_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1846156130_jEBfo5OG_953f4cf1ebd45b14b6aa592e184bc2556a5ee0ea_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1995137011_dIvG0xgy_92490c4aa2bb74408b5fe204f95572501becc4c6_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-32866438_VBOnHq56_e322086c5d298a57fc87fc0307f7df4afddcf352_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1846156130_gaAFn4Qi_cf2e30c7ae9e8753eff54ebcfd2a0125b7f3cca7_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1846156130_tcMl5Uzh_01ed48114c1fb09e9061d6182bb9a4d2c3b00e67_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_Op7mDZhU_b47e0afcac3579d67448fb226554440842ba8961_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2469365064_3AF4cCHq_83ae93450c0fbfd7d9452d796fdfd8205924ffec_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_lPfAyCku_2210a22486a50906dcb24d123cf49991e3765a08_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-3695957831_PXdeKHNI_f917f1da25a18cb2fb80c76f28803bd44545096f_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-3556421916_0j3Kv4w6_274851d6a87da37c5adb07fa2bca0a54c01416f2_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_Koz0bAjs_349349e5cecd1d506927120718168cc4ef785cfc_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_gN3v5yfj_561ecfb381e973a809fb7325bebfec89a1b79be4_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-1846156130_Aqpw2E9y_0267479b8fc9d75daf80db14b923ea557138b9fb_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_jvGnZR4M_36ea3cb5cbdcb76c65d4237ea8732cc0a296e214_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_PwITC6Qv_ac08c70a71c232ae3709f84612b407927885a5dc_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-32866438_PNgmBAMp_8f9f91d9f76ea36d926fce97421671dd0e265580_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_92nQ5Xlf_ed6ce67ee16dd8338be451bb5f960a847e7bf3a1_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_dqDrUIZ9_d4b1974cfe0c608e9ff20850acb0e9ec82dcc1e6_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_6SXZrzRx_9d9d46930a3a3ac9bd6db974c8e96e3fddc6ec70_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_qPrU8YzX_8143c2661043ad5af752cc52a988a35625a6c764_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_KcemGUIF_87315845035e543902aedabe43a387c990dc3590_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_GlQebhaL_22dd36e4ff91fe3ecca6a9d38aec052035ba2860_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_E3u94OsL_cb482c6b807f2508d5d5a28dda25bc23f12d9569_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_MTfQ1PBg_475c4ee56ee650e731627b735f28fc3a13831ba2_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_SGp9UYrZ_fd06bb51c6dbcc2fb5da667153cecccfd57fe37d_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_28xPOQCf_783b6c8ec18eebfb3081b7d9afb0591f87a1706c_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_pHCmJtWY_ca75f593611ebe1e5d852066ebf1d56a04e1a69a_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_eECgmN6P_5f1ddd39ca7063073cc171242dbf1ef4e819bc9b_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_UHZtqidg_9ac0e224989a3ecae304e211d55bb99f15172695_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_fmPcTMdC_2d05eabb6efef3689bb77d3e9f6453fa22a48cb6_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_TVYRbv2Q_172957d5cc4fe2d150d1887da741d0ef599c0092_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_UAsdeXqc_dddab48ab08315ae822508ff7ccef6acef5f5229_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_jJfFS0oW_2cc6bceacb3cb3c9c6b3218fdc6aec06199a29ef_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_zN9LRPXG_329180ebc6c1815daae8c71d1265b4ef21fa6217_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_vW301sVY_b37afcf01f42fe6efdf58a7f3363e1b1a2dc3105_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_APJcUehy_bc4fe7ca4936fcbd50ebec5fbf7e90b2fb6fb37a_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_grTD60Yi_8a555d89ee7822b0261e7bc9401752ed8724ea66_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_Lves9kKJ_c1861660394fb40b5eb8fcad1e4a7666726cd6e3_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_xR4zU78P_d509c8f43bf559f2b47272bc485dfd20cc44d356_640x400.jpg",
+    "https://hongcomm.kr/data/file/portfolio/thumb-2041025217_ILWY4cDP_b30e54ded548139cfdae89f4a19b375b839fff15_640x400.jpg",
+]
+
+_HONG_PORTFOLIO_KEYWORDS = {
+    "홍커뮤니케이션", "MICE", "포트폴리오", "레퍼런스", "행사", "학회",
+    "학술대회", "컨퍼런스", "세미나", "기업", "대학", "국제회의", "운영",
+}
+
+_HONG_PORTFOLIO: list[dict] = [
+    {
+        "url": url,
+        "alt": f"홍커뮤니케이션 MICE 포트폴리오 현장 레퍼런스 {idx}",
+        "keywords": _HONG_PORTFOLIO_KEYWORDS,
+    }
+    for idx, url in enumerate(_HONG_PORTFOLIO_URLS, start=1)
+]
+
 _BEOK_BRAND: list[dict] = [
     {
         "url": "https://beoksolution.com/img/logo.png",
@@ -158,7 +223,7 @@ _BEOK_CONFERENCE: list[dict] = [
 # ---------------------------------------------------------------------------
 
 _SOLUTION_KW = {kw for img in _HONG_SOLUTION for kw in img["keywords"]}
-_CONF_KW = {kw for img in _HONG_CONFERENCE for kw in img["keywords"]}
+_CONF_KW = {kw for img in (_HONG_CONFERENCE + _HONG_PORTFOLIO) for kw in img["keywords"]}
 _BEOK_KW = {kw for img in (_BEOK_BRAND + _BEOK_CONFERENCE) for kw in img["keywords"]}
 _BEOK_CONFERENCE_KW = {kw for img in _BEOK_CONFERENCE for kw in img["keywords"]}
 
@@ -168,20 +233,65 @@ def _score(img: dict, text: str) -> int:
     return sum(1 for kw in img["keywords"] if kw in words or kw in (text or ""))
 
 
-def pick_image(pool: list[dict], context_text: str = "", used: set[str] | None = None) -> dict:
-    """pool에서 context_text에 어울리는 이미지를 반환하되, 같은 글 안의 반복을 피한다."""
+def image_urls(value: str | None) -> list[str]:
+    """본문 HTML/마크다운에서 이미지 URL을 추출한다."""
+    text = str(value or "")
+    urls = re.findall(r"<img\b[^>]*\bsrc=[\"']([^\"']+)[\"']", text, flags=re.I)
+    urls.extend(re.findall(r"!\[[^\]]*]\(([^)\s]+)\)", text))
+    return [url.strip() for url in urls if url.strip()]
+
+
+def recent_published_image_urls(limit: int = 18, exclude_id: int | None = None) -> set[str]:
+    """최근 공개 글 본문 이미지 URL. 발행 직전 대표/본문 이미지 반복 회피용."""
+    try:
+        from db import db
+
+        params: list[object] = []
+        where = "status = 'published'"
+        if exclude_id is not None:
+            where += " AND id != ?"
+            params.append(exclude_id)
+        params.append(limit)
+        with db.connect() as conn:
+            rows = conn.execute(
+                f"SELECT body FROM posts WHERE {where} ORDER BY updated_at DESC LIMIT ?",
+                params,
+            ).fetchall()
+    except Exception:  # noqa: BLE001 - 이미지 회피 실패가 발행 자체를 막으면 안 된다.
+        return set()
+
+    urls: set[str] = set()
+    for row in rows:
+        urls.update(image_urls(row["body"]))
+    return urls
+
+
+def pick_image(
+    pool: list[dict],
+    context_text: str = "",
+    used: set[str] | None = None,
+    avoid: set[str] | None = None,
+    salt: str = "",
+) -> dict:
+    """pool에서 context_text에 어울리는 이미지를 반환하되 반복을 피하고 salt로 회전한다."""
     if not pool:
         return {}
     used = used or set()
-    candidates = [img for img in pool if img["url"] not in used]
+    avoid = avoid or set()
+    candidates = [img for img in pool if img["url"] not in used and img["url"] not in avoid]
+    if not candidates and avoid:
+        candidates = [img for img in pool if img["url"] not in used]
     if not candidates:
         return {}
-    scored = sorted(candidates, key=lambda img: (_score(img, context_text), img["url"]), reverse=True)
-    top_score = _score(scored[0], context_text)
-    top = [img for img in scored if _score(img, context_text) == top_score]
+    scored = [(img, _score(img, context_text)) for img in candidates]
+    top_score = max(score for _img, score in scored)
+    # 최고점 하나에 매번 고정되면 글 간 대표 이미지가 반복된다.
+    # 최고점권(최고점-1 이상)을 후보로 두고 post id/topic salt로 회전한다.
+    threshold = max(0, top_score - 1)
+    top = sorted([img for img, score in scored if score >= threshold], key=lambda img: img["url"])
     if len(top) == 1:
         return top[0]
-    digest = hashlib.sha1((context_text or "").encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(f"{context_text or ''}|{salt or ''}".encode("utf-8")).hexdigest()
     return top[int(digest[:8], 16) % len(top)]
 
 
@@ -194,19 +304,29 @@ def _is_beok_conference_context(context_text: str = "") -> bool:
     return False
 
 
-def featured_image(brand_key: str, context_text: str = "") -> dict:
+def featured_image(
+    brand_key: str,
+    context_text: str = "",
+    avoid: set[str] | None = None,
+    salt: str = "",
+) -> dict:
     """브랜드 대표 이미지. 없으면 {}."""
     if brand_key == "beok":
         if _is_beok_conference_context(context_text):
-            return pick_image(_BEOK_CONFERENCE, context_text)
-        return pick_image(_BEOK_BRAND, context_text)
+            return pick_image(_BEOK_CONFERENCE + _HONG_PORTFOLIO, context_text, avoid=avoid, salt=salt)
+        return pick_image(_BEOK_BRAND + _HONG_PORTFOLIO, context_text, avoid=avoid, salt=salt)
     if brand_key == "hong":
-        pool = _HONG_SOLUTION + _HONG_CONFERENCE
-        return pick_image(pool, context_text)
+        pool = _HONG_SOLUTION + _HONG_CONFERENCE + _HONG_PORTFOLIO
+        return pick_image(pool, context_text, avoid=avoid, salt=salt)
     return {}
 
 
-def inject_images(body: str, brand_key: str = "hong") -> str:
+def inject_images(
+    body: str,
+    brand_key: str = "hong",
+    avoid: set[str] | None = None,
+    salt: str = "",
+) -> str:
     """
     본문 H2 섹션 직후에 브랜드 이미지를 삽입한다.
     hong은 섹션별 컨텍스트 이미지, beok은 실제 공개 자산(로고) 1회를 대표 이미지로 삽입.
@@ -217,7 +337,11 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
         used: set[str] = set()
         inserted = 0
         conference_context = _is_beok_conference_context(body)
-        card_pool = _BEOK_CONFERENCE if conference_context else [img for img in _BEOK_BRAND if img["url"].endswith(".svg")]
+        card_pool = (
+            _BEOK_CONFERENCE + _HONG_PORTFOLIO
+            if conference_context
+            else [img for img in _BEOK_BRAND if img["url"].endswith(".svg")] + _HONG_PORTFOLIO
+        )
         max_images = min(5 if conference_context else 4, len(card_pool))
         for index, blk in enumerate(blocks):
             out.append(blk)
@@ -226,14 +350,14 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
             # h2와 첫 문단이 같은 블록이면 현재 블록만 사용한다.
             # 다음 h2까지 섞으면 다음 섹션 키워드가 현재 이미지 선택을 오염시킨다.
             next_text = "" if "\n" in blk else (blocks[index + 1] if index + 1 < len(blocks) else "")
-            img = pick_image(card_pool, f"{blk} {next_text}", used=used)
+            img = pick_image(card_pool, f"{blk} {next_text}", used=used, avoid=avoid, salt=f"{salt}:{index}")
             if not img or img["url"] in used or img["url"] in body:
                 continue
             out.append(f"![{img['alt']}]({img['url']})")
             used.add(img["url"])
             inserted += 1
         if inserted == 0:
-            img = featured_image("beok", body)
+            img = featured_image("beok", body, avoid=avoid, salt=salt)
             if img and img["url"] not in body:
                 out.insert(0, f"![{img['alt']}]({img['url']})")
         return "\n\n".join(out)
@@ -241,7 +365,7 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
     blocks = body.split("\n\n")
     out: list[str] = []
     used: set[str] = set()
-    pool = _HONG_SOLUTION + _HONG_CONFERENCE
+    pool = _HONG_SOLUTION + _HONG_CONFERENCE + _HONG_PORTFOLIO
     max_images = min(6, len(pool))
 
     for index, blk in enumerate(blocks):
@@ -251,7 +375,7 @@ def inject_images(body: str, brand_key: str = "hong") -> str:
 
         next_text = blocks[index + 1] if index + 1 < len(blocks) else ""
         section_text = f"{blk} {next_text}"
-        img = pick_image(pool, section_text, used=used)
+        img = pick_image(pool, section_text, used=used, avoid=avoid, salt=f"{salt}:{index}")
         if not img or img["url"] in body:
             continue
 
