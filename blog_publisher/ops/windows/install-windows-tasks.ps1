@@ -26,41 +26,41 @@ function Quote([string]$Value) {
 function Register-MinuteTask([string]$Name, [string]$Task, [int]$Minutes) {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix $Name"
-  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunTask) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -Task $Task$pullArg"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunTask) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -Task $Task$pullArg"
   schtasks /Create /F /TN $tn /SC MINUTE /MO $Minutes /TR $tr | Out-Host
 }
 
 function Register-DailyTask([string]$Name, [string]$Task, [string]$Time) {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix $Name"
-  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunTask) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -Task $Task$pullArg"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunTask) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -Task $Task$pullArg"
   schtasks /Create /F /TN $tn /SC DAILY /ST $Time /TR $tr | Out-Host
 }
 
 function Register-DailyKeepalive([string]$Name, [string]$Time) {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix $Name"
-  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunKeepalive) -RepoRoot $(Quote $RepoRoot) -Node $(Quote $Node)$pullArg"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunKeepalive) -RepoRoot $(Quote $RepoRoot) -Node $(Quote $Node)$pullArg"
   schtasks /Create /F /TN $tn /SC DAILY /ST $Time /TR $tr | Out-Host
 }
 
 function Register-SessionMonitor() {
   $tn = "BEOK Session Monitor"
-  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunMonitor) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python)"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunMonitor) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python)"
   schtasks /Create /F /TN $tn /SC HOURLY /MO 2 /TR $tr | Out-Host
 }
 
 function Register-ControlTask() {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix Control"
-  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunControl) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -MaxCommands 3$pullArg"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunControl) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -MaxCommands 3$pullArg"
   schtasks /Create /F /TN $tn /SC MINUTE /MO 1 /TR $tr | Out-Host
 }
 
 function Register-StartupWorker() {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix Worker"
-  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File $(Quote $RunWorker) -RepoRoot $(Quote $RepoRoot) -Node $(Quote $Node)$pullArg"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunWorker) -RepoRoot $(Quote $RepoRoot) -Node $(Quote $Node)$pullArg"
   schtasks /Create /F /TN $tn /SC ONSTART /RL HIGHEST /TR $tr | Out-Host
 }
 
