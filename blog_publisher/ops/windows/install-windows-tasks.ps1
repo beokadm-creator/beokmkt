@@ -14,6 +14,7 @@ $RunWorker = Join-Path $OpsDir "run-worker.ps1"
 $RunKeepalive = Join-Path $OpsDir "run-keepalive.ps1"
 $RunMonitor   = Join-Path $OpsDir "run-session-monitor.ps1"
 $RunControl   = Join-Path $OpsDir "run-control.ps1"
+$RunHealth    = Join-Path $OpsDir "run-healthcheck.ps1"
 
 if (!(Test-Path $RunTask) -or !(Test-Path $RunWorker) -or !(Test-Path $RunKeepalive)) {
   throw "Windows ops scripts not found. Clone/pull repo first: $RepoRoot"
@@ -82,6 +83,14 @@ function Register-ControlTask() {
   Set-TaskRuntimePolicy -TaskName $tn -Minutes 20
 }
 
+function Register-HealthcheckTask() {
+  $pullArg = if ($NoPull) { " -NoPull" } else { "" }
+  $tn = "$TaskPrefix Healthcheck"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunHealth) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python)$pullArg"
+  schtasks /Create /F /TN $tn /SC MINUTE /MO 5 /TR $tr | Out-Host
+  Set-TaskRuntimePolicy -TaskName $tn -Minutes 10
+}
+
 function Register-StartupWorker() {
   $pullArg = if ($NoPull) { " -NoPull" } else { "" }
   $tn = "$TaskPrefix Worker"
@@ -93,6 +102,7 @@ function Register-StartupWorker() {
 Register-StartupWorker
 Register-SessionMonitor
 Register-ControlTask
+Register-HealthcheckTask
 Register-DailyKeepalive "Keepalive AM" "10:00"
 Register-DailyKeepalive "Keepalive PM" "22:00"
 Register-MinuteTask "Stock Seed" "stock-seed" 60
