@@ -308,6 +308,20 @@ def _brand_hint(brand_key: str) -> str:
         return ""
 
 
+def _image_brand_key(brand_key: str, topic: str, body_text: str) -> str:
+    """운영 글 이미지 풀을 고른다. category가 축 이름이어도 운영 글이면 이미지를 넣는다."""
+    if brand_key in {"hong", "beok"}:
+        return brand_key
+    text = f"{brand_key} {topic} {body_text}"
+    hong_terms = ("홍커뮤니케이션", "MICE", "학회", "학술대회", "행사", "명찰", "접수", "체크인")
+    beok_terms = ("비오케이", "홈페이지", "제작", "개발", "예약", "결제", "관리자", "자동화")
+    if any(term in text for term in hong_terms):
+        return "hong"
+    if any(term in text for term in beok_terms):
+        return "beok"
+    return ""
+
+
 def _build_outline(llm: LLMClient, post: dict, evidence: dict) -> dict:
     content_type = post.get("content_type", "howto")
     system = prompts.OUTLINE_TEMPLATES.get(content_type, prompts.OUTLINE_TEMPLATES["howto"])
@@ -330,6 +344,13 @@ def _build_outline(llm: LLMClient, post: dict, evidence: dict) -> dict:
     return _validate_outline(outline)
 
 
+def _table_cell(value: object, limit: int) -> str:
+    text = _re.sub(r"\s+", " ", str(value or "").replace("|", "/")).strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip()
+
+
 def _ensure_summary_table(body_text: str, outline: dict, allow_table: bool = True) -> str:
     """리치 HTML 품질 기준: 글 전체에 비교/점검용 표가 1개 이상 있게 한다."""
     if not allow_table:
@@ -339,18 +360,17 @@ def _ensure_summary_table(body_text: str, outline: dict, allow_table: bool = Tru
     sections = [
         s for s in outline.get("sections", [])
         if isinstance(s, dict) and s.get("h2") and s.get("point")
-    ][:5]
+    ][:4]
     if not sections:
         return body_text
     rows = [
-        "| 점검 항목 | 확인 질문 | 우선순위 |",
-        "|---|---|---|",
+        "| 점검 | 기준 |",
+        "|---|---|",
     ]
-    for idx, sec in enumerate(sections, start=1):
-        priority = "높음" if idx <= 2 else "보통"
-        h2 = str(sec["h2"]).replace("|", "/")
-        point = str(sec["point"]).replace("|", "/")
-        rows.append(f"| {h2} | {point}을 실제 운영 기준으로 확인했는가 | {priority} |")
+    for sec in sections:
+        h2 = _table_cell(sec["h2"], 18)
+        point = _table_cell(sec["point"], 34)
+        rows.append(f"| {h2} | {point} |")
     return body_text + "\n\n## 실행 전 점검표\n\n" + "\n".join(rows)
 
 
@@ -473,11 +493,13 @@ def compose_article(
 
     if engine == "naver":
         body_text = _sanitize_naver_body(body_text)
-    elif brand_key in {"hong", "beok"}:
+    else:
+        image_brand_key = _image_brand_key(brand_key, topic, body_text)
+    if engine != "naver" and image_brand_key:
         from tools.image_bank import inject_images, recent_published_image_urls
         body_text = inject_images(
             body_text,
-            brand_key=brand_key,
+            brand_key=image_brand_key,
             avoid=recent_published_image_urls(limit=18),
             salt=topic,
         )

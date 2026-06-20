@@ -241,6 +241,10 @@ def image_urls(value: str | None) -> list[str]:
     return [url.strip() for url in urls if url.strip()]
 
 
+def _is_trusted_url(url: str) -> bool:
+    return any(host in url for host in ("hongcomm.kr/", "beoksolution.com/", "beokmkt.web.app/"))
+
+
 def recent_published_image_urls(limit: int = 18, exclude_id: int | None = None) -> set[str]:
     """최근 공개 글 본문 이미지 URL. 발행 직전 대표/본문 이미지 반복 회피용."""
     try:
@@ -331,6 +335,29 @@ def inject_images(
     본문 H2 섹션 직후에 브랜드 이미지를 삽입한다.
     hong은 섹션별 컨텍스트 이미지, beok은 실제 공개 자산(로고) 1회를 대표 이미지로 삽입.
     """
+    def top_up_minimum(out: list[str], pool: list[dict], used: set[str], minimum: int = 2) -> None:
+        current = set(image_urls("\n\n".join(out)))
+        used.update(current)
+        attempts = 0
+        while len([url for url in current if _is_trusted_url(url)]) < minimum and attempts < len(pool) + 4:
+            img = pick_image(
+                pool,
+                body,
+                used=used,
+                avoid=avoid,
+                salt=f"{salt}:minimum:{attempts}",
+            )
+            attempts += 1
+            if not img:
+                continue
+            url = img["url"]
+            if url in current or url in body:
+                used.add(url)
+                continue
+            out.append(f"![{img['alt']}]({url})")
+            current.add(url)
+            used.add(url)
+
     if brand_key == "beok":
         blocks = body.split("\n\n")
         out: list[str] = []
@@ -360,6 +387,7 @@ def inject_images(
             img = featured_image("beok", body, avoid=avoid, salt=salt)
             if img and img["url"] not in body:
                 out.insert(0, f"![{img['alt']}]({img['url']})")
+        top_up_minimum(out, card_pool, used)
         return "\n\n".join(out)
 
     blocks = body.split("\n\n")
@@ -382,4 +410,5 @@ def inject_images(
         out.append(f"![{img['alt']}]({img['url']})")
         used.add(img["url"])
 
+    top_up_minimum(out, pool, used)
     return "\n\n".join(out)

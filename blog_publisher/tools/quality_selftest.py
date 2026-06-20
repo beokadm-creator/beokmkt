@@ -81,9 +81,9 @@ def _test_phase_a_generation_contract() -> list[str]:
     issues: list[str] = []
     if generate._section_max_tokens() > 1500:
         issues.append(f"phase-a: 섹션 유효 토큰 상한 > 1500 ({generate._section_max_tokens()})")
-    if config.SECTION_MAX_LEN > 300:
-        issues.append(f"phase-a: SECTION_MAX_LEN > 300 ({config.SECTION_MAX_LEN})")
-    for token in ["220~300자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
+    if config.SECTION_MAX_LEN > 240:
+        issues.append(f"phase-a: SECTION_MAX_LEN > 240 ({config.SECTION_MAX_LEN})")
+    for token in ["180~240자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
         if token not in prompts.SECTION_SYSTEM:
             issues.append(f"phase-a: SECTION_SYSTEM 품질 지시 누락: {token}")
 
@@ -162,7 +162,7 @@ def _test_phase_a_generation_contract() -> list[str]:
     body = result["body"]
     if generate._count_hanzi(body) != 0:
         issues.append("phase-a: 최종 본문에 한자 잔존")
-    for token in ["###", "- ", "**", "| 항목 | 확인 기준 |"]:
+    for token in ["###", "- ", "**", "| 점검 | 기준 |"]:
         if token not in body:
             issues.append(f"phase-a: 구조화 출력 누락: {token}")
     return issues
@@ -244,11 +244,11 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
     from pipeline import factcheck, generate, review, schedule_publish
     from research import collect
     from research.collect import CollectedSource
-    from tools.content_quality import plain_text, publish_blockers
+    from tools.content_quality import external_image_count, image_count, plain_text, publish_blockers
 
     issues: list[str] = []
-    if config.SECTION_MAX_LEN > 300:
-        issues.append(f"ops-length: SECTION_MAX_LEN이 300을 초과함({config.SECTION_MAX_LEN})")
+    if config.SECTION_MAX_LEN > 240:
+        issues.append(f"ops-length: SECTION_MAX_LEN이 240을 초과함({config.SECTION_MAX_LEN})")
     if generate.SECTION_MAX > 4:
         issues.append(f"ops-length: 운영 글 섹션 상한이 4를 초과함({generate.SECTION_MAX})")
 
@@ -401,8 +401,16 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
             row = db.fetch_by_id(post_id)
             blockers = publish_blockers(row)
             body_chars = len(plain_text(row["body"]))
+            body_images = image_count(row["body"])
+            body_trusted_images = external_image_count(row["body"])
             if generated != 1:
                 issues.append(f"ops-flow: generate 처리 수 불일치({generated})")
+            if body_chars > 2600:
+                issues.append(f"ops-flow: 생성 본문 길이 계약 위반({body_chars}/2600자)")
+            if body_images < 2 or body_trusted_images < 2:
+                issues.append(
+                    f"ops-flow: 생성 이미지 계약 위반(images={body_images}, trusted={body_trusted_images})"
+                )
             if blockers:
                 issues.append(f"ops-flow: 생성 직후 발행 게이트 차단({body_chars}자): {blockers}")
             try:
@@ -718,6 +726,26 @@ def _test_image_diversity() -> list[str]:
     second = featured_image("hong", context, salt="same-post", avoid={first.get("url", "")})
     if first and second and first.get("url") == second.get("url"):
         issues.append("image-bank: avoid 이미지가 대표 이미지 선택에서 제외되지 않음")
+
+    sparse_body = """## 운영 기준
+
+학회 접수와 홈페이지 제작 흐름을 한 화면에서 점검합니다.
+
+## 실행 전 점검표
+
+| 점검 | 기준 |
+|---|---|
+| 접수 | 관리자 확인 |
+"""
+    for brand_key in ["beok", "hong"]:
+        rendered_sparse = inject_images(sparse_body, brand_key=brand_key, salt=f"sparse-{brand_key}")
+        sparse_urls = re.findall(r"!\[[^\]]*]\(([^)]+)\)", rendered_sparse)
+        trusted = [
+            url for url in set(sparse_urls)
+            if "hongcomm.kr/" in url or "beokmkt.web.app/" in url or "beoksolution.com/" in url
+        ]
+        if len(trusted) < 2:
+            issues.append(f"image-bank: {brand_key} sparse 운영 글 신뢰 이미지 부족({len(trusted)}/2, urls={sparse_urls})")
     return issues
 
 
@@ -1226,7 +1254,7 @@ def run() -> bool:
             print(f"[FAIL] {issue}")
         print(f"\n결과: FAIL ({len(issues)}건)")
         return False
-    print("[OK] phase-a generation: 220~300자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
+    print("[OK] phase-a generation: 180~240자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
     print("[OK] generate gate: 빈 본문/불완전 생성 결과 저장 차단")
     print("[OK] ops flow: 운영 글 생성 길이와 발행 게이트 길이 상한 정합, queued 전환 유지")
     print("[OK] image bank: 섹션별 이미지 다양성 유지")

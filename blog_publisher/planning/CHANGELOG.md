@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-21 — 운영 글 이미지/길이 게이트 정합 보강
+
+Windows 운영 PC에서 생성은 충분히 도는데 review 단계에서 `운영 글 이미지 부족(0~1/2장)`과 `운영 글 본문 과다(2600자 초과)`로 통과 원고가 줄어드는 병목을 보강했다.
+
+| 대상 | 내용 |
+|---|---|
+| `config.py`, `llm/prompts.py` | 섹션 본문 기본 상한을 300자에서 240자로 낮추고, 생성 프롬프트도 180~240자로 맞춤 |
+| `pipeline/generate.py` | 자동 점검표 문구를 짧게 줄여 최종 plain text가 2600자 안에 들어갈 여유를 확보. category가 `conference/event_ops`처럼 축 이름이어도 운영 키워드 기준으로 hong/beok 이미지 풀을 자동 선택 |
+| `tools/image_bank.py` | H2 개수나 본문 구조와 무관하게 운영 글에 신뢰 이미지 2장 이상이 남도록 이미지 top-up 보강 |
+| `quality_selftest.py` | 운영 글 생성→review→schedule 테스트에 `2600자 이하 + 이미지 2장 + 신뢰 이미지 2장` 계약을 명시하고 sparse 본문 이미지 보강 회귀테스트 추가 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher` PASS
+- `git diff --check` PASS
+
+---
+
 ## 2026-06-19 — hongcomm 이미지 반복 방지와 포트폴리오 이미지 풀 확장
 
 블로그 글이 매번 같은 사진을 쓰면 검색 품질과 사용자 신뢰가 떨어지므로, hongcomm.kr 공개 포트폴리오 이미지를 발행 파이프라인과 공개 블로그 fallback에 반영했다. 본문 안 중복뿐 아니라 글 간 대표 이미지 반복도 줄이기 위해 이미지 선택에 글별 salt와 최근 공개 이미지 회피를 추가했다.
