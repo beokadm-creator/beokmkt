@@ -60,11 +60,28 @@ DEFAULT_REFERENCES = os.getenv("DEFAULT_REFERENCES", "(없음)")
 # Tavily 같은 유료/외부 검색 API는 설정했을 때만 보조 검색으로 쓴다.
 SEARCH_PROVIDER = os.getenv("SEARCH_PROVIDER", "")          # tavily | (비우면 공식 사이트만)
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+DEFAULT_OFFICIAL_SOURCE_URLS = (
+    "https://beoksolution.com/,"
+    "https://beoksolution.com/references/,"
+    "https://beoksolution.com/ai-search-summary.html,"
+    "https://beoksolution.com/llms.txt,"
+    "https://hongcomm.kr/,"
+    "https://hongcomm.kr/sub/company.php,"
+    "https://hongcomm.kr/sub/business.php,"
+    "https://hongcomm.kr/sub/offline.php,"
+    "https://hongcomm.kr/sub/online.php,"
+    "https://hongcomm.kr/sub/solution.php,"
+    "https://hongcomm.kr/sub/solution.php?tab=eregi,"
+    "https://hongcomm.kr/sub/solution.php?tab=translation,"
+    "https://hongcomm.kr/sub/products.php,"
+    "https://hongcomm.kr/sub/clients.php,"
+    "https://hongcomm.kr/bbs/board.php?bo_table=portfolio"
+)
 OFFICIAL_SOURCE_URLS = [
     u.strip()
     for u in os.getenv(
         "OFFICIAL_SOURCE_URLS",
-        "https://beoksolution.com/,https://hongcomm.kr/",
+        DEFAULT_OFFICIAL_SOURCE_URLS,
     ).split(",")
     if u.strip()
 ]
@@ -126,7 +143,7 @@ def profile_for(category: str = "", topic: str = "") -> str | None:
     return None
 SEARCH_RESULTS_PER_QUERY = int(os.getenv("SEARCH_RESULTS_PER_QUERY", "6"))
 MAX_SUBQUERIES = int(os.getenv("MAX_SUBQUERIES", "4"))      # 하위질문 검색 상한
-MAX_SOURCES = int(os.getenv("MAX_SOURCES", "10"))           # 근거팩에 모을 출처 상한
+MAX_SOURCES = int(os.getenv("MAX_SOURCES", "16"))           # 근거팩에 모을 출처 상한
 MIN_SOURCE_TEXT_LEN = int(os.getenv("MIN_SOURCE_TEXT_LEN", "300"))
 MAX_SOURCE_TEXT_LEN = int(os.getenv("MAX_SOURCE_TEXT_LEN", "6000"))
 EVIDENCE_SRC_SNIPPET = int(os.getenv("EVIDENCE_SRC_SNIPPET", "3000"))  # 추출 입력 길이

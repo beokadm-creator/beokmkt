@@ -536,6 +536,49 @@ def _test_generate_final_image_contract() -> list[str]:
     return issues
 
 
+def _test_grounding_specific_claim_contract() -> list[str]:
+    """근거팩 밖 가격·기간·규모 수치는 생성/팩트체크 단계에서 남기지 않는다."""
+    from pipeline import factcheck, generate
+
+    evidence = {
+        "facts": [
+            {"statement": "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공한다"},
+            {"statement": "홍커뮤니케이션은 MICE 행사 운영과 학술대회 운영 레퍼런스를 보유한다"},
+            {"statement": "홍커뮤니케이션은 e-Regi 스마트 행사 등록 시스템을 제공한다"},
+        ],
+    }
+    unsupported_body = (
+        "## 운영 기준\n\n"
+        "관리자형은 월 20만원부터 시작하고 최단 3일 안에 1차 시안을 볼 수 있습니다. "
+        "38개국 언어 실시간 AI 동시통역과 프리미엄 운영형 월 50만원도 선택할 수 있습니다.\n\n"
+        "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공합니다."
+    )
+    cleaned = generate._remove_unsupported_specific_claims(unsupported_body, evidence)  # noqa: SLF001
+    issues: list[str] = []
+    for token in ["월 20만원", "최단 3일", "38개국", "월 50만원"]:
+        if token in cleaned:
+            issues.append(f"grounding-contract: 근거 없는 구체 수치가 생성 본문에 잔존({token})")
+
+    unsupported = factcheck.local_unsupported_claims(unsupported_body, evidence)
+    if not any("월 20만원" in item for item in unsupported):
+        issues.append(f"grounding-contract: 근거 없는 가격 claim 미검출({unsupported})")
+    if not any("최단 3일" in item for item in unsupported):
+        issues.append(f"grounding-contract: 근거 없는 기간 claim 미검출({unsupported})")
+    if not any("38개국" in item for item in unsupported):
+        issues.append(f"grounding-contract: 근거 없는 규모 claim 미검출({unsupported})")
+
+    supported_body = (
+        "## 운영 기준\n\n"
+        "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공하고, "
+        "홍커뮤니케이션은 MICE 행사 운영과 학술대회 운영 레퍼런스를 보유합니다. "
+        "홍커뮤니케이션은 e-Regi 스마트 행사 등록 시스템을 제공합니다."
+    )
+    false_positive = factcheck.local_unsupported_claims(supported_body, evidence)
+    if false_positive:
+        issues.append(f"grounding-contract: 근거 안 사실 오탐({false_positive})")
+    return issues
+
+
 def _test_factcheck_all_errors_stop_runbook() -> list[str]:
     from pipeline import factcheck
 
@@ -1319,6 +1362,7 @@ def run() -> bool:
         + _test_generate_all_failures_stop_runbook()
         + _test_operational_generation_length_contract_queues()
         + _test_generate_final_image_contract()
+        + _test_grounding_specific_claim_contract()
         + _test_factcheck_all_errors_stop_runbook()
         + _test_factcheck_all_failed_stop_runbook()
         + _test_review_all_errors_stop_runbook()

@@ -421,6 +421,35 @@ def _validate_generated_article(result: dict) -> dict:
     return result
 
 
+def _remove_unsupported_specific_claims(body_text: str, evidence: dict) -> str:
+    """근거팩 밖 가격·기간·규모 수치 문장은 최종 본문에서 제거한다."""
+    try:
+        from pipeline.factcheck import local_unsupported_claims
+    except Exception:  # noqa: BLE001
+        return body_text
+    unsupported = local_unsupported_claims(body_text, evidence)
+    if not unsupported:
+        return body_text
+    blocks = _re.split(r"(\n{2,})", body_text or "")
+    out: list[str] = []
+    for block in blocks:
+        if block.startswith("\n"):
+            out.append(block)
+            continue
+        if block.startswith("![") or block.lstrip().startswith("<img"):
+            out.append(block)
+            continue
+        cleaned = block
+        for claim in unsupported:
+            cleaned = cleaned.replace(claim, "")
+        cleaned = _re.sub(r"[ \t]{2,}", " ", cleaned).strip()
+        if cleaned or block.startswith("## "):
+            out.append(cleaned)
+    cleaned_body = "".join(out)
+    cleaned_body = _re.sub(r"\n{3,}", "\n\n", cleaned_body).strip()
+    return cleaned_body or body_text
+
+
 def generate_article(
     llm: LLMClient, topic: str, content_type: str, channel: str = "selfhosted",
     brand_key: str = "",
@@ -530,6 +559,7 @@ def compose_article(
     final_title = _strip_run_meta_text(final_title)
     meta = _strip_run_meta_text(meta)
     body_text = _strip_run_meta_text(body_text)
+    body_text = _remove_unsupported_specific_claims(body_text, evidence)
 
     return _validate_generated_article({
         "title": final_title,

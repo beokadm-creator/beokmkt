@@ -11,12 +11,72 @@
 from __future__ import annotations
 
 import json
+import re
 
 import config
 from db import db
 from llm import prompts
 from llm.client import LLMClient
 from llm.parse import chat_json
+
+
+_RISKY_SPECIFIC_RE = re.compile(
+    r"("
+    r"(?:월|연|년)\s*\d+(?:\.\d+)?\s*(?:만\s*)?원"
+    r"|\d+(?:\.\d+)?\s*(?:만\s*)?원\s*(?:부터|대|이상|이하|수준)?"
+    r"|(?:최단|최소|최대|평균)\s*\d+\s*(?:일|주|개월|시간|분)"
+    r"|\d+\s*(?:일|주|개월|시간|분)\s*(?:안에|이내|만에|소요|완성|구축|제작)"
+    r"|\d+\s*(?:개국|개\s*국|개\s*언어|개언어|명|건|회|%)"
+    r"|프리미엄\s*운영형"
+    r"|관리자형"
+    r"|요금제"
+    r")",
+    re.I,
+)
+
+
+def _normalize(value: str | None) -> str:
+    text = str(value or "").lower()
+    text = re.sub(r"\s+", "", text)
+    text = text.replace(",", "")
+    return text
+
+
+def _facts_text_raw(evidence: dict) -> str:
+    return " ".join(str(f.get("statement", "")) for f in (evidence or {}).get("facts", []))
+
+
+def local_unsupported_claims(body: str, evidence: dict) -> list[str]:
+    """
+    가격·기간·규모처럼 운영상 민감한 구체 수치는 근거팩에 같은 표현이 있을 때만 허용한다.
+    LLM factcheck가 놓쳐도 로컬에서 한 번 더 막아 발행량보다 정확성을 우선한다.
+    """
+    facts_norm = _normalize(_facts_text_raw(evidence))
+    if not facts_norm:
+        return []
+    unsupported: list[str] = []
+    seen: set[str] = set()
+    text = re.sub(r"!\[[^\]]*]\([^)\s]+\)", " ", body or "")
+    chunks = re.split(r"\n+|[.!?。]\s+|다\.\s*|요\.\s*|니다\.\s*", text)
+    for chunk in chunks:
+        claim = re.sub(r"\s+", " ", chunk).strip(" -*#|")
+        if not claim:
+            continue
+        matches = [m.group(0) for m in _RISKY_SPECIFIC_RE.finditer(claim)]
+        if not matches:
+            continue
+        unsupported_matches = [
+            match for match in matches
+            if _normalize(match) not in facts_norm
+        ]
+        if not unsupported_matches:
+            continue
+        marker = " / ".join(unsupported_matches)
+        if marker in seen:
+            continue
+        seen.add(marker)
+        unsupported.append(claim[:180])
+    return unsupported
 
 
 def _facts_text(evidence: dict, limit: int = 60) -> str:
@@ -66,6 +126,12 @@ def run_once(batch: int = 5) -> tuple[int, int]:
             print(f"[factcheck] id={post['id']} 오류: {e}")
             errors.append(f"id={post['id']}: {e}")
             continue
+
+        local_unsupported = local_unsupported_claims(post["body"], evidence)
+        if local_unsupported:
+            result.setdefault("unsupported", [])
+            result["unsupported"] = [*result.get("unsupported", []), *local_unsupported]
+            result["grounding_ratio"] = min(float(result.get("grounding_ratio", 0.0)), 0.5)
 
         ratio = float(result.get("grounding_ratio", 0.0))
         db.save_grounding(post["id"], ratio)

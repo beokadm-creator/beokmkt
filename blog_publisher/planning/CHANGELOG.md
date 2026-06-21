@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-21 — 근거 없는 가격·기간·규모 생성 차단
+
+길이와 이미지 게이트 해결 후 Windows 운영 PC에서 `low_grounding`과 `unsupported`가 주 병목으로 드러났다. 모델이 공식 근거에 없는 요금, 구축 기간, 지원 언어 수 같은 구체 사업정보를 보강하려고 지어내는 문제였으므로, 유료 외부검색 없이 공식 출처를 넓히고 위험 구체 주장을 생성·팩트체크 양쪽에서 차단했다.
+
+| 대상 | 내용 |
+|---|---|
+| `config.py` | 기본 공식 출처를 beoksolution 루트/레퍼런스/AI 요약/llms와 hongcomm 회사·사업·오프라인·온라인·솔루션·제품·클라이언트·포트폴리오 페이지로 확장. `MAX_SOURCES` 기본값 10 → 16 |
+| `llm/prompts.py` | 근거팩에 없는 가격, 월 요금, 구축 기간, 최단/최소/최대, 지원 언어/국가/고객 수, 요금제명 생성 금지 지시 강화 |
+| `pipeline/factcheck.py` | LLM factcheck와 별도로 로컬 `local_unsupported_claims()` 추가. 근거팩에 없는 가격·기간·규모 수치가 있으면 grounding을 0.5 이하로 낮춰 탈락 처리 |
+| `pipeline/generate.py` | 최종 본문 저장 전 근거팩 밖 위험 구체 수치 문장을 제거하는 `_remove_unsupported_specific_claims()` 추가 |
+| `quality_selftest.py` | 근거 없는 `월 20만원`, `최단 3일`, `38개국`, `월 50만원`은 제거/탈락하고, 근거 안 사실은 오탐하지 않는 회귀테스트 추가 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher` PASS
+- `git diff --check` PASS
+
+---
+
 ## 2026-06-21 — 최종 생성 본문 이미지 소실 방지
 
 f684a5f 이후에도 Windows 운영 PC에서 review 단계의 `운영 글 이미지 부족(0~1/2장)`이 계속 발생했다. 원인은 `inject_images()` 단독이 아니라, 최종 생성 경로에서 run-meta 제거 정규식이 hongcomm 포트폴리오 이미지 URL 내부의 날짜처럼 보이는 숫자 조각을 치환해 이미지 마크다운을 깨뜨리는 데 있었다.
