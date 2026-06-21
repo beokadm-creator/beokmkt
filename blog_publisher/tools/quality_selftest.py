@@ -446,6 +446,96 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
     return issues
 
 
+def _test_generate_final_image_contract() -> list[str]:
+    """compose_article 최종 후처리 뒤에도 운영 글 이미지와 길이 계약이 유지되어야 한다."""
+    from pipeline import generate
+    from tools.content_quality import external_image_count, image_count, image_urls, plain_text, publish_blockers
+
+    issues: list[str] = []
+    portfolio_url = (
+        "https://hongcomm.kr/data/file/portfolio/"
+        "thumb-2041025217_92nQ5Xlf_ed6ce67ee16dd8338be451bb5f960a847e7bf3a1_640x400.jpg"
+    )
+    protected = generate._strip_run_meta_text(  # noqa: SLF001 - 생성 최종 후처리 회귀테스트
+        f"## 운영 기준\n\n![홍커뮤니케이션 MICE 포트폴리오 현장 레퍼런스 26]({portfolio_url})"
+    )
+    if portfolio_url not in protected:
+        issues.append(f"generate-final-image: run-meta 제거가 이미지 URL을 훼손함({image_urls(protected)})")
+
+    class MockLLM:
+        section_calls = 0
+
+        def chat(self, system: str, user: str, **_kw) -> str:
+            if "한국어 블로그 편집장" in system or "개요를 짠다" in system:
+                return json.dumps({
+                    "title": "학회 사무국 운영과 홈페이지 시스템 연결 기준",
+                    "meta_description": "학회 사무국 운영과 홈페이지 시스템을 함께 보는 기준입니다.",
+                    "sections": [
+                        {"h2": "사무국 접수 기준을 먼저 정합니다", "point": "접수 항목과 관리자 확인 기준을 맞춘다"},
+                        {"h2": "명찰 출력 데이터는 하나로 관리합니다", "point": "참가자 정보와 QR 확인 기준을 연결한다"},
+                        {"h2": "홈페이지 신청폼과 운영 화면을 연결합니다", "point": "비오케이솔루션 개발 범위를 데이터 흐름으로 나눈다"},
+                        {"h2": "홍커뮤니케이션 레퍼런스를 운영 기준으로 봅니다", "point": "MICE 현장 운영 경험을 사전 준비 기준에 반영한다"},
+                    ],
+                }, ensure_ascii=False)
+            if "한국어 블로그 전문 작가" in system:
+                MockLLM.section_calls += 1
+                return (
+                    "학회 사무국은 접수, 결제, 명찰, 현장 확인을 따로 보지 않아야 합니다. "
+                    "**홈페이지 신청폼과 관리자 화면**이 같은 데이터를 사용해야 운영자가 수정 기준을 빠르게 잡을 수 있습니다.\n\n"
+                    "- 참가자 이름과 소속 표기 기준을 정합니다.\n"
+                    "- 현장 변경 요청을 기록할 담당자를 나눕니다.\n"
+                    "- QR 체크인과 명찰 재발행 로그를 함께 남깁니다."
+                )
+            if "구글 SEO 에디터" in system or "네이버 블로그 상위노출 에디터" in system:
+                return json.dumps({
+                    "seo_title": "학회 사무국 운영과 홈페이지 시스템 기준",
+                    "meta_description": "학회 사무국 운영과 홈페이지 시스템 연결 기준입니다.",
+                    "tags": ["학회 사무국", "홈페이지 시스템", "홍커뮤니케이션"],
+                }, ensure_ascii=False)
+            return "{}"
+
+    result = generate.compose_article(
+        MockLLM(),
+        "학회 사무국 운영과 홈페이지 시스템 연결 기준",
+        "howto",
+        "google",
+        {
+            "intent": "학회 사무국 운영과 홈페이지 시스템 연결",
+            "coverage_targets": ["접수", "명찰", "홈페이지", "MICE"],
+            "facts": [
+                {"statement": "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공한다", "source_title": "비오케이솔루션"},
+                {"statement": "홍커뮤니케이션은 MICE 행사 운영과 학술대회 운영 레퍼런스를 보유한다", "source_title": "홍커뮤니케이션"},
+            ],
+            "sources": [{"title": "홍커뮤니케이션", "url": "https://hongcomm.kr/"}],
+        },
+        serp=[],
+        brand_key="conference",
+    )
+    body = result["body"]
+    post = {
+        "id": 999991,
+        "channel": "selfhosted",
+        "category": "conference",
+        "title": result["title"],
+        "topic": "학회 사무국 운영과 홈페이지 시스템 연결 기준",
+        "body": body,
+        "updated_at": "2099-01-01 00:00:00",
+    }
+    body_chars = len(plain_text(body))
+    if body_chars > 2600:
+        issues.append(f"generate-final-image: 최종 본문 길이 초과({body_chars}/2600자)")
+    if image_count(body) < 2 or external_image_count(body) < 2:
+        issues.append(
+            f"generate-final-image: 최종 이미지 부족(images={image_count(body)}, trusted={external_image_count(body)}, urls={image_urls(body)})"
+        )
+    blockers = publish_blockers(post)
+    if blockers:
+        issues.append(f"generate-final-image: 최종 발행 게이트 차단({body_chars}자): {blockers}")
+    if re.search(r"^## .+!\[[^\]]*]\(", body, flags=re.M):
+        issues.append("generate-final-image: 이미지 마크다운이 H2 제목 줄에 붙어 있음")
+    return issues
+
+
 def _test_factcheck_all_errors_stop_runbook() -> list[str]:
     from pipeline import factcheck
 
@@ -1228,6 +1318,7 @@ def run() -> bool:
         + _test_generate_hard_compacts_long_section()
         + _test_generate_all_failures_stop_runbook()
         + _test_operational_generation_length_contract_queues()
+        + _test_generate_final_image_contract()
         + _test_factcheck_all_errors_stop_runbook()
         + _test_factcheck_all_failed_stop_runbook()
         + _test_review_all_errors_stop_runbook()

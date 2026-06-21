@@ -145,7 +145,17 @@ def _strip_hanzi(text: str) -> str:
 
 def _strip_run_meta_text(text: str) -> str:
     """운영 run tag/검증 메타가 공개 산출물 소재로 새는 것을 막는다."""
-    cleaned = _RUN_META_RE.sub(" ", text or "")
+    source = text or ""
+    protected: list[str] = []
+
+    def protect(match: _re.Match) -> str:
+        protected.append(match.group(0))
+        return f"@@BEOK_IMAGE_{len(protected) - 1}@@"
+
+    source = _re.sub(r"!\[[^\]]*]\([^)\s]+\)", protect, source)
+    source = _re.sub(r"<img\b[^>]*>", protect, source, flags=_re.I)
+
+    cleaned = _RUN_META_RE.sub(" ", source)
     cleaned = _RUN_META_INLINE_RE.sub(" ", cleaned)
     cleaned = _RUN_DATE_TAG_RE.sub(" ", cleaned)
     cleaned = _RUN_META_PHRASE_RE.sub(" ", cleaned)
@@ -154,6 +164,11 @@ def _strip_run_meta_text(text: str) -> str:
     cleaned = _re.sub(r"[ \t]+\n", "\n", cleaned)
     cleaned = _re.sub(r"\n{3,}", "\n\n", cleaned).strip()
     cleaned = _re.sub(r"\s+([,.!?])", r"\1", cleaned)
+    for idx, image_markup in enumerate(protected):
+        cleaned = cleaned.replace(f"@@BEOK_IMAGE_{idx}@@", image_markup)
+    cleaned = _re.sub(r"(?m)^(## [^\n!]+)!\[", r"\1\n\n![", cleaned)
+    cleaned = _re.sub(r"(?m)^([^\n]*\S)(!\[[^\]]*]\([^)\s]+\))", r"\1\n\n\2", cleaned)
+    cleaned = _re.sub(r"(?m)(!\[[^\]]*]\([^)\s]+\))([^\n])", r"\1\n\n\2", cleaned)
     return cleaned or (text or "").strip()
 
 
@@ -312,12 +327,20 @@ def _image_brand_key(brand_key: str, topic: str, body_text: str) -> str:
     """운영 글 이미지 풀을 고른다. category가 축 이름이어도 운영 글이면 이미지를 넣는다."""
     if brand_key in {"hong", "beok"}:
         return brand_key
+    key = (brand_key or "").lower()
+    if key in {"conference", "event_ops", "mice", "event", "academic"}:
+        return "hong"
+    if key in {"company", "web", "website", "systems", "system", "solution"}:
+        return "beok"
     text = f"{brand_key} {topic} {body_text}"
-    hong_terms = ("홍커뮤니케이션", "MICE", "학회", "학술대회", "행사", "명찰", "접수", "체크인")
+    hong_terms = ("홍커뮤니케이션", "hongcomm", "MICE", "학회", "학술대회", "국제회의", "컨퍼런스", "행사", "명찰", "사무국", "접수", "등록", "체크인", "레퍼런스", "포트폴리오")
     beok_terms = ("비오케이", "홈페이지", "제작", "개발", "예약", "결제", "관리자", "자동화")
     if any(term in text for term in hong_terms):
         return "hong"
     if any(term in text for term in beok_terms):
+        return "beok"
+    operational_terms = ("동시통역", "초록", "심사", "QR", "바코드", "참가자", "시스템", "솔루션", "데이터", "백오피스", "API", "연동")
+    if any(term in text for term in operational_terms):
         return "beok"
     return ""
 

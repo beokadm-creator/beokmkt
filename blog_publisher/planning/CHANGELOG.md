@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-21 — 최종 생성 본문 이미지 소실 방지
+
+f684a5f 이후에도 Windows 운영 PC에서 review 단계의 `운영 글 이미지 부족(0~1/2장)`이 계속 발생했다. 원인은 `inject_images()` 단독이 아니라, 최종 생성 경로에서 run-meta 제거 정규식이 hongcomm 포트폴리오 이미지 URL 내부의 날짜처럼 보이는 숫자 조각을 치환해 이미지 마크다운을 깨뜨리는 데 있었다.
+
+| 대상 | 내용 |
+|---|---|
+| `pipeline/generate.py` | `_strip_run_meta_text()`가 `![...](...)`와 `<img>` 구간을 보호한 뒤 run-meta/date tag를 제거하도록 수정. 이미지 마크다운이 H2 제목 줄에 붙으면 별도 줄로 분리 |
+| `pipeline/generate.py` | `conference/event_ops/mice` 등 운영 축 category는 무조건 hong 이미지 풀로, `company/web/systems`는 beok 이미지 풀로 폴백. 운영 키워드가 있으면 빈 문자열 대신 hong/beok 중 하나를 선택 |
+| `config.py` | Windows `.env`에 오래된 `SECTION_MAX_LEN=300`이 남아 있어도 코드에서 240으로 하드 캡 |
+| `quality_selftest.py` | `compose_article()` 최종 body 기준으로 이미지 URL 보존, H2 인라인 이미지 금지, 신뢰 이미지 2장, 2600자 이하, publish gate 통과를 회귀테스트로 추가 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher` PASS
+- `git diff --check` PASS
+
+---
+
 ## 2026-06-21 — 운영 글 이미지/길이 게이트 정합 보강
 
 Windows 운영 PC에서 생성은 충분히 도는데 review 단계에서 `운영 글 이미지 부족(0~1/2장)`과 `운영 글 본문 과다(2600자 초과)`로 통과 원고가 줄어드는 병목을 보강했다.
