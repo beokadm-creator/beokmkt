@@ -81,9 +81,11 @@ def _test_phase_a_generation_contract() -> list[str]:
     issues: list[str] = []
     if generate._section_max_tokens() > 1500:
         issues.append(f"phase-a: 섹션 유효 토큰 상한 > 1500 ({generate._section_max_tokens()})")
-    if config.SECTION_MAX_LEN > 240:
-        issues.append(f"phase-a: SECTION_MAX_LEN > 240 ({config.SECTION_MAX_LEN})")
-    for token in ["180~240자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
+    if config.SECTION_MAX_LEN > 260:
+        issues.append(f"phase-a: SECTION_MAX_LEN > 260 ({config.SECTION_MAX_LEN})")
+    if config.SECTION_MIN_LEN < 120:
+        issues.append(f"phase-a: SECTION_MIN_LEN < 120 ({config.SECTION_MIN_LEN})")
+    for token in ["200~260자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
         if token not in prompts.SECTION_SYSTEM:
             issues.append(f"phase-a: SECTION_SYSTEM 품질 지시 누락: {token}")
 
@@ -247,8 +249,10 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
     from tools.content_quality import external_image_count, image_count, plain_text, publish_blockers
 
     issues: list[str] = []
-    if config.SECTION_MAX_LEN > 240:
-        issues.append(f"ops-length: SECTION_MAX_LEN이 240을 초과함({config.SECTION_MAX_LEN})")
+    if config.SECTION_MAX_LEN > 260:
+        issues.append(f"ops-length: SECTION_MAX_LEN이 260을 초과함({config.SECTION_MAX_LEN})")
+    if config.SECTION_MIN_LEN < 120:
+        issues.append(f"ops-length: SECTION_MIN_LEN이 120 미만임({config.SECTION_MIN_LEN})")
     if generate.SECTION_MAX > 4:
         issues.append(f"ops-length: 운영 글 섹션 상한이 4를 초과함({generate.SECTION_MAX})")
 
@@ -576,6 +580,80 @@ def _test_grounding_specific_claim_contract() -> list[str]:
     false_positive = factcheck.local_unsupported_claims(supported_body, evidence)
     if false_positive:
         issues.append(f"grounding-contract: 근거 안 사실 오탐({false_positive})")
+    return issues
+
+
+def _test_generate_final_length_band_contract() -> list[str]:
+    """운영 글 최종 plain text는 900~2600자 밴드에 안정적으로 들어와야 한다."""
+    from pipeline import generate
+    from tools.content_quality import plain_text, publish_blockers
+
+    evidence = {
+        "intent": "학회 운영과 홈페이지 시스템 연결",
+        "coverage_targets": ["접수", "명찰", "홈페이지", "관리자"],
+        "facts": [
+            {"statement": "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공한다", "source_title": "비오케이솔루션"},
+            {"statement": "홍커뮤니케이션은 MICE 행사 운영과 학술대회 운영 레퍼런스를 보유한다", "source_title": "홍커뮤니케이션"},
+            {"statement": "홍커뮤니케이션은 e-Regi 스마트 행사 등록 시스템을 제공한다", "source_title": "홍커뮤니케이션"},
+        ],
+        "sources": [{"title": "홍커뮤니케이션", "url": "https://hongcomm.kr/"}],
+    }
+
+    class ShortLLM:
+        def chat(self, system: str, user: str, **_kw) -> str:
+            if "한국어 블로그 편집장" in system or "개요를 짠다" in system:
+                return json.dumps({
+                    "title": "학회 접수와 홈페이지 운영 기준",
+                    "meta_description": "학회 접수와 홈페이지 운영을 함께 보는 기준입니다.",
+                    "sections": [
+                        {"h2": "접수 기준을 맞춥니다", "point": "신청 항목과 확인 화면을 맞춘다"},
+                        {"h2": "명찰 데이터를 정리합니다", "point": "참가자 표기와 재발행 기준을 정한다"},
+                        {"h2": "관리자 화면을 나눕니다", "point": "수정 권한과 조회 항목을 나눈다"},
+                        {"h2": "운영 기록을 남깁니다", "point": "행사 후 확인할 데이터를 남긴다"},
+                    ],
+                }, ensure_ascii=False)
+            if "한국어 블로그 전문 작가" in system:
+                return "접수 항목, 관리자 확인, 명찰 표기 기준을 같은 데이터로 맞춥니다."
+            if "구글 SEO 에디터" in system or "네이버 블로그 상위노출 에디터" in system:
+                return json.dumps({"seo_title": "학회 접수와 홈페이지 운영 기준", "meta_description": "학회 접수와 홈페이지 운영 기준입니다.", "tags": ["학회", "홈페이지"]}, ensure_ascii=False)
+            return "{}"
+
+    result = generate.compose_article(
+        ShortLLM(),
+        "학회 접수와 홈페이지 운영 기준",
+        "howto",
+        "google",
+        evidence,
+        serp=[],
+        brand_key="conference",
+    )
+    body = result["body"]
+    chars = len(plain_text(body))
+    post = {
+        "id": 999992,
+        "channel": "selfhosted",
+        "category": "conference",
+        "title": result["title"],
+        "topic": "학회 접수와 홈페이지 운영 기준",
+        "body": body,
+        "updated_at": "2099-01-01 00:00:00",
+    }
+    issues: list[str] = []
+    if not (900 <= chars <= 2600):
+        issues.append(f"generate-length-band: 최종 본문 길이 밴드 이탈({chars}/900~2600자)")
+    blockers = publish_blockers(post)
+    if any("본문 부족" in blocker or "본문 과다" in blocker for blocker in blockers):
+        issues.append(f"generate-length-band: 발행 길이 게이트 차단({chars}자): {blockers}")
+
+    long_body = (
+        "## 접수 기준\n\n" + ("학회 접수와 관리자 화면은 같은 데이터를 기준으로 운영해야 합니다. " * 80)
+        + "\n\n## 명찰 기준\n\n" + ("명찰 출력과 재발행 기록은 사무국 확인 흐름에 맞춰 남깁니다. " * 80)
+        + "\n\n## 실행 전 점검표\n\n| 점검 | 기준 |\n|---|---|\n| 접수 | 관리자 확인 |\n"
+    )
+    fitted = generate._fit_operational_length_band(long_body, evidence, topic="학회 접수와 홈페이지 운영 기준")  # noqa: SLF001
+    fitted_chars = len(plain_text(fitted))
+    if not (900 <= fitted_chars <= 2600):
+        issues.append(f"generate-length-band: 과긴 본문 보정 실패({fitted_chars}/900~2600자)")
     return issues
 
 
@@ -1363,6 +1441,7 @@ def run() -> bool:
         + _test_operational_generation_length_contract_queues()
         + _test_generate_final_image_contract()
         + _test_grounding_specific_claim_contract()
+        + _test_generate_final_length_band_contract()
         + _test_factcheck_all_errors_stop_runbook()
         + _test_factcheck_all_failed_stop_runbook()
         + _test_review_all_errors_stop_runbook()
@@ -1389,7 +1468,7 @@ def run() -> bool:
             print(f"[FAIL] {issue}")
         print(f"\n결과: FAIL ({len(issues)}건)")
         return False
-    print("[OK] phase-a generation: 180~240자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
+    print("[OK] phase-a generation: 200~260자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
     print("[OK] generate gate: 빈 본문/불완전 생성 결과 저장 차단")
     print("[OK] ops flow: 운영 글 생성 길이와 발행 게이트 길이 상한 정합, queued 전환 유지")
     print("[OK] image bank: 섹션별 이미지 다양성 유지")

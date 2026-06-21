@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-21 — 운영 글 최종 길이 밴드 안정화
+
+Windows 운영 PC에서 이미지·근거 개선 후 `운영 글 본문 부족(389~883/900자)`이 새로 드러났다. 섹션 최대 240자만으로는 unsupported 문장 제거와 모델 출력 변동을 흡수하지 못해 900자 하한 아래로 빠지는 케이스가 생겼으므로, 섹션 계약과 최종 body 보정을 함께 조정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `config.py`, `llm/prompts.py` | 섹션 최소값을 120자 이상으로 강제하고, 섹션 본문 계약을 200~260자로 조정 |
+| `pipeline/generate.py` | 최종 운영 글 plain text를 900~2600자 밴드에 맞추는 `_fit_operational_length_band()` 추가. 짧은 글은 근거 안전한 운영 체크 섹션으로 보강하고, 긴 글은 H2/이미지/표를 보존한 채 본문 문단만 축약 |
+| `quality_selftest.py` | 짧은 생성물과 과긴 본문 모두 최종 900~2600자 밴드에 들어오고 publish 길이 게이트를 통과하는 회귀테스트 추가 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher` PASS
+- `git diff --check` PASS
+
+---
+
 ## 2026-06-21 — 근거 없는 가격·기간·규모 생성 차단
 
 길이와 이미지 게이트 해결 후 Windows 운영 PC에서 `low_grounding`과 `unsupported`가 주 병목으로 드러났다. 모델이 공식 근거에 없는 요금, 구축 기간, 지원 언어 수 같은 구체 사업정보를 보강하려고 지어내는 문제였으므로, 유료 외부검색 없이 공식 출처를 넓히고 위험 구체 주장을 생성·팩트체크 양쪽에서 차단했다.

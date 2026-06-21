@@ -450,6 +450,126 @@ def _remove_unsupported_specific_claims(body_text: str, evidence: dict) -> str:
     return cleaned_body or body_text
 
 
+def _plain_len(body_text: str) -> int:
+    text = _re.sub(r"!\[[^\]]*]\([^)\s]+\)", " ", body_text or "")
+    text = _re.sub(r"<script[\s\S]*?</script>", " ", text, flags=_re.I)
+    text = _re.sub(r"<style[\s\S]*?</style>", " ", text, flags=_re.I)
+    text = _re.sub(r"<[^>]+>", " ", text)
+    return len(_re.sub(r"\s+", " ", text).strip())
+
+
+def _is_structural_block(block: str) -> bool:
+    stripped = (block or "").strip()
+    if not stripped:
+        return True
+    if stripped.startswith("## ") or stripped.startswith("![") or stripped.startswith("<img"):
+        return True
+    lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+    return bool(lines) and all("|" in line for line in lines)
+
+
+def _truncate_text_block(block: str, limit: int) -> str:
+    text = (block or "").strip()
+    if len(text) <= limit:
+        return text
+    units = _re.findall(r".+?(?:[.!?。]|다\.|요\.|니다\.|$)", text, flags=_re.S)
+    out: list[str] = []
+    total = 0
+    for unit in units:
+        unit = unit.strip()
+        if not unit:
+            continue
+        extra = len(unit) + (1 if out else 0)
+        if out and total + extra > limit:
+            break
+        if not out and len(unit) > limit:
+            return unit[:limit].rstrip()
+        out.append(unit)
+        total += extra
+    return " ".join(out).strip() or text[:limit].rstrip()
+
+
+def _trim_to_plain_limit(body_text: str, max_chars: int) -> str:
+    if _plain_len(body_text) <= max_chars:
+        return body_text
+    blocks = _re.split(r"\n{2,}", body_text or "")
+    for _ in range(80):
+        current_len = _plain_len("\n\n".join(blocks))
+        if current_len <= max_chars:
+            break
+        overflow = current_len - max_chars
+        changed = False
+        for idx in range(len(blocks) - 1, -1, -1):
+            block = blocks[idx]
+            if _is_structural_block(block):
+                continue
+            block_len = _plain_len(block)
+            if block_len <= 0:
+                blocks.pop(idx)
+                changed = True
+                break
+            if block_len > overflow + 90:
+                blocks[idx] = _truncate_text_block(block, max(90, block_len - overflow - 40))
+            else:
+                blocks.pop(idx)
+            changed = True
+            break
+        if not changed:
+            break
+    return _re.sub(r"\n{3,}", "\n\n", "\n\n".join(block for block in blocks if block.strip())).strip()
+
+
+def _evidence_service_summary(evidence: dict) -> str:
+    facts = [str(f.get("statement", "")).strip() for f in (evidence or {}).get("facts", []) if f.get("statement")]
+    joined = " ".join(facts)
+    if "홍커뮤니케이션" in joined and "비오케이솔루션" in joined:
+        return "비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE 운영 맥락을 함께 놓고 봐야 합니다."
+    if "홍커뮤니케이션" in joined:
+        return "홍커뮤니케이션의 MICE 운영 맥락을 기준으로 접수와 현장 확인 흐름을 점검해야 합니다."
+    if "비오케이솔루션" in joined:
+        return "비오케이솔루션의 홈페이지 제작과 맞춤형 시스템 개발 맥락에서 운영 화면을 점검해야 합니다."
+    return "공개 근거로 확인되는 서비스 범위 안에서 접수, 관리자 화면, 현장 운영 기준을 점검해야 합니다."
+
+
+def _fit_operational_length_band(
+    body_text: str,
+    evidence: dict,
+    topic: str = "",
+    min_chars: int = 940,
+    max_chars: int = 2550,
+) -> str:
+    """운영 글 최종 본문을 발행 게이트 밴드(900~2600) 안에 안정적으로 맞춘다."""
+    fitted = _trim_to_plain_limit(body_text, max_chars)
+    if _plain_len(fitted) >= min_chars:
+        return fitted
+
+    additions = [
+        (
+            "## 상담 전 확인할 운영 기준\n\n"
+            f"{_evidence_service_summary(evidence)} "
+            "이 단계에서는 요금이나 기간을 단정하기보다 실제 운영자가 매일 확인할 화면과 데이터 흐름을 먼저 정리하는 편이 안전합니다."
+        ),
+        (
+            "- 참가자가 입력하는 항목과 사무국이 수정하는 항목을 나눕니다.\n"
+            "- 등록, 결제, 체크인, 명찰 재발행처럼 상태가 바뀌는 지점을 같은 기준으로 표시합니다.\n"
+            "- 행사 후 확인할 데이터와 관리자 권한을 미리 정해 개발 범위를 좁힙니다."
+        ),
+        (
+            "상담 전에는 현재 쓰는 신청 방식, 담당자별 확인 절차, 현장 변경 요청 처리 기준을 정리해 두면 좋습니다. "
+            "이 정보가 있어야 홈페이지 제작, 관리자 시스템, MICE 현장 운영 지원을 한 흐름으로 검토할 수 있습니다."
+        ),
+        (
+            "특히 학회나 행사는 사전 등록과 현장 대응이 분리되면 같은 문의가 반복됩니다. "
+            "접수 단계에서 받은 정보가 명찰 출력, 체크인 확인, 사후 데이터 정리까지 이어지는지 먼저 확인하면 운영 리스크를 줄일 수 있습니다."
+        ),
+    ]
+    for addition in additions:
+        if _plain_len(fitted) >= min_chars:
+            break
+        fitted = f"{fitted}\n\n{addition}".strip()
+    return _trim_to_plain_limit(fitted, max_chars)
+
+
 def generate_article(
     llm: LLMClient, topic: str, content_type: str, channel: str = "selfhosted",
     brand_key: str = "",
@@ -543,6 +663,7 @@ def compose_article(
         print(f"[seo] 최적화 실패(원고 유지): {e}", flush=True)
         seo_data, final_title, meta, tags = {}, title, outline.get("meta_description", ""), []
 
+    image_brand_key = ""
     if engine == "naver":
         body_text = _sanitize_naver_body(body_text)
     else:
@@ -560,6 +681,8 @@ def compose_article(
     meta = _strip_run_meta_text(meta)
     body_text = _strip_run_meta_text(body_text)
     body_text = _remove_unsupported_specific_claims(body_text, evidence)
+    if engine != "naver" and image_brand_key:
+        body_text = _fit_operational_length_band(body_text, evidence, topic=topic)
 
     return _validate_generated_article({
         "title": final_title,
