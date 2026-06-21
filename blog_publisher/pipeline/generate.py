@@ -536,7 +536,7 @@ def _fit_operational_length_band(
     evidence: dict,
     topic: str = "",
     min_chars: int = 940,
-    max_chars: int = 2550,
+    max_chars: int = 2200,
 ) -> str:
     """운영 글 최종 본문을 발행 게이트 밴드(900~2600) 안에 안정적으로 맞춘다."""
     fitted = _trim_to_plain_limit(body_text, max_chars)

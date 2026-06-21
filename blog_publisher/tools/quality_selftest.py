@@ -85,7 +85,7 @@ def _test_phase_a_generation_contract() -> list[str]:
         issues.append(f"phase-a: SECTION_MAX_LEN > 260 ({config.SECTION_MAX_LEN})")
     if config.SECTION_MIN_LEN < 120:
         issues.append(f"phase-a: SECTION_MIN_LEN < 120 ({config.SECTION_MIN_LEN})")
-    for token in ["200~260자", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
+    for token in ["200~260자", "운영 장면 1개", "판단 기준 1개", "독자 행동 1개", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
         if token not in prompts.SECTION_SYSTEM:
             issues.append(f"phase-a: SECTION_SYSTEM 품질 지시 누락: {token}")
 
@@ -652,8 +652,8 @@ def _test_generate_final_length_band_contract() -> list[str]:
     )
     fitted = generate._fit_operational_length_band(long_body, evidence, topic="학회 접수와 홈페이지 운영 기준")  # noqa: SLF001
     fitted_chars = len(plain_text(fitted))
-    if not (900 <= fitted_chars <= 2600):
-        issues.append(f"generate-length-band: 과긴 본문 보정 실패({fitted_chars}/900~2600자)")
+    if not (900 <= fitted_chars <= 2200):
+        issues.append(f"generate-length-band: 과긴 본문 보정 실패({fitted_chars}/900~2200자)")
     return issues
 
 

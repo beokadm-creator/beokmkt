@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-21 — 운영 글 문장 밀도 품질 조정
+
+사용자가 "글은 장황하지 않아도 되지만 품질을 올려야 한다"고 지적했다. 생성 글이 길이를 맞추는 데 치우치지 않도록, 섹션별 내용 기준을 장면·판단·행동 중심으로 강화하고 운영 글 최종 목표 길이를 더 짧게 조정했다.
+
+| 대상 | 내용 |
+|---|---|
+| `llm/prompts.py` | 각 섹션에 `운영 장면 1개 + 판단 기준 1개 + 독자 행동 1개`를 담도록 지시. 추상어와 반복 결론을 금지하고, 마지막 문장을 점검 행동으로 끝내도록 보강 |
+| `pipeline/generate.py` | 운영 글 최종 내부 상한을 2550자에서 2200자로 낮춰 publish gate보다 보수적으로 장황함을 줄임 |
+| `quality_selftest.py` | 섹션 품질 지시 토큰과 2200자 내부 상한 계약을 회귀테스트에 반영 |
+
+검증:
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher` PASS
+- `git diff --check` PASS
+
+---
+
 ## 2026-06-21 — 운영 글 최종 길이 밴드 안정화
 
 Windows 운영 PC에서 이미지·근거 개선 후 `운영 글 본문 부족(389~883/900자)`이 새로 드러났다. 섹션 최대 240자만으로는 unsupported 문장 제거와 모델 출력 변동을 흡수하지 못해 900자 하한 아래로 빠지는 케이스가 생겼으므로, 섹션 계약과 최종 body 보정을 함께 조정했다.
