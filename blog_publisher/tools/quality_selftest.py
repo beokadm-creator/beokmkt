@@ -1088,11 +1088,13 @@ def _test_review_llm_advisory_gate() -> list[str]:
 
 def _test_operational_agenda_defaults() -> list[str]:
     import config
-    from tools.keyword_bank import KEYWORDS
+    from tools.keyword_bank import KEYWORDS, _BASE_KEYWORD_COUNT
 
     issues: list[str] = []
     if config.GENERATE_BATCH != 1:
         issues.append(f"ops-defaults: 원격 제어 generate batch는 1이어야 함 ({config.GENERATE_BATCH})")
+    if len(KEYWORDS) - _BASE_KEYWORD_COUNT < 250:
+        issues.append(f"agenda: 확장 키워드 부족({len(KEYWORDS) - _BASE_KEYWORD_COUNT}/250)")
 
     topics = [topic for topic, _ctype, brand in KEYWORDS[:12] if brand == "beok"]
     required = ["초기 제작비", "월 5만원", "예약", "결제", "알림톡", "Search Console", "AI 상담", "학회 기관 홈페이지"]
@@ -1101,6 +1103,53 @@ def _test_operational_agenda_defaults() -> list[str]:
         if token not in joined:
             issues.append(f"agenda: beoksolution 홈페이지 구축 주제 누락: {token}")
     return issues
+
+
+def _test_stock_seed_after_base_keyword_exhaustion() -> list[str]:
+    """기본 키워드가 모두 사용된 DB에서도 확장 주제로 stock_seed가 재고를 보충해야 한다."""
+    import config
+    import tempfile
+    from db import db
+    from tools import auto_seed
+    from tools.keyword_bank import KEYWORDS, _BASE_KEYWORD_COUNT
+
+    original_db_path = db.DB_PATH
+    originals = {
+        "required_terms": list(config.AUTO_SEED_REQUIRED_TERMS),
+        "brand_filter": config.AUTO_SEED_BRAND_FILTER,
+        "external_auto_seed": config.ALLOW_EXTERNAL_AUTO_SEED,
+    }
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db.DB_PATH = Path(tmpdir) / "blog.db"
+            db.init_db()
+            config.AUTO_SEED_REQUIRED_TERMS = []
+            config.AUTO_SEED_BRAND_FILTER = ""
+            config.ALLOW_EXTERNAL_AUTO_SEED = False
+            for topic, content_type, brand_key in KEYWORDS[:_BASE_KEYWORD_COUNT]:
+                db.insert_draft("selfhosted", topic, content_type, category=brand_key)
+            created = auto_seed.run_stock("selfhosted", target=_BASE_KEYWORD_COUNT + 8)
+            with db.connect() as conn:
+                total = conn.execute("SELECT COUNT(*) AS n FROM posts").fetchone()["n"]
+                new_rows = conn.execute(
+                    "SELECT topic, category FROM posts ORDER BY id DESC LIMIT ?",
+                    (created,),
+                ).fetchall()
+        issues: list[str] = []
+        if created < 8:
+            issues.append(f"stock-seed: 기본 키워드 소진 후 확장 주제 생성 부족({created}/8)")
+        if total < _BASE_KEYWORD_COUNT + 8:
+            issues.append(f"stock-seed: 전체 draft 수 부족({total})")
+        joined = "\n".join(row["topic"] for row in new_rows)
+        for token in ["홈페이지", "시스템", "학회", "홍커뮤니케이션"]:
+            if token not in joined:
+                issues.append(f"stock-seed: 확장 주제 축 누락: {token}")
+        return issues
+    finally:
+        db.DB_PATH = original_db_path
+        config.AUTO_SEED_REQUIRED_TERMS = originals["required_terms"]
+        config.AUTO_SEED_BRAND_FILTER = originals["brand_filter"]
+        config.ALLOW_EXTERNAL_AUTO_SEED = originals["external_auto_seed"]
 
 
 def _test_reset_draft_backlog_plan() -> list[str]:
@@ -1451,6 +1500,7 @@ def run() -> bool:
         + _test_publish_quality_gate()
         + _test_review_llm_advisory_gate()
         + _test_operational_agenda_defaults()
+        + _test_stock_seed_after_base_keyword_exhaustion()
         + _test_reset_draft_backlog_plan()
         + _test_reset_draft_backlog_avoids_archived_topics()
         + _test_reset_draft_backlog_default_scope()

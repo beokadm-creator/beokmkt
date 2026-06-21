@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-06-21 — 키워드 고갈 재고 보충 복구
+
+Windows 운영 PC에서 `draft/reviewed/queued=0`이고 `stock_seed selfhosted 40`이 "새 키워드 없음"으로 종료됐다. 게이트 문제가 아니라 `keyword_bank.py`의 82개 기본 주제가 모두 DB에 사용된 공급 고갈이므로, 운영 축별 조합 주제를 대폭 확장했다.
+
+| 대상 | 내용 |
+|---|---|
+| `tools/keyword_bank.py` | 기존 82개 기본 주제는 유지하고, 홈페이지 제작·시스템 개발·학회/학술대회 운영·홍커뮤니케이션 MICE 축의 조합형 주제 388개를 추가 생성 |
+| `tools/keyword_bank.py` | stock_seed 초기 보충부터 특정 축에 몰리지 않도록 homepage/system/conference/mice 순서로 라운드로빈 배치 |
+| `quality_selftest.py` | 기본 키워드가 모두 사용된 임시 DB에서도 `stock_seed`가 확장 주제로 새 draft를 만드는 회귀테스트 추가 |
+
+검증:
+- 확장 결과: `base=82`, `total=470`, `added=388`
+- 기본 82개 소진 DB에서 `stock_seed`가 새 draft 8건 생성 확인
+- `python3 blog_publisher/run.py quality_selftest` PASS
+- `python3 blog_publisher/run.py selftest` PASS
+- `python3 -m compileall -q blog_publisher` PASS
+- `git diff --check` PASS
+
+---
+
 ## 2026-06-21 — 운영 글 문장 밀도 품질 조정
 
 사용자가 "글은 장황하지 않아도 되지만 품질을 올려야 한다"고 지적했다. 생성 글이 길이를 맞추는 데 치우치지 않도록, 섹션별 내용 기준을 장면·판단·행동 중심으로 강화하고 운영 글 최종 목표 길이를 더 짧게 조정했다.

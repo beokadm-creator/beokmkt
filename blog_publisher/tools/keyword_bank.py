@@ -131,3 +131,103 @@ KEYWORDS: list[tuple[str, str, str]] = [
     ("하이브리드 학술대회 운영 방법", "howto", "hong"),
     ("MICE 행사 사후 보고서 작성 방법", "howto", "hong"),
 ]
+
+_BASE_KEYWORD_COUNT = len(KEYWORDS)
+
+
+def _append_unique(topic: str, content_type: str, brand_key: str, seen: set[str]) -> None:
+    key = "".join(ch for ch in topic.lower() if ch.isalnum() or "가" <= ch <= "힣")
+    if not key or key in seen:
+        return
+    seen.add(key)
+    KEYWORDS.append((topic, content_type, brand_key))
+
+
+def _expand_operational_keywords() -> None:
+    """운영 PC가 topic을 모두 소진하지 않도록 서비스 축별 조합 주제를 확장한다."""
+    seen = {
+        "".join(ch for ch in topic.lower() if ch.isalnum() or "가" <= ch <= "힣")
+        for topic, _ctype, _brand in KEYWORDS
+    }
+    buckets: dict[str, list[tuple[str, str, str]]] = {
+        "homepage": [],
+        "system": [],
+        "conference": [],
+        "mice": [],
+    }
+
+    def add(bucket: str, topic: str, content_type: str, brand_key: str) -> None:
+        key = "".join(ch for ch in topic.lower() if ch.isalnum() or "가" <= ch <= "힣")
+        if not key or key in seen:
+            return
+        seen.add(key)
+        buckets[bucket].append((topic, content_type, brand_key))
+
+    homepage_services = [
+        "학원", "병원", "협회", "학회", "교육기관", "B2B 서비스", "전문 서비스업",
+        "예약제 매장", "상담형 사업", "지역 기반 사업", "행사 운영사", "단체·기관",
+    ]
+    homepage_flows = [
+        "문의폼과 관리자 확인 화면", "예약 접수와 변경 요청", "결제 확인과 알림톡 안내",
+        "자료실과 회원 권한", "검색 노출 기본 세팅", "모바일 신청폼", "상담 전 체크리스트",
+        "운영자 대시보드", "고객 데이터 내보내기", "SSL과 도메인 운영",
+    ]
+    for service in homepage_services:
+        for flow in homepage_flows:
+            add("homepage", f"{service} 홈페이지 제작에서 {flow} 항목을 먼저 설계하는 기준", "howto", "beok")
+
+    system_domains = [
+        "참가자 등록", "초록 접수", "심사 배정", "등록비 결제", "현장 체크인",
+        "명찰 재발행", "사후 보고", "회원 관리", "문의 응대", "자료 제출",
+        "권한 관리", "데이터 정산",
+    ]
+    system_decisions = [
+        "관리자 권한을 나누는 방법", "엑셀 업무를 줄이는 화면 설계",
+        "상태값을 정리하는 기준", "검색과 필터를 먼저 정해야 하는 이유",
+        "알림톡과 이메일 발송 기준", "API 연동 전에 확인할 항목",
+        "운영 로그를 남기는 기준", "담당자 인수인계를 쉽게 하는 구조",
+    ]
+    for domain in system_domains:
+        for decision in system_decisions:
+            add("system", f"{domain} 시스템 개발에서 {decision}", "howto", "beok")
+
+    conference_ops = [
+        "사전등록", "현장등록", "초록 접수", "발표자 관리", "좌장·연자 표기",
+        "QR 체크인", "명찰 출력", "명찰 재발행", "등록비 확인", "참가자 안내",
+        "세션 참석 확인", "행사 후 데이터 정리",
+    ]
+    conference_contexts = [
+        "학회 사무국이 행사 전 확인할 체크리스트", "학술대회 홈페이지와 연결하는 방법",
+        "접수대 혼잡을 줄이는 운영 기준", "관리자 화면에 꼭 필요한 항목",
+        "홍커뮤니케이션 MICE 운영 관점에서 보는 준비 기준",
+        "비오케이솔루션 개발 범위로 정리하는 방법",
+    ]
+    for op in conference_ops:
+        for context in conference_contexts:
+            brand = "hong" if "홍커뮤니케이션" in context else "beok"
+            add("conference", f"{op} 운영: {context}", "howto", brand)
+
+    mice_events = [
+        "국제학술대회", "기업 컨퍼런스", "산업 세미나", "전시 부대행사",
+        "협회 정기총회", "교육 워크숍", "포럼", "시상식", "하이브리드 행사",
+        "해외 연자 초청 행사",
+    ]
+    mice_services = [
+        "등록 페이지", "참가자 안내", "현장 체크인", "통역 안내",
+        "세션 운영", "스폰서 노출", "포트폴리오 레퍼런스 정리",
+        "운영 사후보고", "클라이언트 커뮤니케이션", "행사 데이터 관리",
+    ]
+    for event in mice_events:
+        for service in mice_services:
+            add("mice", f"홍커뮤니케이션 {event} 운영에서 {service} 항목을 설계하는 기준", "niche", "hong")
+
+    order = ("homepage", "system", "conference", "mice")
+    max_len = max(len(items) for items in buckets.values())
+    for idx in range(max_len):
+        for bucket in order:
+            if idx < len(buckets[bucket]):
+                topic, content_type, brand_key = buckets[bucket][idx]
+                _append_unique(topic, content_type, brand_key, set())
+
+
+_expand_operational_keywords()
