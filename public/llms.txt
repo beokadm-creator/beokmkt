@@ -7,7 +7,6 @@
 - Canonical site: https://beokmkt.web.app/
 - Blog index: https://beokmkt.web.app/blog/
 - Primary sitemap: https://beokmkt.web.app/sitemap.xml
-- Blog sitemap: https://beokmkt.web.app/blog/sitemap.xml
 - RSS feed: https://beokmkt.web.app/blog/rss.xml
 - Robots policy: https://beokmkt.web.app/robots.txt
 - Language: Korean (ko-KR)
@@ -36,4 +35,4 @@
 ## Freshness
 
 - Blog posts are updated through the public sitemap.
-- The most reliable article list is: https://beokmkt.web.app/blog/sitemap.xml
+- The most reliable article list is: https://beokmkt.web.app/sitemap.xml
