@@ -32,6 +32,7 @@ User-agent: Claude-User
 Allow: /
 
 # AI discovery guide: https://beokmkt.web.app/llms.txt
+Sitemap: https://beokmkt.web.app/gsc-sitemap.xml
 Sitemap: https://beokmkt.web.app/sitemap-index.xml
 Sitemap: https://beokmkt.web.app/sitemap.xml
 Sitemap: https://beokmkt.web.app/blog/sitemap.xml
