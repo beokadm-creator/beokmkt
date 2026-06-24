@@ -495,6 +495,26 @@ function buildSitemapXml(baseUrl, posts, options = {}) {
   return lines.join('\n')
 }
 
+function buildSitemapIndexXml(baseUrl) {
+  const today = new Date().toISOString().split('T')[0]
+  const sitemaps = [
+    `${baseUrl}/blog/sitemap.xml`,
+    `${baseUrl}/blog/sitemap-posts.xml`,
+  ]
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...sitemaps.flatMap((loc) => [
+      '  <sitemap>',
+      `    <loc>${escapeXml(loc)}</loc>`,
+      `    <lastmod>${today}</lastmod>`,
+      '  </sitemap>',
+    ]),
+    '</sitemapindex>',
+  ].join('\n')
+}
+
 async function getOptionalAdminUser(req) {
   const header = req.header('Authorization') ?? ''
   const m = header.match(/^Bearer\s+(.+)$/)
@@ -531,6 +551,14 @@ async function sitemapHandler(req, res) {
 app.get('/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap-posts.xml', sitemapHandler)
+
+app.get('/sitemap-index.xml', (req, res) => {
+  res.set('Content-Type', 'application/xml; charset=utf-8')
+  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
+  res.set('Vary', 'Accept-Encoding')
+  res.removeHeader('X-Very-Need-Authorization')
+  res.send(buildSitemapIndexXml(spaBaseUrl(req)))
+})
 
 // ─── RSS 피드 ───────────────────────────────────────────────────────────────
 // 네이버 서치어드바이저 RSS 제출, 구글/빙/AI 크롤러의 신규 글 발견용

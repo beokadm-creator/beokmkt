@@ -37,6 +37,7 @@
     ],
     "rewrites": [
       { "source": "/api/**", "function": "api" },
+      { "source": "/sitemap-index.xml", "function": "api" },
       { "source": "/sitemap.xml", "function": "api" },
       { "source": "/rss.xml", "function": "api" },
       { "source": "/blog", "function": "api" },

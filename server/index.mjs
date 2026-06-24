@@ -385,6 +385,18 @@ function buildSitemapXml(baseUrl, posts, options = {}) {
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>`
 }
 
+function buildSitemapIndexXml(baseUrl) {
+  const today = nowIso().slice(0, 10)
+  const body = [
+    `${baseUrl}/blog/sitemap.xml`,
+    `${baseUrl}/blog/sitemap-posts.xml`,
+  ]
+    .map((loc) => `<sitemap><loc>${escapeXml(loc)}</loc><lastmod>${today}</lastmod></sitemap>`)
+    .join('')
+
+  return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</sitemapindex>`
+}
+
 
 app.get('/api/freqtrade/status', async (req, res) => {
   try {
@@ -666,6 +678,13 @@ function sitemapHandler(req, res) {
 app.get('/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap.xml', sitemapHandler)
 app.get('/blog/sitemap-posts.xml', sitemapHandler)
+
+app.get('/sitemap-index.xml', (req, res) => {
+  res.set('Content-Type', 'application/xml; charset=utf-8')
+  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
+  res.set('Vary', 'Accept-Encoding')
+  res.send(buildSitemapIndexXml(spaBaseUrl(req)))
+})
 
 function buildRssXml(baseUrl, posts) {
   const items = posts.slice(0, 50).map((post) => {
