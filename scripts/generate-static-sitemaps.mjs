@@ -91,42 +91,7 @@ function buildSitemapXml(posts, options = {}) {
   return `${lines.join('\n')}\n`
 }
 
-function buildGoogleMinimalSitemapXml(posts) {
-  const lines = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-  ]
-  for (const post of posts) {
-    lines.push('  <url>')
-    lines.push(`    <loc>${escapeXml(`${baseUrl}${publicBlogPath(post)}`)}</loc>`)
-    lines.push(`    <lastmod>${escapeXml(normalizeDate(post.updated_at || post.published_at || post.created_at))}</lastmod>`)
-    lines.push('  </url>')
-  }
-  lines.push('</urlset>')
-  return `${lines.join('\n')}\n`
-}
 
-function buildGoogleTextSitemap(posts) {
-  return `${posts.map((post) => `${baseUrl}${publicBlogPath(post)}`).join('\n')}\n`
-}
-
-function buildSitemapIndexXml() {
-  const today = new Date().toISOString().slice(0, 10)
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    '  <sitemap>',
-    `    <loc>${baseUrl}/blog/sitemap.xml</loc>`,
-    `    <lastmod>${today}</lastmod>`,
-    '  </sitemap>',
-    '  <sitemap>',
-    `    <loc>${baseUrl}/blog/sitemap-posts.xml</loc>`,
-    `    <lastmod>${today}</lastmod>`,
-    '  </sitemap>',
-    '</sitemapindex>',
-    '',
-  ].join('\n')
-}
 
 function buildRssXml(posts) {
   const items = posts.slice(0, 50).map((post) => {
@@ -170,15 +135,8 @@ const posts = snap.docs
   .sort((a, b) => String(b.published_at || b.created_at || '').localeCompare(String(a.published_at || a.created_at || '')))
 
 await mkdir(blogDir, { recursive: true })
-await writeFile(path.join(publicDir, 'sitemap-index.xml'), buildSitemapIndexXml(), 'utf8')
 await writeFile(path.join(publicDir, 'sitemap.xml'), buildSitemapXml(posts), 'utf8')
-await writeFile(path.join(publicDir, 'gsc-sitemap.xml'), buildGoogleMinimalSitemapXml(posts), 'utf8')
-await writeFile(path.join(publicDir, 'gsc-sitemap.txt'), buildGoogleTextSitemap(posts), 'utf8')
-await writeFile(path.join(blogDir, 'gsc-sitemap.xml'), buildGoogleMinimalSitemapXml(posts), 'utf8')
-await writeFile(path.join(blogDir, 'gsc-sitemap.txt'), buildGoogleTextSitemap(posts), 'utf8')
-await writeFile(path.join(blogDir, 'sitemap.xml'), buildSitemapXml(posts, { includeRoot: false, includeBlogIndex: false }), 'utf8')
-await writeFile(path.join(blogDir, 'sitemap-posts.xml'), buildSitemapXml(posts, { includeRoot: false, includeBlogIndex: false, includeImages: false }), 'utf8')
 await writeFile(path.join(publicDir, 'rss.xml'), buildRssXml(posts), 'utf8')
 await writeFile(path.join(blogDir, 'rss.xml'), buildRssXml(posts), 'utf8')
 
-console.log(`[generate-static-sitemaps] wrote ${posts.length} published posts`)
+console.log(`[generate-static-sitemaps] wrote ${posts.length} published posts → sitemap.xml + rss.xml`)
