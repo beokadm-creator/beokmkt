@@ -455,66 +455,6 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;')
 }
 
-function buildSitemapXml(baseUrl, posts, options = {}) {
-  const today = new Date().toISOString().split('T')[0]
-  const includeBlogIndex = options.includeBlogIndex !== false
-  const includeImages = options.includeImages !== false
-
-  const urls = [
-    ...(options.includeRoot === false ? [] : [{ loc: baseUrl, lastmod: today, priority: '1.0', changefreq: 'daily' }]),
-    ...(includeBlogIndex ? [{ loc: `${baseUrl}/blog/`, lastmod: today, priority: '0.9', changefreq: 'daily' }] : []),
-    ...posts.map((post) => ({
-      loc: `${baseUrl}${publicBlogPath(post)}`,
-      lastmod: (post.updated_at || post.published_at || post.created_at || '').split('T')[0] || today,
-      priority: '0.8',
-      changefreq: 'weekly',
-      image: typeof post.featured_image === 'string' && post.featured_image.trim() ? post.featured_image.trim() : '',
-    })),
-  ]
-
-  const lines = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
-  ]
-
-  for (const entry of urls) {
-    lines.push('  <url>')
-    lines.push(`    <loc>${escapeXml(entry.loc)}</loc>`)
-    lines.push(`    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`)
-    lines.push(`    <changefreq>${entry.changefreq}</changefreq>`)
-    lines.push(`    <priority>${entry.priority}</priority>`)
-    if (includeImages && entry.image) {
-      lines.push('    <image:image>')
-      lines.push(`      <image:loc>${escapeXml(entry.image)}</image:loc>`)
-      lines.push('    </image:image>')
-    }
-    lines.push('  </url>')
-  }
-
-  lines.push('</urlset>')
-  return lines.join('\n')
-}
-
-function buildSitemapIndexXml(baseUrl) {
-  const today = new Date().toISOString().split('T')[0]
-  const sitemaps = [
-    `${baseUrl}/blog/sitemap.xml`,
-    `${baseUrl}/blog/sitemap-posts.xml`,
-  ]
-
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...sitemaps.flatMap((loc) => [
-      '  <sitemap>',
-      `    <loc>${escapeXml(loc)}</loc>`,
-      `    <lastmod>${today}</lastmod>`,
-      '  </sitemap>',
-    ]),
-    '</sitemapindex>',
-  ].join('\n')
-}
-
 async function getOptionalAdminUser(req) {
   const header = req.header('Authorization') ?? ''
   const m = header.match(/^Bearer\s+(.+)$/)
@@ -527,38 +467,6 @@ async function getOptionalAdminUser(req) {
     return null
   }
 }
-
-async function sitemapHandler(req, res) {
-  const baseUrl = spaBaseUrl(req)
-  const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
-  const posts = snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((post) => !post.deleted_at)
-  const visiblePosts = publicVisibleBlogPosts(posts)
-
-  res.set('Content-Type', 'application/xml; charset=utf-8')
-  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
-  res.set('Vary', 'Accept-Encoding')
-  res.removeHeader('X-Very-Need-Authorization')
-  const isBlogOnlySitemap = req.path === '/blog/sitemap.xml' || req.path === '/blog/sitemap-posts.xml'
-  res.send(buildSitemapXml(baseUrl, visiblePosts, {
-    includeRoot: !isBlogOnlySitemap,
-    includeBlogIndex: !isBlogOnlySitemap,
-    includeImages: req.path !== '/blog/sitemap-posts.xml',
-  }))
-}
-
-app.get('/sitemap.xml', sitemapHandler)
-app.get('/blog/sitemap.xml', sitemapHandler)
-app.get('/blog/sitemap-posts.xml', sitemapHandler)
-
-app.get('/sitemap-index.xml', (req, res) => {
-  res.set('Content-Type', 'application/xml; charset=utf-8')
-  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
-  res.set('Vary', 'Accept-Encoding')
-  res.removeHeader('X-Very-Need-Authorization')
-  res.send(buildSitemapIndexXml(spaBaseUrl(req)))
-})
 
 // ─── RSS 피드 ───────────────────────────────────────────────────────────────
 // 네이버 서치어드바이저 RSS 제출, 구글/빙/AI 크롤러의 신규 글 발견용

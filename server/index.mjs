@@ -357,46 +357,6 @@ function publicVisibleBlogPosts(posts = []) {
   return posts
 }
 
-function buildSitemapXml(baseUrl, posts, options = {}) {
-  const includeBlogIndex = options.includeBlogIndex !== false
-  const includeImages = options.includeImages !== false
-  const urls = [
-    ...(options.includeRoot === false ? [] : [{ loc: baseUrl, lastmod: nowIso(), priority: '1.0', changefreq: 'daily' }]),
-    ...(includeBlogIndex ? [{ loc: `${baseUrl}/blog/`, lastmod: nowIso(), priority: '1.0', changefreq: 'daily' }] : []),
-    ...posts.map((post) => ({
-      loc: `${baseUrl}${publicBlogPath(post)}`,
-      lastmod: post.updated_at || post.published_at || post.created_at || nowIso(),
-      priority: '0.8',
-      changefreq: 'weekly',
-      image: typeof post.featured_image === 'string' ? post.featured_image.trim() : '',
-    })),
-  ]
-
-  const body = urls
-    .map((entry) => {
-      const imageTag = includeImages && entry.image
-        ? `<image:image><image:loc>${escapeXml(entry.image)}</image:loc></image:image>`
-        : ''
-
-      return `<url><loc>${escapeXml(entry.loc)}</loc><lastmod>${escapeXml(entry.lastmod)}</lastmod><changefreq>${entry.changefreq}</changefreq><priority>${entry.priority}</priority>${imageTag}</url>`
-    })
-    .join('')
-
-  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${body}</urlset>`
-}
-
-function buildSitemapIndexXml(baseUrl) {
-  const today = nowIso().slice(0, 10)
-  const body = [
-    `${baseUrl}/blog/sitemap.xml`,
-    `${baseUrl}/blog/sitemap-posts.xml`,
-  ]
-    .map((loc) => `<sitemap><loc>${escapeXml(loc)}</loc><lastmod>${today}</lastmod></sitemap>`)
-    .join('')
-
-  return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</sitemapindex>`
-}
-
 
 app.get('/api/freqtrade/status', async (req, res) => {
   try {
@@ -661,30 +621,6 @@ function spaBaseUrl(req) {
   }
   return 'http://localhost:5173'
 }
-
-function sitemapHandler(req, res) {
-  const baseUrl = spaBaseUrl(req)
-  const posts = store.blog_posts.filter((post) => !post.deleted_at && post.status === 'published')
-  const visiblePosts = publicVisibleBlogPosts(posts)
-  res.set('Content-Type', 'application/xml; charset=utf-8')
-  const isBlogOnlySitemap = req.path === '/blog/sitemap.xml' || req.path === '/blog/sitemap-posts.xml'
-  res.send(buildSitemapXml(baseUrl, visiblePosts, {
-    includeRoot: !isBlogOnlySitemap,
-    includeBlogIndex: !isBlogOnlySitemap,
-    includeImages: req.path !== '/blog/sitemap-posts.xml',
-  }))
-}
-
-app.get('/sitemap.xml', sitemapHandler)
-app.get('/blog/sitemap.xml', sitemapHandler)
-app.get('/blog/sitemap-posts.xml', sitemapHandler)
-
-app.get('/sitemap-index.xml', (req, res) => {
-  res.set('Content-Type', 'application/xml; charset=utf-8')
-  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
-  res.set('Vary', 'Accept-Encoding')
-  res.send(buildSitemapIndexXml(spaBaseUrl(req)))
-})
 
 function buildRssXml(baseUrl, posts) {
   const items = posts.slice(0, 50).map((post) => {
