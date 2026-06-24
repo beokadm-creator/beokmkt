@@ -174,6 +174,8 @@ await writeFile(path.join(publicDir, 'sitemap-index.xml'), buildSitemapIndexXml(
 await writeFile(path.join(publicDir, 'sitemap.xml'), buildSitemapXml(posts), 'utf8')
 await writeFile(path.join(publicDir, 'gsc-sitemap.xml'), buildGoogleMinimalSitemapXml(posts), 'utf8')
 await writeFile(path.join(publicDir, 'gsc-sitemap.txt'), buildGoogleTextSitemap(posts), 'utf8')
+await writeFile(path.join(blogDir, 'gsc-sitemap.xml'), buildGoogleMinimalSitemapXml(posts), 'utf8')
+await writeFile(path.join(blogDir, 'gsc-sitemap.txt'), buildGoogleTextSitemap(posts), 'utf8')
 await writeFile(path.join(blogDir, 'sitemap.xml'), buildSitemapXml(posts, { includeRoot: false, includeBlogIndex: false }), 'utf8')
 await writeFile(path.join(blogDir, 'sitemap-posts.xml'), buildSitemapXml(posts, { includeRoot: false, includeBlogIndex: false, includeImages: false }), 'utf8')
 await writeFile(path.join(publicDir, 'rss.xml'), buildRssXml(posts), 'utf8')
