@@ -3,10 +3,14 @@ import { useEffect, useState } from 'react'
 import { applySeo } from '../lib/seo'
 import { BeoksolutionLandingTemplate, isBeoksolutionLandingSchema, type BeoksolutionLandingSchema } from '../components/BeoksolutionLandingTemplate'
 import { HONGCOMM_BLOG_IMAGES } from '../lib/blogImages'
-import { BLOG_BRANDS, classifyBlogAxis } from '../lib/blogTaxonomy'
+import { BLOG_BRANDS, BLOG_PUBLIC_BASE_URL, classifyBlogAxis } from '../lib/blogTaxonomy'
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const CONFERENCE_IMAGES = HONGCOMM_BLOG_IMAGES
+
+function canonicalPublicUrl(value: string) {
+  return value.replace(/^https:\/\/beokmkt\.(web\.app|firebaseapp\.com)\//, `${BLOG_PUBLIC_BASE_URL}/`)
+}
 
 type TocItem = {
   id: string
@@ -92,7 +96,7 @@ function stableImageIndex(post: Pick<BlogPost, 'id' | 'title' | 'category'>) {
 }
 
 function displayImage(post: BlogPost) {
-  if (post.featured_image) return { url: post.featured_image, alt: post.title }
+  if (post.featured_image) return { url: canonicalPublicUrl(post.featured_image), alt: post.title }
   const axis = classifyBlogAxis(post)
   return axis.key === 'conference' || axis.key === 'mice' ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
 }
@@ -223,7 +227,7 @@ export default function PublicBlogPostPage() {
 
   useEffect(() => {
     if (!post) return
-    const canonical = `${window.location.origin}/blog/${encodeURIComponent(post.slug || post.id)}`
+    const canonical = `${BLOG_PUBLIC_BASE_URL}/blog/${encodeURIComponent(post.slug || post.id)}`
     const description = post.seo_description || post.excerpt || `${post.title} 블로그 글`
     const category = displayCategory(post)
     const contentStats = enhanceContent(normalizeRenderedContent(post.content || ''))
@@ -261,7 +265,7 @@ export default function PublicBlogPostPage() {
           publisher: {
             '@type': 'Organization',
             name: '비오케이솔루션',
-            url: window.location.origin,
+            url: BLOG_PUBLIC_BASE_URL,
           },
         },
         {
@@ -272,7 +276,7 @@ export default function PublicBlogPostPage() {
               '@type': 'ListItem',
               position: 1,
               name: '블로그',
-              item: `${window.location.origin}/blog/`,
+              item: `${BLOG_PUBLIC_BASE_URL}/blog/`,
             },
             {
               '@type': 'ListItem',

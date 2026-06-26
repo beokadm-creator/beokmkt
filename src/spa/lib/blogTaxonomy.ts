@@ -12,6 +12,7 @@ export type BlogAxis = {
 export const BLOG_SITE_NAME = '비오케이솔루션 · 홍커뮤니케이션 블로그'
 export const BLOG_SITE_DESCRIPTION =
   '비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 다루는 공식 실무 블로그입니다.'
+export const BLOG_PUBLIC_BASE_URL = 'https://beoksolution.com'
 
 export const BLOG_BRANDS = [
   {

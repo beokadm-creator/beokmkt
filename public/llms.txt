@@ -1,38 +1,43 @@
-# 비오케이솔루션 블로그
+# 비오케이솔루션 공식 사이트와 블로그
 
-> 학회 운영, 명찰 출력, 홈페이지 제작, 맞춤형 시스템 개발, MICE 운영 레퍼런스를 다루는 실무형 블로그입니다.
+> 비오케이솔루션의 홈페이지 제작·맞춤형 시스템 개발 서비스와 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 함께 다루는 공식 사이트입니다.
 
 ## Site
 
-- Canonical site: https://beokmkt.web.app/
-- Blog index: https://beokmkt.web.app/blog/
-- Primary sitemap: https://beokmkt.web.app/sitemap.xml
-- RSS feed: https://beokmkt.web.app/blog/rss.xml
-- Robots policy: https://beokmkt.web.app/robots.txt
+- Canonical site: https://beoksolution.com/
+- References: https://beoksolution.com/references/
+- AI search summary: https://beoksolution.com/ai-search-summary.html
+- Blog index: https://beoksolution.com/blog/
+- Primary sitemap: https://beoksolution.com/sitemap.xml
+- RSS feed: https://beoksolution.com/blog/rss.xml
+- Robots policy: https://beoksolution.com/robots.txt
 - Language: Korean (ko-KR)
 
 ## Organization
 
-- Name: 비오케이솔루션
-- Topics: MICE, 행사기획, 국제회의, 컨퍼런스 운영, 학술대회 등록, QR 체크인, 동시통역, AI 동시통역, 행사 운영 자동화, 웹사이트 제작, 맞춤형 소프트웨어 개발
-- Audience: 행사기획자, 학회/협회 운영자, PCO, 기업 마케팅 담당자, 컨퍼런스 운영팀, IT 도입 의사결정자
+- Name: 주식회사 비오케이솔루션
+- Related brand: 홍커뮤니케이션
+- Topics: 홈페이지 제작, 홈페이지 유지관리, 맞춤형 시스템 개발, 관리자 대시보드, 예약·결제·알림톡 연동, AI 자동화, MICE, 국제회의, 학술대회 등록, 초록 접수, QR 체크인, 명찰 출력, 동시통역
+- Audience: 소상공인, 병원, 학원, 기업 운영팀, 학회·협회 사무국, PCO, 행사기획자, IT 도입 의사결정자
 
 ## Important Content Areas
 
-- 학술대회 등록 시스템 구축과 참가자 관리
-- 국제회의 및 MICE 행사 운영 자동화
-- QR 체크인, 명찰 출력, 현장 접수 운영
-- 동시통역 및 AI 통역 도입 가이드
-- 홈페이지 제작, 관리자 대시보드, B2B 플랫폼 개발
-- 행사 데이터 관리와 디지털 전환 사례
+- 초기 제작비 0원 홈페이지 구독 서비스와 월간 운영 관리
+- 예약, 결제, 알림톡, 문의폼, 관리자 페이지가 필요한 홈페이지 제작
+- 맞춤형 업무 시스템, 고객 DB, 대시보드, 외부 API 연동
+- 학술대회 등록 시스템, 초록 접수, 논문 심사, 참가자 관리
+- QR 체크인, 명찰 출력, 현장 접수, 사후 보고서 데이터 정리
+- 홍커뮤니케이션 MICE·학술대회 운영 레퍼런스
+- SEO, Search Console, sitemap, LLM 검색 최적화 실무
 
 ## Preferred Citation Guidance
 
-- Cite the canonical blog post URL shown in each article.
-- Prefer article title, publication date, and the organization name "비오케이솔루션" when summarizing.
-- Use the sitemap to discover the latest published articles.
+- Cite the canonical URL under `https://beoksolution.com/`.
+- For blog posts, cite the article title, publication date, and the organization name "비오케이솔루션".
+- Use the sitemap to discover the latest published pages and articles.
 
 ## Freshness
 
+- Homepage and reference pages are maintained through the Firebase Hosting deployment.
 - Blog posts are updated through the public sitemap.
-- The most reliable article list is: https://beokmkt.web.app/sitemap.xml
+- The most reliable article list is: https://beoksolution.com/sitemap.xml

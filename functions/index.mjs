@@ -167,13 +167,23 @@ function spaBaseUrl(req) {
   const explicit = envValue('SPA_BASE_URL')
   if (explicit) return explicit.replace(/\/+$/, '')
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https'
-  const host = req.headers['x-forwarded-host'] || req.get('host')
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || '').split(',')[0].trim()
+  const hostname = host.split(':')[0].toLowerCase()
+  if (hostname === 'beokmkt.web.app' || hostname === 'beokmkt.firebaseapp.com') {
+    return 'https://beoksolution.com'
+  }
   return `${proto}://${host}`.replace(/\/+$/, '')
 }
 
 function publicBlogPath(post) {
   const slug = typeof post?.slug === 'string' && post.slug.trim() ? post.slug.trim() : post?.id
   return `/blog/${encodeURIComponent(slug)}`
+}
+
+function canonicalPublicUrl(value, baseUrl = SITE_BASE_URL) {
+  return String(value ?? '')
+    .trim()
+    .replace(/^https:\/\/beokmkt\.(web\.app|firebaseapp\.com)\//, `${baseUrl.replace(/\/+$/, '')}/`)
 }
 
 function actionForExternalIssue(channel, error = '') {
@@ -526,7 +536,7 @@ app.get('/blog/rss.xml', rssHandler)
 
 // ─── IndexNow (발행 즉시 색인 요청: Bing/네이버 등 IndexNow 참여 엔진) ────────
 
-const SITE_BASE_URL = (process.env.SPA_BASE_URL || 'https://beokmkt.web.app').replace(/\/+$/, '')
+const SITE_BASE_URL = (process.env.SPA_BASE_URL || 'https://beoksolution.com').replace(/\/+$/, '')
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'beokmktindexnow2026key'
 
@@ -5560,7 +5570,7 @@ function publicDisplayImage(post = {}) {
   const featured = typeof post.featured_image === 'string' ? post.featured_image.trim() : ''
   if (featured) {
     return {
-      url: featured,
+      url: canonicalPublicUrl(featured),
       alt: post.title || '비오케이솔루션 · 홍커뮤니케이션 블로그 대표 이미지',
     }
   }

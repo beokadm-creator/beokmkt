@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { applySeo } from '../lib/seo'
 import { HONGCOMM_BLOG_IMAGES } from '../lib/blogImages'
-import { BLOG_AXES, BLOG_BRANDS, BLOG_SITE_DESCRIPTION, BLOG_SITE_NAME, classifyBlogAxis } from '../lib/blogTaxonomy'
+import { BLOG_AXES, BLOG_BRANDS, BLOG_PUBLIC_BASE_URL, BLOG_SITE_DESCRIPTION, BLOG_SITE_NAME, classifyBlogAxis } from '../lib/blogTaxonomy'
 
 type BlogPost = {
   id: string
@@ -21,6 +21,10 @@ type ListResponse = { items: BlogPost[]; total: number }
 
 const KAKAO_CHAT_URL = 'https://pf.kakao.com/_wxexmxgn/chat'
 const CONFERENCE_IMAGES = HONGCOMM_BLOG_IMAGES
+
+function canonicalPublicUrl(value: string) {
+  return value.replace(/^https:\/\/beokmkt\.(web\.app|firebaseapp\.com)\//, `${BLOG_PUBLIC_BASE_URL}/`)
+}
 
 const trustSignals = [
   '비오케이솔루션 개발 솔루션',
@@ -46,7 +50,7 @@ function stableImageIndex(post: BlogPost) {
 }
 
 function displayImage(post: BlogPost) {
-  if (post.featured_image) return { url: post.featured_image, alt: post.title }
+  if (post.featured_image) return { url: canonicalPublicUrl(post.featured_image), alt: post.title }
   const axis = classifyBlogAxis(post)
   return axis.key === 'conference' || axis.key === 'mice' ? CONFERENCE_IMAGES[stableImageIndex(post)] : null
 }
@@ -77,7 +81,7 @@ export default function PublicBlogPage() {
   }, [])
 
   useEffect(() => {
-    const canonical = `${window.location.origin}/blog/`
+    const canonical = `${BLOG_PUBLIC_BASE_URL}/blog/`
     applySeo({
       title: BLOG_SITE_NAME,
       description: BLOG_SITE_DESCRIPTION,
@@ -95,7 +99,7 @@ export default function PublicBlogPage() {
           publisher: {
             '@type': 'Organization',
             name: '비오케이솔루션',
-            url: window.location.origin,
+            url: BLOG_PUBLIC_BASE_URL,
           },
         },
         {
@@ -104,7 +108,7 @@ export default function PublicBlogPage() {
           itemListElement: visiblePosts.slice(0, 20).map((post, index) => ({
             '@type': 'ListItem',
             position: index + 1,
-            url: `${window.location.origin}/blog/${encodeURIComponent(post.slug || post.id)}`,
+            url: `${BLOG_PUBLIC_BASE_URL}/blog/${encodeURIComponent(post.slug || post.id)}`,
             name: post.title,
           })),
         },

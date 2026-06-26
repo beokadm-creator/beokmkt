@@ -1,0 +1,348 @@
+{
+  "categories": [
+    {
+      "id": "academic-events",
+      "name": "학술·행사",
+      "label": "ACADEMIC & EVENTS",
+      "count": 5,
+      "summary": "학술대회 등록부터 동시통역까지, 행사 운영 전 과정.",
+      "preview": ["e-Regi", "학회 홈페이지", "AI 동시통역", "스마트 설명회", "전자초록집"]
+    },
+    {
+      "id": "travel-commerce",
+      "name": "여행·호텔",
+      "label": "TRAVEL COMMERCE",
+      "count": 1,
+      "summary": "멀티 공급사 객실·요금·정산까지 통합한 예약 커머스.",
+      "preview": ["Trevi"]
+    },
+    {
+      "id": "industry-control",
+      "name": "산업·에너지 관제",
+      "label": "INDUSTRY & CONTROL",
+      "count": 1,
+      "summary": "EMS · BMS 통합 운영 관제, 맵 기반 자산 대시보드.",
+      "preview": ["EMS-BMS 통합 관제"]
+    },
+    {
+      "id": "ai-automation",
+      "name": "AI·자동화",
+      "label": "AI AUTOMATION",
+      "count": 3,
+      "summary": "문서 자동 판독·뉴스 인텔리전스·콘텐츠 파이프라인.",
+      "preview": ["AgentRegi", "EUM News", "beokmkt"]
+    },
+    {
+      "id": "apps-internal",
+      "name": "서비스 앱·내부 시스템",
+      "label": "APPS & INTERNAL TOOLS",
+      "count": 2,
+      "summary": "모바일 서비스 앱, 사내 위키·매뉴얼.",
+      "preview": ["Service App", "OnTheWay Wiki"]
+    }
+  ],
+  "solutions": [
+    {
+      "id": "eregi",
+      "categoryId": "academic-events",
+      "categoryLabel": "ACADEMIC EVENT",
+      "name": "e-Regi 학술대회 통합 시스템",
+      "englishId": "eRegi",
+      "headline": "학술대회 운영, 하나의 플랫폼으로.",
+      "features": [
+        "통합 등록·결제 (NICEPAY · 토스 · 카카오·네이버페이 · 가상계좌)",
+        "QR 스마트 출결 · 실시간 라이브 대시보드",
+        "커스텀 배지 에디터 · 휴대용 프린터 · PDF·디지털 배지",
+        "알림톡 자동화 (등록·결제·배지 발송)",
+        "학회 전용 포털 · 회원 등급·회비 · 마이페이지",
+        "파트너 포털 · QR 리드 자동 수집"
+      ],
+      "case": "관계사 (주)홍커뮤니케이션의 학술대회·컨퍼런스 운영 현장에서 매년 수십 건 적용 중. 다중 학회·다중 행사를 단일 플랫폼에서 동시 운영.",
+      "customizable": [
+        "학회별 회원 등급·할인 규칙",
+        "결제 PG 추가/교체",
+        "학회별 서브도메인·브랜딩",
+        "배지 디자인·인쇄 장비 · 알림 채널",
+        "학회지·논문·집담회 등 부가 모듈 ON/OFF"
+      ],
+      "industries": ["학술 단체", "의학회", "협회", "PCO", "컨퍼런스 주관사"],
+      "seoKeywords": ["학술대회 시스템", "학회 등록 시스템", "학회 홈페이지", "QR 출결", "학회 알림톡", "컨퍼런스 운영 솔루션"]
+    },
+    {
+      "id": "society-website",
+      "categoryId": "academic-events",
+      "categoryLabel": "SOCIETY WEBSITE",
+      "name": "학회·기관 홈페이지 솔루션",
+      "englishId": "Society Website",
+      "headline": "학회 홈페이지, 검증된 전문 솔루션으로.",
+      "features": [
+        "학술행사·교육 통합 관리",
+        "집담회·지부행사·온라인 강의(VOD)",
+        "회원 가입·등급별 자료실·마이페이지",
+        "사전등록·결제·영수증·확인서 발급",
+        "학회지·논문 투고·검색 시스템",
+        "관리자 통합 대시보드"
+      ],
+      "case": "관계사 (주)홍커뮤니케이션이 운영하는 대한치과이식임플란트학회(KAID) 등 주요 학회 홈페이지로 가동 중.",
+      "customizable": [
+        "학회 정체성 반영",
+        "회원 등급 체계 · 연회비 · 인증 규칙",
+        "논문 투고 규정 · 심사 워크플로",
+        "e-Regi 등록 시스템과의 연동 깊이"
+      ],
+      "industries": ["학회", "협회", "재단", "학술 출판 단체"],
+      "seoKeywords": ["학회 홈페이지", "학회 사이트 제작", "학회지 시스템", "논문 투고 시스템", "KAID"]
+    },
+    {
+      "id": "live-translation",
+      "categoryId": "academic-events",
+      "categoryLabel": "AI INTERPRETATION",
+      "name": "AI 실시간 동시통역 플랫폼",
+      "englishId": "Live Translation",
+      "headline": "스마트폰 하나로 38개국 언어 동시통역.",
+      "features": [
+        "앱 설치 없는 QR 원스텝 접속 (BYOD)",
+        "38개국 언어 실시간 음성·자막",
+        "Medical RAG 기반 전문 용어 정확도 향상",
+        "멀티 홀 동시 운영",
+        "음성(TTS) + 실시간 스크립트 · 행사 종료 후 요약",
+        "OpenAI Whisper STT · Google Gemini 용어 보정 · Cloud Translate"
+      ],
+      "case": "관계사 (주)홍커뮤니케이션이 운영하는 국제 학술대회·글로벌 컨퍼런스 현장에서 실시간 적용 중.",
+      "customizable": [
+        "도메인별 용어집 사전 학습",
+        "발표자 음성 톤·속도에 맞춘 엔진 튜닝",
+        "현장 오디오 콘솔 연동",
+        "UI와 데이터 파기 정책",
+        "멀티 홀 구성 · 언어 풀"
+      ],
+      "industries": ["국제 학술대회", "글로벌 기업 행사", "다국적 세미나", "의료·법률 컨퍼런스"],
+      "seoKeywords": ["AI 동시통역", "실시간 통역 솔루션", "학술대회 동시통역", "다국어 자막", "Whisper STT", "Medical RAG", "BYOD 통역"]
+    },
+    {
+      "id": "smart-reservation",
+      "categoryId": "academic-events",
+      "categoryLabel": "SMART RESERVATION",
+      "name": "스마트 설명회·예약 시스템",
+      "englishId": "Smart Reservation",
+      "headline": "수천 명 동시 접속에도 공정한 선착순 예약.",
+      "features": [
+        "공정한 대기열 시스템",
+        "매크로·부정신청 차단",
+        "실시간 관제 대시보드",
+        "모바일 최적화 UX",
+        "자동/수동 오픈·마감",
+        "알림톡·SMS 발송"
+      ],
+      "case": "관계사 (주)홍커뮤니케이션이 운영하는 서울대학교 입학본부 학부모 교육 프로그램 등 주요 대학·공공기관의 설명회 신청에 사용 중.",
+      "customizable": [
+        "학교·기관별 설정",
+        "신청서 폼 필드와 검증 규칙",
+        "대기열 정책",
+        "알림톡 템플릿·발송 트리거"
+      ],
+      "industries": ["대학", "학교법인", "공공기관", "대형 컨퍼런스", "한정 수량 예약 비즈니스"],
+      "seoKeywords": ["대기열 시스템", "선착순 예약 시스템", "매크로 방지 예약", "학부모 설명회 신청", "입학 설명회 시스템", "CAPTCHA 예약"]
+    },
+    {
+      "id": "conference-ebook",
+      "categoryId": "academic-events",
+      "categoryLabel": "CONFERENCE EBOOK",
+      "name": "컨퍼런스 전자초록집",
+      "englishId": "Conference eBook",
+      "headline": "종이 초록집 대신, 모바일 친화 전자초록집.",
+      "features": [
+        "발표·연사·세션·초록을 한 권의 전자초록집으로",
+        "모바일·태블릿 최적화 · 오프라인 PWA",
+        "행사장 QR 즉시 접근",
+        "즐겨찾기·필기·검색",
+        "발표자별·세션별 상세 페이지 · 다국어",
+        "운영자 어드민 콘텐츠 일괄 업로드"
+      ],
+      "case": "관계사 (주)홍커뮤니케이션이 운영하는 학술대회의 공식 전자초록집으로 발행 중.",
+      "customizable": [
+        "학회 브랜딩 · 표지·섹션 구조",
+        "행사별 메타데이터",
+        "편집자·심사자 권한 분리",
+        "발행 워크플로",
+        "사후 자료실 전환 · 영구 보관 정책"
+      ],
+      "industries": ["학술 단체", "의학회", "협회", "컨퍼런스 주관사"],
+      "seoKeywords": ["전자 초록집", "학술대회 eBook", "컨퍼런스 모바일 가이드", "학술 PWA"]
+    },
+    {
+      "id": "trevi",
+      "categoryId": "travel-commerce",
+      "categoryLabel": "TRAVEL COMMERCE",
+      "name": "Trevi 여행·호텔 예약 커머스 플랫폼",
+      "englishId": "Trevi",
+      "headline": "자사·외부 공급사 객실을 하나로 묶는 예약 커머스.",
+      "features": [
+        "멀티 공급사·채널 매니저 어댑터",
+        "property · roomType · ratePlan · calendar 표준 도메인",
+        "결제·환불·정산 · 리뷰·문의·CRM·알림",
+        "외부 공급사 동기화·푸시 로그",
+        "객실·하우스키핑(PMS) · 다이렉트 예약 엔진",
+        "예약·매출·정산 리포팅"
+      ],
+      "case": "호텔·리조트 운영 고객사를 대상으로 검증된 멀티 테넌트 구조. 자사 인벤토리와 외부 OTA·채널 매니저를 동시 운영하는 시나리오에 적용.",
+      "customizable": [
+        "공급사·OTA 연동 어댑터 신규 개발",
+        "요금제·시즌 정책·캘린더 규칙",
+        "결제 PG·정산 주기",
+        "통화·세금 정책",
+        "리뷰·CRM·로열티 프로그램 연동"
+      ],
+      "industries": ["호텔·리조트·풀빌라", "체인 운영사", "여행사", "골프장·콘도"],
+      "seoKeywords": ["호텔 예약 시스템", "리조트 PMS", "채널 매니저", "다이렉트 예약 엔진", "여행 커머스 플랫폼"]
+    },
+    {
+      "id": "ems-bms-control",
+      "categoryId": "industry-control",
+      "categoryLabel": "INDUSTRY · CONTROL",
+      "name": "EMS · BMS 통합 운영·관제 시스템",
+      "englishId": "EMS · BMS Control",
+      "headline": "EMS · BMS 자산을 한 화면에서 운영·관제.",
+      "featured": true,
+      "features": [
+        "EMS(Energy Management System) · BMS(Battery Management System) 통합 운영",
+        "맵 기반 자산·사이트 대시보드",
+        "점검·조치·이력 관리 워크플로",
+        "실시간 텔레메트리 수집 · 임계치 기반 알람",
+        "Firebase Hosting · Cloud Functions 기반 배포",
+        "운영자·점검자·뷰어 권한 분리"
+      ],
+      "case": "에너지·배터리 산업 고객사를 대상으로 한 운영·관제 애플리케이션으로 운영 중. 사고·복구 시나리오를 반영해 검증된 런타임 구조 보유.",
+      "customizable": [
+        "자산 종류 확장 (ESS · 태양광 PV · 충전기 · BESS)",
+        "데이터 수집 프로토콜 (MQTT · Modbus · REST · OPC-UA)",
+        "임계치·알람 정책 · 에스컬레이션 규칙",
+        "맵 레이어 · KPI 정의 · 리포트 양식"
+      ],
+      "industries": ["ESS 운영사", "배터리 제조·관리 기업", "충전 인프라 운영사", "신재생 에너지 발전소", "산업 단지 에너지 관리"],
+      "seoKeywords": ["EMS", "BMS", "EMS 솔루션", "BMS 솔루션", "에너지 관리 시스템", "배터리 관리 시스템", "ESS 관제", "BESS 운영", "산업 관제 솔루션", "맵 대시보드", "에너지 통합 관제"]
+    },
+    {
+      "id": "agentregi",
+      "categoryId": "ai-automation",
+      "categoryLabel": "LEGAL · ADMIN AUTOMATION",
+      "name": "AgentRegi 법률·행정 자동화 SaaS",
+      "englishId": "AgentRegi",
+      "headline": "법률·행정 사건을 End-to-End로 자동 처리.",
+      "features": [
+        "사건 진단 → 전문가 매칭 → 서류 수집 → 관공서 제출",
+        "AI 서류 자동 판독 · 결함 사전 차단",
+        "정부24 · 대법원 등 전자신청 패키지 자동 전송",
+        "카카오톡 · Slack · SMS 옴니채널 알림",
+        "Organization · Workspace · Member 계층",
+        "Open API · OAuth2 · Rate Limiting"
+      ],
+      "case": "법률·행정 서비스 중개·자동화 영역에서 11단계 페이즈로 검증된 SaaS 플랫폼.",
+      "customizable": [
+        "사건 유형·서류 템플릿·자동화 룰",
+        "전문가 정산·등급 정책",
+        "B2B 연동(API · Webhook · SSO)",
+        "알림 채널·다국어·다중 통화"
+      ],
+      "industries": ["법무법인", "행정사·세무 사무소", "등기·인허가 대행", "정부·공공 위탁 서비스"],
+      "seoKeywords": ["법률 자동화", "행정 자동화 SaaS", "전자신청 시스템", "Document AI", "RPA 행정", "엔터프라이즈 SaaS"]
+    },
+    {
+      "id": "eum-news",
+      "categoryId": "ai-automation",
+      "categoryLabel": "INTELLIGENCE",
+      "name": "EUM News AI 뉴스 인텔리전스",
+      "englishId": "EUM News",
+      "headline": "투자 워크플로를 위한 회사 단위 AI 뉴스 분석.",
+      "features": [
+        "회사·기업 단위 컨피그",
+        "AI 관련도 필터링",
+        "분석 리포트 / 기사 목록 / 맞춤 프롬프트 산출물",
+        "다층 권한",
+        "회사 단위 파이프라인 실행·이력 추적"
+      ],
+      "case": "PE · M&A · VC 등 투자 워크플로 대상으로 설계, 회사별 운영 컨텍스트로 가동 중.",
+      "customizable": [
+        "산업·섹터별 소스 카탈로그",
+        "분석 프롬프트·LLM 모델",
+        "산출물 포맷",
+        "이메일·Slack·Notion 채널 발송"
+      ],
+      "industries": ["PE", "VC", "M&A 자문사", "전략·기획팀", "컴플라이언스·리서치팀"],
+      "seoKeywords": ["AI 뉴스 인텔리전스", "투자 리서치 자동화", "M&A 모니터링", "PE 데일리 브리핑", "LLM 리포팅"]
+    },
+    {
+      "id": "beokmkt",
+      "categoryId": "ai-automation",
+      "categoryLabel": "CONTENT OPS",
+      "name": "beokmkt 숏폼 콘텐츠 AI 파이프라인",
+      "englishId": "beokmkt",
+      "headline": "아이디어부터 발행까지, 숏폼 운영의 AI 파이프라인.",
+      "features": [
+        "아이디어·스크립트 AI 자동 생성",
+        "렌더링·발행 작업의 Job 큐 자동화",
+        "실패 작업 자동 재시도 · Dead-Letter 복구",
+        "플랫폼 계정 상태 관리·스윕",
+        "운영 지표 대시보드"
+      ],
+      "case": "멀티 플랫폼·멀티 계정 운영을 전제로 한 콘텐츠 오퍼레이션 콘솔로 운영 중.",
+      "customizable": [
+        "AI 모델·프롬프트·브랜드 톤",
+        "발행 플랫폼 어댑터",
+        "렌더 템플릿·BGM·자막 스타일",
+        "운영 알림·지표 정의"
+      ],
+      "industries": ["미디어·MCN", "마케팅 에이전시", "브랜드 인하우스 콘텐츠팀", "커머스"],
+      "seoKeywords": ["숏폼 자동화", "AI 콘텐츠 파이프라인", "숏폼 운영 시스템", "Reels 자동 발행", "Shorts 자동화"]
+    },
+    {
+      "id": "service-app",
+      "categoryId": "apps-internal",
+      "categoryLabel": "MOBILE SERVICE",
+      "name": "모바일 서비스 앱 플랫폼",
+      "englishId": "Service App (가넹길)",
+      "headline": "모바일 앱 + 관리자 + Firebase 백엔드, 하나의 서비스로.",
+      "features": [
+        "React Native (Expo) 기반 모바일·웹 동시 운영",
+        "Next.js 관리자 콘솔",
+        "Firebase Cloud Functions · Firestore · Auth",
+        "운영 데이터 가시화 · 알림 · 사용자 관리",
+        "모바일·웹·관리자 단일 모노레포 관리"
+      ],
+      "case": "비오케이솔루션 자체 서비스 앱 가넹길을 모바일·웹·관리자 3축으로 운영 중.",
+      "customizable": [
+        "도메인 모델",
+        "결제·SNS 로그인·푸시 알림 채널",
+        "관리자 권한 모델·운영 워크플로",
+        "iOS/Android 스토어 배포 파이프라인"
+      ],
+      "industries": ["모바일 서비스 스타트업", "O2O", "멤버십·구독 서비스", "신규 사업팀 MVP"],
+      "seoKeywords": ["모바일 앱 개발", "React Native 앱 외주", "Firebase 앱", "O2O 앱 개발", "Expo 앱 외주"]
+    },
+    {
+      "id": "ontheway-wiki",
+      "categoryId": "apps-internal",
+      "categoryLabel": "INTERNAL TOOLS",
+      "name": "사내 위키·매뉴얼 시스템",
+      "englishId": "OnTheWay Wiki",
+      "headline": "위키의 트리 + Notion의 블록 편집, 사내 매뉴얼용으로.",
+      "features": [
+        "트리 구조 + TipTap 기반 블록 편집기",
+        "모바일 최적화 · 터치 기반 드래그 앤 드롭",
+        "PIN 인증 · UID 화이트리스트 · 데이터 암호화",
+        "빠른 검색·즐겨찾기·버전 히스토리",
+        "Firebase 기반 멤버 단위 협업"
+      ],
+      "case": "비오케이솔루션 사내 매뉴얼·지식베이스로 운영 중.",
+      "customizable": [
+        "권한 모델",
+        "SSO·SAML 연동",
+        "기업 그룹웨어 연결",
+        "콘텐츠 블록 종류 확장",
+        "검색·자동 분류 AI 모듈"
+      ],
+      "industries": ["스타트업", "운영팀", "프랜차이즈·체인 본부", "학원·교육기관 매뉴얼"],
+      "seoKeywords": ["사내 위키", "업무 매뉴얼 시스템", "Notion 대체 사내툴", "SOP 관리 시스템", "프랜차이즈 매뉴얼"]
+    }
+  ]
+}

@@ -10,7 +10,7 @@ const rootDir = path.resolve(__dirname, '..')
 const publicDir = path.join(rootDir, 'public')
 const blogDir = path.join(publicDir, 'blog')
 const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'beokmkt'
-const baseUrl = (process.env.SPA_BASE_URL || 'https://beokmkt.web.app').replace(/\/+$/, '')
+const baseUrl = (process.env.SPA_BASE_URL || 'https://beoksolution.com').replace(/\/+$/, '')
 const secretKeyPath = path.join(rootDir, 'blog_publisher/.secrets/firebase-admin.json')
 const explicitCredPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || ''
 
@@ -53,20 +53,32 @@ function normalizeDate(value) {
   return raw.split('T')[0] || new Date().toISOString().slice(0, 10)
 }
 
+function canonicalPublicUrl(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/^https:\/\/beokmkt\.(web\.app|firebaseapp\.com)\//, `${baseUrl}/`)
+}
+
 function buildSitemapXml(posts, options = {}) {
   const today = new Date().toISOString().slice(0, 10)
   const includeRoot = options.includeRoot !== false
   const includeBlogIndex = options.includeBlogIndex !== false
   const includeImages = options.includeImages !== false
+  const homepageUrls = [
+    { loc: baseUrl, lastmod: today, priority: '1.0', changefreq: 'weekly' },
+    { loc: `${baseUrl}/references/`, lastmod: today, priority: '0.9', changefreq: 'monthly' },
+    { loc: `${baseUrl}/ai-search-summary.html`, lastmod: today, priority: '0.8', changefreq: 'monthly' },
+    { loc: `${baseUrl}/llms.txt`, lastmod: today, priority: '0.6', changefreq: 'weekly' },
+  ]
   const urls = [
-    ...(includeRoot ? [{ loc: baseUrl, lastmod: today, priority: '1.0', changefreq: 'daily' }] : []),
+    ...(includeRoot ? homepageUrls : []),
     ...(includeBlogIndex ? [{ loc: `${baseUrl}/blog/`, lastmod: today, priority: '0.9', changefreq: 'daily' }] : []),
     ...posts.map((post) => ({
       loc: `${baseUrl}${publicBlogPath(post)}`,
       lastmod: normalizeDate(post.updated_at || post.published_at || post.created_at),
       priority: '0.8',
       changefreq: 'weekly',
-      image: typeof post.featured_image === 'string' ? post.featured_image.trim() : '',
+      image: typeof post.featured_image === 'string' ? canonicalPublicUrl(post.featured_image) : '',
     })),
   ]
 

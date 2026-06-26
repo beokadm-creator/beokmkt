@@ -2,409 +2,409 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>비오케이솔루션 · 홍커뮤니케이션 블로그</title>
-    <link>https://beokmkt.web.app/blog/</link>
-    <atom:link href="https://beokmkt.web.app/blog/rss.xml" rel="self" type="application/rss+xml" />
+    <link>https://beoksolution.com/blog/</link>
+    <atom:link href="https://beoksolution.com/blog/rss.xml" rel="self" type="application/rss+xml" />
     <description>비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 다루는 공식 실무 블로그입니다.</description>
     <language>ko-KR</language>
     <item>
+      <title>협회 홈페이지 제작 문의폼 설계: 입력 항목부터 관리자 화면까지</title>
+      <link>https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EC%9E%85%EB%A0%A5-%ED%95%AD%EB%AA%A9%EB%B6%80%ED%84%B0-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4%EA%B9%8C%EC%A7%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EC%9E%85%EB%A0%A5-%ED%95%AD%EB%AA%A9%EB%B6%80%ED%84%B0-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4%EA%B9%8C%EC%A7%80</guid>
+      <pubDate>Fri, 26 Jun 2026 05:34:15 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 협회 홈페이지 제작 시 문의폼 설계와 관리자 화면 항목을 효율적으로 구축하는 구체적인 기준을 확인하세요. 회원, 결제 연동부터 QR 명찰 출력 및 개인정보 관리까지 단계별 설계 방법을 제공합니다. 1. 사전 준비: 협회 요금제 범위 확인과 문의폼·관리자 화면 설계 전제조건 2. 단계별 설계 절차: 문</description>
+      <category>예약결제</category>
+    </item>
+    <item>
+      <title>심사 배정 시스템 API 연동 전 필수 점검 항목 가이드</title>
+      <link>https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%A0%90%EA%B2%80-%ED%95%AD%EB%AA%A9-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%A0%90%EA%B2%80-%ED%95%AD%EB%AA%A9-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Fri, 26 Jun 2026 05:09:03 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 심사 배정 시스템 개발 시 API 연동 전 반드시 확인해야 할 필수 점검 항목과 대응 가이드를 정리했습니다. 인증, 데이터 표준, 보안 모듈, 장애 대응 체크리스트로 성공적인 시스템 구축을 준비하세요. API 연동 준비 및 데이터 표준 확정: 인증, 스키마, 배정 파라미터 보안 모듈 적용 및 스테이징</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>세미나 참가자 안내 항목 설계 기준: 현장 병목 방지와 시스템 연동</title>
+      <link>https://beoksolution.com/blog/%EC%84%B8%EB%AF%B8%EB%82%98-%EC%B0%B8%EA%B0%80%EC%9E%90-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%ED%98%84%EC%9E%A5-%EB%B3%91%EB%AA%A9-%EB%B0%A9%EC%A7%80%EC%99%80-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%84%B8%EB%AF%B8%EB%82%98-%EC%B0%B8%EA%B0%80%EC%9E%90-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%ED%98%84%EC%9E%A5-%EB%B3%91%EB%AA%A9-%EB%B0%A9%EC%A7%80%EC%99%80-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</guid>
+      <pubDate>Fri, 26 Jun 2026 05:04:11 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 산업 세미나 운영 시 참가자 혼선과 현장 병목을 막기 위한 안내 항목 설계 기준을 확인하세요. 등록 시스템 연동부터 명찰 발급, 동선 기획, 사후 관리까지 효율적인 운영 솔루션을 제안합니다. 현장 병목을 줄이는 사전 안내 우선순위와 등록 시스템 연동 기준 온·오프라인 명찰 발급과 입장 절차 오류 방지</description>
+      <category>기업행사</category>
+    </item>
+    <item>
+      <title>세미나 등록 페이지 항목 설계 가이드: 참가율 높이는 필수 조건</title>
+      <link>https://beoksolution.com/blog/%EC%84%B8%EB%AF%B8%EB%82%98-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C-%EC%B0%B8%EA%B0%80%EC%9C%A8-%EB%86%92%EC%9D%B4%EB%8A%94-%ED%95%84%EC%88%98-%EC%A1%B0%EA%B1%B4</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%84%B8%EB%AF%B8%EB%82%98-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C-%EC%B0%B8%EA%B0%80%EC%9C%A8-%EB%86%92%EC%9D%B4%EB%8A%94-%ED%95%84%EC%88%98-%EC%A1%B0%EA%B1%B4</guid>
+      <pubDate>Fri, 26 Jun 2026 04:29:04 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 홍보·마케팅 등 세미나 운영 시 참가율과 행사 효율을 높이려면 가변 항목, 명찰 발권 연동 등 세미나 등록 페이지 항목 설계 기준을 명확히 해야 합니다. 이탈 방지 설계 가이드를 확인하세요. 신청 폼 이탈 최소화와 산업 특성 반영 참가자 속성 수집 전략 온·오프라인 병행 행사를 위한 가변 항목과 다국</description>
+      <category>기업행사</category>
+    </item>
+    <item>
+      <title>발표자 관리 시스템 관리자 화면 필수 항목 및 운영 가이드</title>
+      <link>https://beoksolution.com/blog/%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Fri, 26 Jun 2026 04:29:03 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학회 및 학술대회를 위한 발표자 관리 시스템 관리자 화면 구성 가이드입니다. 프로필 등록부터 세션 중복 방지, 당일 접수 연동까지 필수 데이터와 기능을 파악하여 효율적으로 발표자를 운영하세요. 발표자 프로필부터 자료 승인·기기 테스트까지: 관리자가 설정할 기본 데이터 운영 현장 문제 방지: 세션 중복</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>심사 배정 시스템 알림톡 이메일 발송 기준과 연동 설계 가이드</title>
+      <link>https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%97%B0%EB%8F%99-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%97%B0%EB%8F%99-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Fri, 26 Jun 2026 04:04:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 심사 배정 시스템 개발 시 운영자와 참가자에게 발송되는 알림톡과 이메일의 발송 시점, 템플릿 구성, 대량 발송 최적화 및 예외 처리를 위한 개발 연동 기준을 정리했습니다. 발송 트리거 설계와 카카오비즈니스 채널 연동 준비 심사위원·저자별 템플릿 구성과 대량 발송 성능 최적화 판단 포인트 본문의 기준과</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>협회 홈페이지 제작: 행사 예약 접수부터 변경 요청까지 설계 기준</title>
+      <link>https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%96%89%EC%82%AC-%EC%98%88%EC%95%BD-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-%EC%9A%94%EC%B2%AD%EA%B9%8C%EC%A7%80-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%96%89%EC%82%AC-%EC%98%88%EC%95%BD-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-%EC%9A%94%EC%B2%AD%EA%B9%8C%EC%A7%80-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
+      <pubDate>Fri, 26 Jun 2026 03:19:08 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 협회 홈페이지 제작 시 관리자와 참가자가 모두 효율적으로 사용할 수 있도록 행사 예약 접수부터 신청 내역 변경 요청, 환불 처리까지 설계하는 핵심 기준과 방법을 알아봅니다. 1. 협회 행사 예약 접수 폼 설계: DB 구조와 필수/선택 항목 기준 2. 인원 변동·환불·입금 지연 대응: 접수 상태 수동 </description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
+      <title>발표자 관리 운영: 접수대 혼잡을 줄이는 체크리스트 및 가이드</title>
+      <link>https://beoksolution.com/blog/%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%EC%9A%B4%EC%98%81-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1%EC%9D%84-%EC%A4%84%EC%9D%B4%EB%8A%94-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EB%B0%8F-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%EC%9A%B4%EC%98%81-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1%EC%9D%84-%EC%A4%84%EC%9D%B4%EB%8A%94-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EB%B0%8F-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Fri, 26 Jun 2026 02:54:06 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학술대회 등 행사 현장에서 발표자 접수대 병목 현상을 예방하는 구체적인 발표자 관리 운영 기준과 절차를 확인합니다. 사전 안내부터 동선 분리까지 핵심 팁을 제공합니다. 발표자 접수 병목의 주요 원인과 사전 안내 프로토콜 접수 동선 분리와 VIP 데스크 구축을 위한 관리자 체크리스트 판단 포인트 본문의</description>
+      <category>학회운영</category>
+    </item>
+    <item>
+      <title>기업 컨퍼런스 행사 데이터 관리 항목 설계 기준: 사전등록부터 RoI까지</title>
+      <link>https://beoksolution.com/blog/%EA%B8%B0%EC%97%85-%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%96%89%EC%82%AC-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EA%B4%80%EB%A6%AC-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D%EB%B6%80%ED%84%B0-roi%EA%B9%8C%EC%A7%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EA%B8%B0%EC%97%85-%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%96%89%EC%82%AC-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EA%B4%80%EB%A6%AC-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D%EB%B6%80%ED%84%B0-roi%EA%B9%8C%EC%A7%80</guid>
+      <pubDate>Fri, 26 Jun 2026 02:54:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 기업 컨퍼런스 운영 시 사후 분석과 귀무를 위한 행사 데이터 관리 항목 설계 기준을 정리합니다. 사전등록부터 입장 통제, 부스 방문 이력 연동, 알림톡 API 연동까지 성공적인 컨퍼런스를 위한 데이터 시스템 구축 핵심을 확인하세요. 사전·현장·키오스크 등록 데이터 불일치 방지 위한 마스터 데이터(MD</description>
+      <category>기업행사</category>
+    </item>
+    <item>
+      <title>학술대회 발표자 관리: 홈페이지 연동부터 당일 운영까지 통합 구축 절차</title>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%97%B0%EB%8F%99%EB%B6%80%ED%84%B0-%EB%8B%B9%EC%9D%BC-%EC%9A%B4%EC%98%81%EA%B9%8C%EC%A7%80-%ED%86%B5%ED%95%A9-%EA%B5%AC%EC%B6%95-%EC%A0%88%EC%B0%A8</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%97%B0%EB%8F%99%EB%B6%80%ED%84%B0-%EB%8B%B9%EC%9D%BC-%EC%9A%B4%EC%98%81%EA%B9%8C%EC%A7%80-%ED%86%B5%ED%95%A9-%EA%B5%AC%EC%B6%95-%EC%A0%88%EC%B0%A8</guid>
+      <pubDate>Fri, 26 Jun 2026 02:09:06 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학술대회 발표자 관리 시스템을 홈페이지와 연동하는 전체 과정을 안내합니다. 논문 접수부터 심사, 발표 자료 관리, 당일 명찰 발권까지 통합 구축하는 필수 조건과 보안 체크리스트를 확인하세요. 통합 연동 전제조건: 논문 접수부터 결제·역할 분기까지 데이터 구조 설계 단계별 구축 절차: 초록 접수 → 심</description>
+      <category>학회운영</category>
+    </item>
+    <item>
+      <title>심사 배정 시스템 개발, DB 설계 전 검색·필터 조건을 먼저 정해야 하는 이유</title>
+      <link>https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-db-%EC%84%A4%EA%B3%84-%EC%A0%84-%EA%B2%80%EC%83%89-%ED%95%84%ED%84%B0-%EC%A1%B0%EA%B1%B4%EC%9D%84-%EB%A8%BC%EC%A0%80-%EC%A0%95%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-db-%EC%84%A4%EA%B3%84-%EC%A0%84-%EA%B2%80%EC%83%89-%ED%95%84%ED%84%B0-%EC%A1%B0%EA%B1%B4%EC%9D%84-%EB%A8%BC%EC%A0%80-%EC%A0%95%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</guid>
+      <pubDate>Fri, 26 Jun 2026 02:09:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 심사 배정 시스템 개발 시 검색 및 필터 조건을 먼저 확정해야 프로젝트 실패와 재개발 비용을 막을 수 있는 구체적인 이유와 우선순위 알고리즘 설계 방법을 확인해 보세요. 필터 없이 DB부터 설계할 때 생기는 치명적 운영 문제와 재개발 비용 학회 논문 심사 실무 요구사항과 RDBMS(ERD) 데이터 모</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>병원 홈페이지 제작 SSL 도메인 설계 기준과 보안 관리 방법</title>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-ssl-%EB%8F%84%EB%A9%94%EC%9D%B8-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EB%B3%B4%EC%95%88-%EA%B4%80%EB%A6%AC-%EB%B0%A9%EB%B2%95</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-ssl-%EB%8F%84%EB%A9%94%EC%9D%B8-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EB%B3%B4%EC%95%88-%EA%B4%80%EB%A6%AC-%EB%B0%A9%EB%B2%95</guid>
+      <pubDate>Fri, 26 Jun 2026 00:59:04 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 개인정보보호와 안정적인 사이트 운영을 위해 SSL 도메인을 먼저 설계해야 하는 이유와 선택 기준, 소유권 확보 및 보안 관리 방법을 확인해 보세요. 병원 홈페이지 SSL 인증서 선택 기준과 개인정보보호 의무 도메인 소유권 확보 전략과 네임서버(NS) 관리 주의점 판단 포인트 운</description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
+      <title>학회 발표자 관리 완벽 가이드: 사무국 행사 전 필수 체크리스트</title>
+      <link>https://beoksolution.com/blog/%ED%95%99%ED%9A%8C-%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%EC%99%84%EB%B2%BD-%EA%B0%80%EC%9D%B4%EB%93%9C-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%96%89%EC%82%AC-%EC%A0%84-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%ED%9A%8C-%EB%B0%9C%ED%91%9C%EC%9E%90-%EA%B4%80%EB%A6%AC-%EC%99%84%EB%B2%BD-%EA%B0%80%EC%9D%B4%EB%93%9C-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%96%89%EC%82%AC-%EC%A0%84-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
+      <pubDate>Fri, 26 Jun 2026 00:59:03 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학회 사무국 담당자를 위한 학회 발표자 관리 필수 체크리스트입니다. 초청 발송부터 명찰 출력, 하이브리드 세션 점검까지 행사 당일 혼란을 막는 구체적인 운영 절차를 확인하세요. 발표자 관리 단계별 타임라인: 초청 공문 발송부터 최종 논문 취합까지 당일 현장 차질 방지: 명찰·주차권·숙박 안내 사전 발</description>
+      <category>학회운영</category>
+    </item>
+    <item>
+      <title>컨퍼런스 사후보고서 항목 설계 기준: KPI부터 ROI, 노하우 아카이빙까지</title>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%82%AC%ED%9B%84%EB%B3%B4%EA%B3%A0%EC%84%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-kpi%EB%B6%80%ED%84%B0-roi-%EB%85%B8%ED%95%98%EC%9A%B0-%EC%95%84%EC%B9%B4%EC%9D%B4%EB%B9%99%EA%B9%8C%EC%A7%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%82%AC%ED%9B%84%EB%B3%B4%EA%B3%A0%EC%84%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-kpi%EB%B6%80%ED%84%B0-roi-%EB%85%B8%ED%95%98%EC%9A%B0-%EC%95%84%EC%B9%B4%EC%9D%B4%EB%B9%99%EA%B9%8C%EC%A7%80</guid>
+      <pubDate>Fri, 26 Jun 2026 00:49:07 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 홍보 기업이 컨퍼런스 종료 후 행사 성과를 측정하고 개선점을 도출하기 위한 컨퍼런스 사후보고서 항목 설계 기준을 정리했습니다. 정량·정성 KPI부터 ROI, 데이터 아카이빙까지 확인하세요. 컨퍼런스 성과 측정을 위한 정량·정성 KPI와 운영 병목 추적 참가자 체류 및 네트워킹 분석과 투자 대비 수익(</description>
+      <category>학술대회</category>
+    </item>
+    <item>
+      <title>컨퍼런스 운영 커뮤니케이션 기준: 클라이언트 마찰 방지 설계 가이드</title>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%9A%B4%EC%98%81-%EC%BB%A4%EB%AE%A4%EB%8B%88%EC%BC%80%EC%9D%B4%EC%85%98-%EA%B8%B0%EC%A4%80-%ED%81%B4%EB%9D%BC%EC%9D%B4%EC%96%B8%ED%8A%B8-%EB%A7%88%EC%B0%B0-%EB%B0%A9%EC%A7%80-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%9A%B4%EC%98%81-%EC%BB%A4%EB%AE%A4%EB%8B%88%EC%BC%80%EC%9D%B4%EC%85%98-%EA%B8%B0%EC%A4%80-%ED%81%B4%EB%9D%BC%EC%9D%B4%EC%96%B8%ED%8A%B8-%EB%A7%88%EC%B0%B0-%EB%B0%A9%EC%A7%80-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Fri, 26 Jun 2026 00:39:03 GMT</pubDate>
+      <description>핵심 요약 읽기 2분 홍보 커뮤니케이션 기업을 위한 컨퍼런스 운영 커뮤니케이션 기준을 정리합니다. 킥오프부터 당일 이슈 대응, 사후 보고까지 클라이언트와의 의사결정 지연을 막는 소통 항목과 R&amp;amp;R 설계 가이드를 확인하세요. 킥오프부터 SOW 명시까지: 의사결정 지연을 막는 경계 설정 기준 사전등록·결제·QR 발급 </description>
+      <category>학술대회</category>
+    </item>
+    <item>
+      <title>병원 홈페이지 제작 운영자 대시보드 항목 선설계 기준 가이드</title>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%9A%B4%EC%98%81%EC%9E%90-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%ED%95%AD%EB%AA%A9-%EC%84%A0%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%9A%B4%EC%98%81%EC%9E%90-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%ED%95%AD%EB%AA%A9-%EC%84%A0%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Fri, 26 Jun 2026 00:34:12 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 진료 예약 및 통계 관리에 최적화된 운영자 대시보드 항목을 선제적으로 설계하는 방법을 확인하세요. 병원 홈페이지 제작 운영자 대시보드 구축 기준과 필수 핵심 요소를 상세히 안내합니다. 병원 행정 오류를 줄이는 핵심 UI 항목 및 백엔드 선 설계의 필요성 외부 유입 채널 통계 통</description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
+      <title>심사 배정 시스템 상태값 설계 기준: 예외 상황과 권한 관리</title>
+      <link>https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%83%81%ED%83%9C%EA%B0%92-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%98%88%EC%99%B8-%EC%83%81%ED%99%A9%EA%B3%BC-%EA%B6%8C%ED%95%9C-%EA%B4%80%EB%A6%AC</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%83%81%ED%83%9C%EA%B0%92-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%98%88%EC%99%B8-%EC%83%81%ED%99%A9%EA%B3%BC-%EA%B6%8C%ED%95%9C-%EA%B4%80%EB%A6%AC</guid>
+      <pubDate>Fri, 26 Jun 2026 00:29:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 심사 배정 시스템 개발 시 복잡한 업무 흐름과 예외 케이스를 처리하기 위한 직관적인 심사 배정 시스템 상태값(StatusCode) 설계 기준과 DB 구조, 권한별 상태 매핑 가이드를 정리했습니다. 1. DB 테이블 분리 및 라이프사이클별 상태값 정의 (준비 및 기본 구조) 2. 엣지 케이스 처리 및 </description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>심사 배정 시스템 화면 설계: 엑셀 업무를 줄이는 핵심 노하우</title>
+      <link>https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%94%EB%A9%B4-%EC%84%A4%EA%B3%84-%EC%97%91%EC%85%80-%EC%97%85%EB%AC%B4%EB%A5%BC-%EC%A4%84%EC%9D%B4%EB%8A%94-%ED%95%B5%EC%8B%AC-%EB%85%B8%ED%95%98%EC%9A%B0</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%94%EB%A9%B4-%EC%84%A4%EA%B3%84-%EC%97%91%EC%85%80-%EC%97%85%EB%AC%B4%EB%A5%BC-%EC%A4%84%EC%9D%B4%EB%8A%94-%ED%95%B5%EC%8B%AC-%EB%85%B8%ED%95%98%EC%9A%B0</guid>
+      <pubDate>Thu, 25 Jun 2026 11:14:02 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학술행사 심사 배정 업무의 엑셀 의존도를 낮추기 위한 심사 배정 시스템 화면 설계 및 개발 방법을 알아봅니다. DB 설계부터 자동 배정 알고리즘, 예외 처리까지 실무에 바로 적용 가능한 가이드를 제공합니다. 1. 심사 배정 시스템 전제 조건: DB 구조 설계와 엑셀 양식 호환 전략 2. 관리자 대시보</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>학술대회 초록 접수 시스템 개발: 요구사항 정의부터 예산 산정까지</title>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EC%A0%95%EC%9D%98%EB%B6%80%ED%84%B0-%EC%98%88%EC%82%B0-%EC%82%B0%EC%A0%95%EA%B9%8C%EC%A7%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EC%A0%95%EC%9D%98%EB%B6%80%ED%84%B0-%EC%98%88%EC%82%B0-%EC%82%B0%EC%A0%95%EA%B9%8C%EC%A7%80</guid>
+      <pubDate>Thu, 25 Jun 2026 10:54:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학술대회 초록 접수 시스템 개발을 비오케이솔루션에 의뢰하기 전, 요구사항 정의와 견적 방향을 잡는 방법을 정리했습니다. 차등 결제, 명찰 발권, 숨은 비용까지 확인하세요. 초록 접수 시스템 요구사항 정의서 작성과 관리자 자동화 범위 설정 접수비 차등 결제 연동과 마감일 트래픽 대응 서버 아키텍처 설계</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>병원 홈페이지 제작 데이터 내보내기 항목 설계 기준 가이드</title>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EB%82%B4%EB%B3%B4%EB%82%B4%EA%B8%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EB%82%B4%EB%B3%B4%EB%82%B4%EA%B8%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Thu, 25 Jun 2026 09:19:04 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 진료 예약과 상담 고객의 CRM 및 EMR 연동을 고려해 데이터 내보내기 항목을 선제적으로 설계하고 세팅하는 기준과 필수 점검 방법을 정리했습니다. 초기 제작 단계에서 데이터 내보내기(Export) 항목을 먼저 설계해야 하는 이유와 준비물 단계별 데이터 매핑 절차: 수집 항목 </description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
+      <title>컨퍼런스 운영 포트폴리오 설계 기준: 제안서 즉시 적용형 DB 구축</title>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%9A%B4%EC%98%81-%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%9C%EC%95%88%EC%84%9C-%EC%A6%89%EC%8B%9C-%EC%A0%81%EC%9A%A9%ED%98%95-db-%EA%B5%AC%EC%B6%95</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%9A%B4%EC%98%81-%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%9C%EC%95%88%EC%84%9C-%EC%A6%89%EC%8B%9C-%EC%A0%81%EC%9A%A9%ED%98%95-db-%EA%B5%AC%EC%B6%95</guid>
+      <pubDate>Thu, 25 Jun 2026 06:44:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 홍보·커뮤니케이션 기업이 컨퍼런스 운영 포트폴리오를 체계적으로 설계하는 기준을 정리합니다. 규모별 분류, 구축 기간 정량화, 데이터 분석 연계로 제안과 견적에 즉시 활용 가능한 레퍼런스 DB를 구축하는 방법을 확인해 보세요. 제안서 즉시 투입형 레퍼런스 DB: 규모·산업별 분류와 원가 구조(BOQ) </description>
+      <category>학술대회</category>
+    </item>
+    <item>
+      <title>학술대회 초록 접수 시스템 구축 기준: MICE 운영 관점 체크리스트</title>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B5%AC%EC%B6%95-%EA%B8%B0%EC%A4%80-mice-%EC%9A%B4%EC%98%81-%EA%B4%80%EC%A0%90-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B5%AC%EC%B6%95-%EA%B8%B0%EC%A4%80-mice-%EC%9A%B4%EC%98%81-%EA%B4%80%EC%A0%90-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
+      <pubDate>Thu, 25 Jun 2026 05:54:03 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학술대회 초록 접수 시스템을 구축할 때 혼란을 막기 위해 MICE 전문 업체 관점에서 확인해야 할 트래픽 대응, 심사 배정 자동화, 유지보수 비용 등의 기준과 절차를 정리했습니다. 초록 접수 사전 정의부터 UI/UX 설계 기준 마감일 트래픽 폭주 대응과 관리자 페이지 실시간 관리 판단 포인트 본문의 </description>
+      <category>학술대회</category>
+    </item>
+    <item>
+      <title>심사 배정 시스템 관리자 권한 분리 및 RBAC 보안 설계 방법</title>
+      <link>https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EA%B6%8C%ED%95%9C-%EB%B6%84%EB%A6%AC-%EB%B0%8F-rbac-%EB%B3%B4%EC%95%88-%EC%84%A4%EA%B3%84-%EB%B0%A9%EB%B2%95</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%8B%AC%EC%82%AC-%EB%B0%B0%EC%A0%95-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EA%B6%8C%ED%95%9C-%EB%B6%84%EB%A6%AC-%EB%B0%8F-rbac-%EB%B3%B4%EC%95%88-%EC%84%A4%EA%B3%84-%EB%B0%A9%EB%B2%95</guid>
+      <pubDate>Thu, 25 Jun 2026 04:04:12 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 심사 배정 시스템 개발 시 관리자 권한을 역할별로 세분화하는 방법을 다룹니다. RBAC 도입부터 백엔드 API 접근 제어, 감사 로그 구축까지 보안을 강화하고 공정성을 지키는 실무 구현 가이드를 확인하세요. 1. 심사 배정 시스템 권한 설계 전제: 역할별 메뉴 접근 통제와 RBAC 도입 기준 2. 백</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>병원 홈페이지 제작 체크리스트: 견적 리스크 줄이는 사전 설계 기준</title>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EA%B2%AC%EC%A0%81-%EB%A6%AC%EC%8A%A4%ED%81%AC-%EC%A4%84%EC%9D%B4%EB%8A%94-%EC%82%AC%EC%A0%84-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EA%B2%AC%EC%A0%81-%EB%A6%AC%EC%8A%A4%ED%81%AC-%EC%A4%84%EC%9D%B4%EB%8A%94-%EC%82%AC%EC%A0%84-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
+      <pubDate>Thu, 25 Jun 2026 03:14:04 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 견적 리스크를 줄이고 필수 기능 누락을 막는 사전 체크리스트 설계 기준을 확인하세요. 진료 예약 연동부터 의료법 준수까지 성공적인 제작을 위한 필수 가이드입니다. 병원 홈페이지 기획 전 필수 준비물과 기능 요구사항 정의 진료 과목별 UI/UX와 모바일 환자 이탈 방지 설계 기준</description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
+      <title>컨퍼런스 스폰서 노출 항목 설계 기준과 데이터 기반 성과 전략</title>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%8A%A4%ED%8F%B0%EC%84%9C-%EB%85%B8%EC%B6%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EA%B8%B0%EB%B0%98-%EC%84%B1%EA%B3%BC-%EC%A0%84%EB%9E%B5</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%8A%A4%ED%8F%B0%EC%84%9C-%EB%85%B8%EC%B6%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EA%B8%B0%EB%B0%98-%EC%84%B1%EA%B3%BC-%EC%A0%84%EB%9E%B5</guid>
+      <pubDate>Thu, 25 Jun 2026 01:14:03 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 기업 컨퍼런스에서 스폰서의 만족도와 행사 수익성을 높이는 핵심은 체계적인 컨퍼런스 스폰서 노출 항목 설계입니다. 등급별 가치 산정부터 데이터 기반 성과 증명까지 운영 전략을 확인하세요. 운영 현장의 문제: 왜 스폰서는 노출 항목의 객관적 가치를 의심하는가 시스템으로 설계하는 노출: 디지털 접점 연동형</description>
+      <category>학술대회</category>
+    </item>
+    <item>
+      <title>초록 접수 시스템 로그 남기는 기준: 오류 및 접수 이력 추적</title>
+      <link>https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EB%A1%9C%EA%B7%B8-%EB%82%A8%EA%B8%B0%EB%8A%94-%EA%B8%B0%EC%A4%80-%EC%98%A4%EB%A5%98-%EB%B0%8F-%EC%A0%91%EC%88%98-%EC%9D%B4%EB%A0%A5-%EC%B6%94%EC%A0%81</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EB%A1%9C%EA%B7%B8-%EB%82%A8%EA%B8%B0%EB%8A%94-%EA%B8%B0%EC%A4%80-%EC%98%A4%EB%A5%98-%EB%B0%8F-%EC%A0%91%EC%88%98-%EC%9D%B4%EB%A0%A5-%EC%B6%94%EC%A0%81</guid>
+      <pubDate>Thu, 25 Jun 2026 00:59:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 초록 접수 시스템 개발 시 운영 오류와 접수 이력 추적을 위한 로그 남기는 기준을 알아봅니다. 결제 실패 원인 파악부터 대용량 트래픽 환경의 비동기 로그 저장 전략과 관리자 실시간 모니터링 체크리스트까지 확인해 보세요. 초록 접수 시스템 로그 설계 전제: DB 테이블 구조와 단계별 필수 항목 흔한 실</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>초록 접수 시스템 개발 인수인계: 담당자 교체 시 필수 세팅</title>
+      <link>https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EC%9D%B8%EC%88%98%EC%9D%B8%EA%B3%84-%EB%8B%B4%EB%8B%B9%EC%9E%90-%EA%B5%90%EC%B2%B4-%EC%8B%9C-%ED%95%84%EC%88%98-%EC%84%B8%ED%8C%85</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EC%9D%B8%EC%88%98%EC%9D%B8%EA%B3%84-%EB%8B%B4%EB%8B%B9%EC%9E%90-%EA%B5%90%EC%B2%B4-%EC%8B%9C-%ED%95%84%EC%88%98-%EC%84%B8%ED%8C%85</guid>
+      <pubDate>Thu, 25 Jun 2026 00:24:05 GMT</pubDate>
+      <description>핵심 요약 읽기 2분 학회 초록 접수 시스템 개발 인수인계가 막막하신가요? 신규 담당자도 유지보수와 운영을 원활하게 이어받을 수 있는 시스템 구조와 핵심 세팅 방법을 확인해 보세요. 1. [전제 및 환경설정] 인수인계 문서 표준 양식과 소유권 이전 구조 2. [단계별 절차] 비개발자도 폼과 외부 연동을 관리하는 모듈 구조</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>초록 접수 관리자 화면 설계: 접수부터 심사·확정까지 필수 가이드</title>
+      <link>https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%EC%84%A4%EA%B3%84-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EC%8B%AC%EC%82%AC-%ED%99%95%EC%A0%95%EA%B9%8C%EC%A7%80-%ED%95%84%EC%88%98-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%EC%84%A4%EA%B3%84-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EC%8B%AC%EC%82%AC-%ED%99%95%EC%A0%95%EA%B9%8C%EC%A7%80-%ED%95%84%EC%88%98-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <pubDate>Thu, 25 Jun 2026 00:14:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 학술대회 및 학회 행사의 초록 접수부터 심사, 최종 확정까지 시스템으로 통제하는 방법을 다룹니다. 초록 접수 관리자 화면 설계 시 필수적으로 구현해야 할 핵심 항목과 구축 가이드를 확인해 보세요. 초록 접수 현황 대시보드와 폼 데이터 설계 (준비물·전제조건) 심사위원 배정부터 수정 요청까지 시스템으로</description>
+      <category>시스템개발</category>
+    </item>
+    <item>
+      <title>컨퍼런스 세션 운영 기준: 트랙 기획부터 입장 통제까지</title>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%84%B8%EC%85%98-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%ED%8A%B8%EB%9E%99-%EA%B8%B0%ED%9A%8D%EB%B6%80%ED%84%B0-%EC%9E%85%EC%9E%A5-%ED%86%B5%EC%A0%9C%EA%B9%8C%EC%A7%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%84%B8%EC%85%98-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%ED%8A%B8%EB%9E%99-%EA%B8%B0%ED%9A%8D%EB%B6%80%ED%84%B0-%EC%9E%85%EC%9E%A5-%ED%86%B5%EC%A0%9C%EA%B9%8C%EC%A7%80</guid>
+      <pubDate>Thu, 25 Jun 2026 00:09:06 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 홍보/커뮤니케이션 기업의 성공적인 컨퍼런스를 위한 세션 운영 기준을 정리합니다. 트랙 기획, 연사 섭외 관리, 시간 배정, 입장 통제부터 데이터 기반 성과 분석까지 체계적인 설계 방안을 확인해 보세요. 컨퍼런스 목적에 맞춘 트랙 기획과 세션 타임테이블 설계 기준 다수 연사 초청 관리와 실시간 중계를 </description>
+      <category>학술대회</category>
+    </item>
+    <item>
+      <title>병원 홈페이지 모바일 신청폼 설계 기준: 이탈 없는 항목 구성 순서</title>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EB%AA%A8%EB%B0%94%EC%9D%BC-%EC%8B%A0%EC%B2%AD%ED%8F%BC-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%9D%B4%ED%83%88-%EC%97%86%EB%8A%94-%ED%95%AD%EB%AA%A9-%EA%B5%AC%EC%84%B1-%EC%88%9C%EC%84%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EB%AA%A8%EB%B0%94%EC%9D%BC-%EC%8B%A0%EC%B2%AD%ED%8F%BC-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%9D%B4%ED%83%88-%EC%97%86%EB%8A%94-%ED%95%AD%EB%AA%A9-%EA%B5%AC%EC%84%B1-%EC%88%9C%EC%84%9C</guid>
+      <pubDate>Thu, 25 Jun 2026 00:09:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 모바일 환자의 이탈을 막기 위한 진료예약 및 상담 신청폼 설계 기준과 항목 구성 순서를 알아봅니다. 최적의 UI/UX로 접수 전환율을 높이세요. 1. 모바일 이탈을 막는 신청폼 항목 설계 최적 우선순위 및 UI/UX 기준 2. 채널 연동(네이버/카카오/자체) 장단점 비교 및 의</description>
+      <category>예약결제</category>
+    </item>
+    <item>
       <title>학술대회 초록 접수 운영: 접수대 혼잡 병목 해소 기준</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%9A%B4%EC%98%81-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1-%EB%B3%91%EB%AA%A9-%ED%95%B4%EC%86%8C-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%9A%B4%EC%98%81-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1-%EB%B3%91%EB%AA%A9-%ED%95%B4%EC%86%8C-%EA%B8%B0%EC%A4%80</guid>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%9A%B4%EC%98%81-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1-%EB%B3%91%EB%AA%A9-%ED%95%B4%EC%86%8C-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%9A%B4%EC%98%81-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1-%EB%B3%91%EB%AA%A9-%ED%95%B4%EC%86%8C-%EA%B8%B0%EC%A4%80</guid>
       <pubDate>Wed, 24 Jun 2026 11:15:26 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학회 및 학술대회 초록 접수 운영 기간 중 발생하는 접수대 혼잡 문제를 해결하기 위한 구체적인 피크타임 대응, 동선 설계, 시스템 통합 기준과 개선 방안을 확인하세요. 초록 접수대 병목 원인 분석 및 사전 온라인·현장 접수 비율 조정 피크타임 예측 및 유동 인원 동선 설계와 데스크 인력 배치 기준 판</description>
       <category>학회운영</category>
     </item>
     <item>
       <title>초록 접수 시스템 API 연동 전 필수 사전 점검 체크리스트</title>
-      <link>https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%82%AC%EC%A0%84-%EC%A0%90%EA%B2%80-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%82%AC%EC%A0%84-%EC%A0%90%EA%B2%80-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
+      <link>https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%82%AC%EC%A0%84-%EC%A0%90%EA%B2%80-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%82%AC%EC%A0%84-%EC%A0%90%EA%B2%80-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
       <pubDate>Wed, 24 Jun 2026 03:14:03 GMT</pubDate>
       <description>핵심 요약 읽기 3분 초록 접수 시스템 개발 시 외부 API 연동 작업 전 반드시 확인해야 할 회원DB 스키마, API 명세서, 예외 처리 등 기술적 준비 사항과 체크리스트를 정리했습니다. 1단계: 회원DB 스키마부터 결제(PG) 정책까지, 연동 전 필수 협의 항목 2단계: 논문심사·현장관리 API 명세서 확정 및 출력 </description>
       <category>시스템개발</category>
     </item>
     <item>
       <title>병원 홈페이지 제작 검색 노출을 위한 기본 SEO 세팅 우선순위</title>
-      <link>https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%80%EC%83%89-%EB%85%B8%EC%B6%9C%EC%9D%84-%EC%9C%84%ED%95%9C-%EA%B8%B0%EB%B3%B8-seo-%EC%84%B8%ED%8C%85-%EC%9A%B0%EC%84%A0%EC%88%9C%EC%9C%84</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%80%EC%83%89-%EB%85%B8%EC%B6%9C%EC%9D%84-%EC%9C%84%ED%95%9C-%EA%B8%B0%EB%B3%B8-seo-%EC%84%B8%ED%8C%85-%EC%9A%B0%EC%84%A0%EC%88%9C%EC%9C%84</guid>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%80%EC%83%89-%EB%85%B8%EC%B6%9C%EC%9D%84-%EC%9C%84%ED%95%9C-%EA%B8%B0%EB%B3%B8-seo-%EC%84%B8%ED%8C%85-%EC%9A%B0%EC%84%A0%EC%88%9C%EC%9C%84</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%80%EC%83%89-%EB%85%B8%EC%B6%9C%EC%9D%84-%EC%9C%84%ED%95%9C-%EA%B8%B0%EB%B3%B8-seo-%EC%84%B8%ED%8C%85-%EC%9A%B0%EC%84%A0%EC%88%9C%EC%9C%84</guid>
       <pubDate>Wed, 24 Jun 2026 02:59:04 GMT</pubDate>
       <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 구글과 네이버 검색 노출을 극대화하기 위한 기본 SEO 세팅 항목과 설계 우선순위를 정리했습니다. 메타 태그 설계부터 의료법 준수까지 핵심 가이드를 확인하세요. 1. 오픈 전 필수 준비물: 진료과목별 메타 태그와 URL 구조 설계 2. 검색 노출 동기화: 네이버 서치어드바이저·</description>
       <category>SEO</category>
     </item>
     <item>
       <title>컨퍼런스 통역 안내 설계 기준: 글로벌 행사 운영 핵심 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%86%B5%EC%97%AD-%EC%95%88%EB%82%B4-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B8%80%EB%A1%9C%EB%B2%8C-%ED%96%89%EC%82%AC-%EC%9A%B4%EC%98%81-%ED%95%B5%EC%8B%AC-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%86%B5%EC%97%AD-%EC%95%88%EB%82%B4-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B8%80%EB%A1%9C%EB%B2%8C-%ED%96%89%EC%82%AC-%EC%9A%B4%EC%98%81-%ED%95%B5%EC%8B%AC-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%86%B5%EC%97%AD-%EC%95%88%EB%82%B4-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B8%80%EB%A1%9C%EB%B2%8C-%ED%96%89%EC%82%AC-%EC%9A%B4%EC%98%81-%ED%95%B5%EC%8B%AC-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%86%B5%EC%97%AD-%EC%95%88%EB%82%B4-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B8%80%EB%A1%9C%EB%B2%8C-%ED%96%89%EC%82%AC-%EC%9A%B4%EC%98%81-%ED%95%B5%EC%8B%AC-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
       <pubDate>Wed, 24 Jun 2026 01:24:02 GMT</pubDate>
       <description>핵심 요약 읽기 3분 글로벌 기업 컨퍼런스 통역 안내 설계 기준과 핵심 고려 요소를 정리합니다. 통역 방식 선택, QR 연동 채널 구축, 현장 기술 환경 점검부터 데이터 보호까지 성공적인 통역 시스템 운영을 위한 실전 가이드를 확인하세요. 규모·참석자 비율에 따른 통역 방식과 전용기기 vs 스마트폰 활용 예산 비교 현장 </description>
       <category>학술대회</category>
     </item>
     <item>
       <title>컨퍼런스 현장 체크인 시스템: 병목 해결을 위한 데이터 항목 설계 기준</title>
-      <link>https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%98%84%EC%9E%A5-%EC%B2%B4%ED%81%AC%EC%9D%B8-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EC%9D%84-%EC%9C%84%ED%95%9C-%EB%8D%B0%EC%9D%B4%ED%84%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%98%84%EC%9E%A5-%EC%B2%B4%ED%81%AC%EC%9D%B8-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EC%9D%84-%EC%9C%84%ED%95%9C-%EB%8D%B0%EC%9D%B4%ED%84%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%98%84%EC%9E%A5-%EC%B2%B4%ED%81%AC%EC%9D%B8-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EC%9D%84-%EC%9C%84%ED%95%9C-%EB%8D%B0%EC%9D%B4%ED%84%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%ED%98%84%EC%9E%A5-%EC%B2%B4%ED%81%AC%EC%9D%B8-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EC%9D%84-%EC%9C%84%ED%95%9C-%EB%8D%B0%EC%9D%B4%ED%84%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
       <pubDate>Wed, 24 Jun 2026 01:14:02 GMT</pubDate>
       <description>핵심 요약 읽기 3분 홍보기업이 컨퍼런스 현장 체크인 시스템을 구축할 때 직면하는 운영 병목을 해결하는 핵심 설계 기준을 정리했습니다. 무인 발권, 맞춤형 명찰, 실시간 통제 시스템 구축 노하우를 확인해 보세요. 대규모 동시 입장 병목 해결: 무인 체크인 기기·네트워크 설계 기준 참가자 유형별 권한 차등과 실시간 맞춤형 </description>
       <category>학술대회</category>
     </item>
     <item>
       <title>학술대회 초록 접수 시스템, 홈페이지 연동 구축 및 운영 가이드</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%97%B0%EB%8F%99-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%97%B0%EB%8F%99-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%97%B0%EB%8F%99-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%97%B0%EB%8F%99-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
       <pubDate>Wed, 24 Jun 2026 01:04:13 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학술대회 홈페이지에 초록 접수 시스템을 연동하여 구축하는 전체 절차를 안내합니다. API 연결부터 관리자 운영 체계, 보안 및 개인정보 처리까지 성공적인 운영 방법을 확인해 보세요. 1. 초록 접수 연동 준비: API 연결과 필수 입력 항목 설계 2. 관리자 운영 체계 구축: 실시간 현황, 기한 연장</description>
       <category>학회운영</category>
     </item>
     <item>
       <title>학회 초록 접수 시스템 구축 및 운영: 사무국 필수 체크리스트</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
+      <link>https://beoksolution.com/blog/%ED%95%99%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%ED%9A%8C-%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
       <pubDate>Wed, 24 Jun 2026 00:39:06 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학회 행사 전 학회 초록 접수 시스템 구축과 운영 준비 단계에서 사무국이 점검해야 할 필수 항목을 정리했습니다. 트래픽 대응, 논문 심사 배정, 현장 체크인 등 기술 및 행정 이슈 해결 방법을 확인하세요. 1. 초록 접수 사전 셋업: 홈페이지 DB 연동 및 첨부 파일 기준 설계 2. 접수 마감 임박 </description>
       <category>학회운영</category>
     </item>
     <item>
       <title>병원 홈페이지 제작 회원 권한 및 자료실 보안 설계 체크리스트</title>
-      <link>https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%9A%8C%EC%9B%90-%EA%B6%8C%ED%95%9C-%EB%B0%8F-%EC%9E%90%EB%A3%8C%EC%8B%A4-%EB%B3%B4%EC%95%88-%EC%84%A4%EA%B3%84-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%9A%8C%EC%9B%90-%EA%B6%8C%ED%95%9C-%EB%B0%8F-%EC%9E%90%EB%A3%8C%EC%8B%A4-%EB%B3%B4%EC%95%88-%EC%84%A4%EA%B3%84-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%9A%8C%EC%9B%90-%EA%B6%8C%ED%95%9C-%EB%B0%8F-%EC%9E%90%EB%A3%8C%EC%8B%A4-%EB%B3%B4%EC%95%88-%EC%84%A4%EA%B3%84-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%9A%8C%EC%9B%90-%EA%B6%8C%ED%95%9C-%EB%B0%8F-%EC%9E%90%EB%A3%8C%EC%8B%A4-%EB%B3%B4%EC%95%88-%EC%84%A4%EA%B3%84-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
       <pubDate>Wed, 24 Jun 2026 00:39:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 진료 자료실 구축과 병원 홈페이지 제작 회원 권한 항목을 사전에 설계하는 기준을 확인하세요. 의료법 준수와 보안 로그 관리까지 완벽한 체크리스트를 제공합니다. 1. 병원 홈페이지 제작 전 필수 전제: 권한 세분화와 본인인증 구분 2. 의료법·개인정보보호법 준수: 자료실 접근 제</description>
       <category>홈페이지제작</category>
     </item>
     <item>
       <title>병원 홈페이지 제작, 결제·알림톡 연동을 먼저 설계하는 기준</title>
-      <link>https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%97%B0%EB%8F%99%EC%9D%84-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%98%EB%8A%94-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%97%B0%EB%8F%99%EC%9D%84-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%98%EB%8A%94-%EA%B8%B0%EC%A4%80</guid>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%97%B0%EB%8F%99%EC%9D%84-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%98%EB%8A%94-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%97%B0%EB%8F%99%EC%9D%84-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%98%EB%8A%94-%EA%B8%B0%EC%A4%80</guid>
       <pubDate>Wed, 24 Jun 2026 00:34:08 GMT</pubDate>
       <description>핵심 요약 읽기 3분 병원 홈페이지 제작 시 예약 연동 결제 및 알림톡 자동 발송 시스템을 선제적으로 설계하는 방법을 확인하세요. PG 가입부터 의료법 준수 및 개발사 기획 세팅 기준까지 상세히 안내합니다. 1. 단순 디자인을 넘어선 이유: 예약-결제-알림톡 백엔드 설계가 필요한 병원 운영 현황 2. [준비 및 단계별 절</description>
       <category>홈페이지제작</category>
     </item>
     <item>
       <title>컨퍼런스 참가자 안내 항목 설계 기준: 단계별 필수 정보와 시스템 연동</title>
-      <link>https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%B0%B8%EA%B0%80%EC%9E%90-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%8B%A8%EA%B3%84%EB%B3%84-%ED%95%84%EC%88%98-%EC%A0%95%EB%B3%B4%EC%99%80-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%B0%B8%EA%B0%80%EC%9E%90-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%8B%A8%EA%B3%84%EB%B3%84-%ED%95%84%EC%88%98-%EC%A0%95%EB%B3%B4%EC%99%80-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</guid>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%B0%B8%EA%B0%80%EC%9E%90-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%8B%A8%EA%B3%84%EB%B3%84-%ED%95%84%EC%88%98-%EC%A0%95%EB%B3%B4%EC%99%80-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EC%B0%B8%EA%B0%80%EC%9E%90-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%8B%A8%EA%B3%84%EB%B3%84-%ED%95%84%EC%88%98-%EC%A0%95%EB%B3%B4%EC%99%80-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</guid>
       <pubDate>Wed, 24 Jun 2026 00:09:06 GMT</pubDate>
       <description>핵심 요약 읽기 3분 홍보·커뮤니케이션 기업이 컨퍼런스를 운영할 때 필수로 알아야 할 참가자 안내 항목 설계 기준을 정리합니다. 사전등록부터 QR 발권, 돌발 상황 대응 및 시스템 연동 방안까지 확인해 보세요. 사전등록부터 사후조사까지, 단계별 안내 항목 설계와 톤앤매너 기준 대규모 인원 혼란 방지를 위한 QR 발권·명찰</description>
       <category>학술대회</category>
     </item>
     <item>
       <title>초록 접수 시스템 개발, 검색·필터를 먼저 설계해야 하는 이유</title>
-      <link>https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EA%B2%80%EC%83%89-%ED%95%84%ED%84%B0%EB%A5%BC-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EA%B2%80%EC%83%89-%ED%95%84%ED%84%B0%EB%A5%BC-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</guid>
+      <link>https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EA%B2%80%EC%83%89-%ED%95%84%ED%84%B0%EB%A5%BC-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EA%B2%80%EC%83%89-%ED%95%84%ED%84%B0%EB%A5%BC-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</guid>
       <pubDate>Wed, 24 Jun 2026 00:09:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 초록 접수 시스템 개발 시 검색 및 필터 기능을 우선 설계해야 하는 이유와 DB 데이터 구조 준비부터 쿼리 최적화까지의 구체적인 방법을 알아봅니다. 성공적인 시스템 구축을 위한 필수 가이드입니다. 초록 접수 시스템 개발 시 검색·필터를 가장 먼저 설계하는 구조적 이유 단계별 실행: DB 저장 구조 최</description>
       <category>시스템개발</category>
     </item>
     <item>
       <title>초록 접수 시스템 알림톡 이메일 발송 기준 및 구현 노하우</title>
-      <link>https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B5%AC%ED%98%84-%EB%85%B8%ED%95%98%EC%9A%B0</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B5%AC%ED%98%84-%EB%85%B8%ED%95%98%EC%9A%B0</guid>
+      <link>https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B5%AC%ED%98%84-%EB%85%B8%ED%95%98%EC%9A%B0</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B5%AC%ED%98%84-%EB%85%B8%ED%95%98%EC%9A%B0</guid>
       <pubDate>Wed, 24 Jun 2026 00:04:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 초록 접수 시스템 개발 시 알림톡과 이메일 발송 대상, 조건, 예외 처리 등 구체적인 구현 기준과 운영 노하우를 정리합니다. 용도별 발송 설계 가이드를 확인하세요. 알림톡과 이메일 용도 분리: 접수 완료 안내 vs 영수증 증빙 카카오 채널 개설부터 알림톡 API 연동까지: 개발 절차와 필수 준비물 판</description>
       <category>시스템개발</category>
     </item>
     <item>
       <title>현장등록 시스템 개발 범위 산정 가이드: 현장 병목 현상 해결</title>
-      <link>https://beokmkt.web.app/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%B2%94%EC%9C%84-%EC%82%B0%EC%A0%95-%EA%B0%80%EC%9D%B4%EB%93%9C-%ED%98%84%EC%9E%A5-%EB%B3%91%EB%AA%A9-%ED%98%84%EC%83%81-%ED%95%B4%EA%B2%B0</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%B2%94%EC%9C%84-%EC%82%B0%EC%A0%95-%EA%B0%80%EC%9D%B4%EB%93%9C-%ED%98%84%EC%9E%A5-%EB%B3%91%EB%AA%A9-%ED%98%84%EC%83%81-%ED%95%B4%EA%B2%B0</guid>
+      <link>https://beoksolution.com/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%B2%94%EC%9C%84-%EC%82%B0%EC%A0%95-%EA%B0%80%EC%9D%B4%EB%93%9C-%ED%98%84%EC%9E%A5-%EB%B3%91%EB%AA%A9-%ED%98%84%EC%83%81-%ED%95%B4%EA%B2%B0</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%B2%94%EC%9C%84-%EC%82%B0%EC%A0%95-%EA%B0%80%EC%9D%B4%EB%93%9C-%ED%98%84%EC%9E%A5-%EB%B3%91%EB%AA%A9-%ED%98%84%EC%83%81-%ED%95%B4%EA%B2%B0</guid>
       <pubDate>Tue, 23 Jun 2026 10:54:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학술대회 등 행사 현장등록 운영 과정의 병목 현상 해결을 위해 비오케이솔루션에 현장등록 시스템 개발 범위를 산정하고 명세화하는 방법을 핵심 체크리스트와 함께 알아보세요. 현장 동선(접수-발권-입장) 분석으로 개발 범위 시작하기 중복 접수 방지·실시간 결제 연동 시스템 요구사항 정의 판단 포인트 본문의</description>
       <category>시스템개발</category>
     </item>
     <item>
       <title>병원 홈페이지 예약 시스템 제작: 접수부터 변경·EMR 연동 기준</title>
-      <link>https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%98%88%EC%95%BD-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%A0%9C%EC%9E%91-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-emr-%EC%97%B0%EB%8F%99-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%98%88%EC%95%BD-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%A0%9C%EC%9E%91-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-emr-%EC%97%B0%EB%8F%99-%EA%B8%B0%EC%A4%80</guid>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%98%88%EC%95%BD-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%A0%9C%EC%9E%91-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-emr-%EC%97%B0%EB%8F%99-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%98%88%EC%95%BD-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%A0%9C%EC%9E%91-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-emr-%EC%97%B0%EB%8F%99-%EA%B8%B0%EC%A4%80</guid>
       <pubDate>Tue, 23 Jun 2026 09:44:03 GMT</pubDate>
       <description>핵심 요약 읽기 3분 병원 홈페이지 예약 시스템 제작 시 전화 문의를 줄이는 접수 폼 항목 설계, 환자 직접 변경 UI, 노쇼 방지, EMR 연동 등 구체적인 개발 가이드를 확인하세요. 예약 접수 폼 필수 항목 설계와 EMR 실시간 연동 개발 조건 예약 변경·취소 UI/UX와 노쇼 방지 설계 판단 포인트 운영 목적과 신청</description>
       <category>홈페이지제작</category>
     </item>
     <item>
       <title>학술대회 현장등록 운영: MICE 관점 병목 해결과 데스크 세팅 기준</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-mice-%EA%B4%80%EC%A0%90-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EA%B3%BC-%EB%8D%B0%EC%8A%A4%ED%81%AC-%EC%84%B8%ED%8C%85-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-mice-%EA%B4%80%EC%A0%90-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EA%B3%BC-%EB%8D%B0%EC%8A%A4%ED%81%AC-%EC%84%B8%ED%8C%85-%EA%B8%B0%EC%A4%80</guid>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-mice-%EA%B4%80%EC%A0%90-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EA%B3%BC-%EB%8D%B0%EC%8A%A4%ED%81%AC-%EC%84%B8%ED%8C%85-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-mice-%EA%B4%80%EC%A0%90-%EB%B3%91%EB%AA%A9-%ED%95%B4%EA%B2%B0%EA%B3%BC-%EB%8D%B0%EC%8A%A4%ED%81%AC-%EC%84%B8%ED%8C%85-%EA%B8%B0%EC%A4%80</guid>
       <pubDate>Tue, 23 Jun 2026 08:14:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학술대회 당일 대기 행렬을 최소화하고 운영 효율을 극대화하는 학술대회 현장등록 운영 가이드입니다. 동선 설계, QR 키오스크 세팅, 결제 돌발 상황 대응 체크리스트를 확인하세요. 현장등록 데스크 동선 설계와 카운터 배치 기준: 예상 인원별 분리 전략 QR 셀프 명찰 출력 키오스크 하드웨어·네트워크 준</description>
       <category>학술대회</category>
     </item>
     <item>
       <title>컨퍼런스 등록 페이지 항목 설계 기준: 이탈 방지부터 발권 연동까지</title>
-      <link>https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%9D%B4%ED%83%88-%EB%B0%A9%EC%A7%80%EB%B6%80%ED%84%B0-%EB%B0%9C%EA%B6%8C-%EC%97%B0%EB%8F%99%EA%B9%8C%EC%A7%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%9D%B4%ED%83%88-%EB%B0%A9%EC%A7%80%EB%B6%80%ED%84%B0-%EB%B0%9C%EA%B6%8C-%EC%97%B0%EB%8F%99%EA%B9%8C%EC%A7%80</guid>
+      <link>https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%9D%B4%ED%83%88-%EB%B0%A9%EC%A7%80%EB%B6%80%ED%84%B0-%EB%B0%9C%EA%B6%8C-%EC%97%B0%EB%8F%99%EA%B9%8C%EC%A7%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A8%ED%8D%BC%EB%9F%B0%EC%8A%A4-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%9D%B4%ED%83%88-%EB%B0%A9%EC%A7%80%EB%B6%80%ED%84%B0-%EB%B0%9C%EA%B6%8C-%EC%97%B0%EB%8F%99%EA%B9%8C%EC%A7%80</guid>
       <pubDate>Tue, 23 Jun 2026 08:04:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 홍보·커뮤니케이션 기업이 컨퍼런스를 기획할 때 운영 효율과 참가자 데이터를 극대화하는 컨퍼런스 등록 페이지 항목 설계 기준을 정리했습니다. 이탈 최소화부터 명찰 발권 연동, 조건별 요금 자동화까지 성공적인 행사 운영을 위한 핵심 가이드를 확인해 보세요. 운영 효율과 리타겟팅을 동시에 잡는 폼 항목 설</description>
       <category>학술대회</category>
     </item>
     <item>
       <title>병원 홈페이지 문의폼 설계: 백엔드 DB부터 잡는 실무 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EB%B0%B1%EC%97%94%EB%93%9C-db%EB%B6%80%ED%84%B0-%EC%9E%A1%EB%8A%94-%EC%8B%A4%EB%AC%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EB%B0%B1%EC%97%94%EB%93%9C-db%EB%B6%80%ED%84%B0-%EC%9E%A1%EB%8A%94-%EC%8B%A4%EB%AC%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <link>https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EB%B0%B1%EC%97%94%EB%93%9C-db%EB%B6%80%ED%84%B0-%EC%9E%A1%EB%8A%94-%EC%8B%A4%EB%AC%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EB%B3%91%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EB%B0%B1%EC%97%94%EB%93%9C-db%EB%B6%80%ED%84%B0-%EC%9E%A1%EB%8A%94-%EC%8B%A4%EB%AC%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
       <pubDate>Tue, 23 Jun 2026 06:09:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 병원 홈페이지 문의폼 설계와 관리자 화면 항목을 백엔드 데이터베이스부터 설계하는 방법을 알아봅니다. 진료 예약과 1:1 문의 분리부터 알림톡 연동까지 실무 체크리스트를 제공합니다. 프론트 디자인 전 백엔드 DB를 먼저 설계해야 하는 이유와 문의폼 필수 항목 1:1 문의와 온라인 진료 예약 시스템 분리</description>
       <category>예약결제</category>
     </item>
     <item>
       <title>학원 홈페이지 제작 SSL 도메인 설정 기준과 연동 가이드</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-ssl-%EB%8F%84%EB%A9%94%EC%9D%B8-%EC%84%A4%EC%A0%95-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%97%B0%EB%8F%99-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-ssl-%EB%8F%84%EB%A9%94%EC%9D%B8-%EC%84%A4%EC%A0%95-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%97%B0%EB%8F%99-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-ssl-%EB%8F%84%EB%A9%94%EC%9D%B8-%EC%84%A4%EC%A0%95-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%97%B0%EB%8F%99-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-ssl-%EB%8F%84%EB%A9%94%EC%9D%B8-%EC%84%A4%EC%A0%95-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%97%B0%EB%8F%99-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
       <pubDate>Tue, 23 Jun 2026 05:49:07 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학원 홈페이지 제작 시 주키워드 SSL 도메인 연동의 핵심 기준을 확인하세요. 보안 인증서 발급부터 NS 변경 없는 호스팅 연동, 접속 오류 해결까지 실무 절차를 정리했습니다. 도메인 소유권과 SSL 선택 기준: 초기 비용 0원의 숨은 함정 피하기 개발사와 호스팅이 다를 때: NS 변경 없이 CNAM</description>
       <category>홈페이지제작</category>
     </item>
     <item>
       <title>초록 접수 시스템 상태값 설계 기준 및 권한 제어 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%83%81%ED%83%9C%EA%B0%92-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B6%8C%ED%95%9C-%EC%A0%9C%EC%96%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%83%81%ED%83%9C%EA%B0%92-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B6%8C%ED%95%9C-%EC%A0%9C%EC%96%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
+      <link>https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%83%81%ED%83%9C%EA%B0%92-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B6%8C%ED%95%9C-%EC%A0%9C%EC%96%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%83%81%ED%83%9C%EA%B0%92-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%EA%B6%8C%ED%95%9C-%EC%A0%9C%EC%96%B4-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
       <pubDate>Tue, 23 Jun 2026 05:34:11 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학회 및 논문 초록 접수 시스템 개발 시 저자, 심사위원, 운영자 간의 원활한 프로세스를 위한 상태값 분류 기준과 권한 제어 로직을 완벽하게 정리했습니다. DB 설계 및 예외 통제 방법을 확인해 보세요. 초록 접수부터 최종 게재까지: 전체 프로세스 상태값 정의 및 흐름도 설계 저자·심사위원·운영자 역</description>
       <category>시스템개발</category>
     </item>
     <item>
       <title>학원 홈페이지 제작 체크리스트: 상담 전 기획 기준과 필수 항목</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EC%83%81%EB%8B%B4-%EC%A0%84-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EC%83%81%EB%8B%B4-%EC%A0%84-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</guid>
+      <link>https://beoksolution.com/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EC%83%81%EB%8B%B4-%EC%A0%84-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EC%83%81%EB%8B%B4-%EC%A0%84-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</guid>
       <pubDate>Tue, 23 Jun 2026 04:59:05 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학원 홈페이지 제작 체크리스트의 핵심은 예산과 목적에 맞춰 필수 기능을 선별하는 것입니다. 상담 전 기획자가 먼저 잡아야 할 설계 기준과 체크리스트 항목을 확인해 보세요. 1단계. 목적과 보유 자료를 먼저 정리해 불필요한 기능 배제하기 2단계. 결제·수강증·학사 관리 연동과 모바일 SEO 레이아웃 설</description>
       <category>홈페이지제작</category>
-    </item>
-    <item>
-      <title>참가자 등록 시스템 운영 로그 기준: 항목, 법적 의무와 보관</title>
-      <link>https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%9A%B4%EC%98%81-%EB%A1%9C%EA%B7%B8-%EA%B8%B0%EC%A4%80-%ED%95%AD%EB%AA%A9-%EB%B2%95%EC%A0%81-%EC%9D%98%EB%AC%B4%EC%99%80-%EB%B3%B4%EA%B4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%9A%B4%EC%98%81-%EB%A1%9C%EA%B7%B8-%EA%B8%B0%EC%A4%80-%ED%95%AD%EB%AA%A9-%EB%B2%95%EC%A0%81-%EC%9D%98%EB%AC%B4%EC%99%80-%EB%B3%B4%EA%B4%80</guid>
-      <pubDate>Tue, 23 Jun 2026 04:09:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 참가자 등록 시스템 개발 시 법적 의무 준수와 보안, 장애 대응을 위한 운영 로그 기준을 정리합니다. 개인정보 열람 기록부터 결제 오류, 트랜잭션 로그 항목 설정 방법까지 핵심 가이드를 확인하세요. 운영 로그 기본 항목과 법적 의무: 접속·열람 기록부터 보관 기간까지 접수 폭주와 결제 오류에 대비하는</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>사전등록 시스템 개발 범위 설정 가이드: 요구사항 명세부터 견적까지</title>
-      <link>https://beokmkt.web.app/blog/%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%B2%94%EC%9C%84-%EC%84%A4%EC%A0%95-%EA%B0%80%EC%9D%B4%EB%93%9C-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EB%AA%85%EC%84%B8%EB%B6%80%ED%84%B0-%EA%B2%AC%EC%A0%81%EA%B9%8C%EC%A7%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%B2%94%EC%9C%84-%EC%84%A4%EC%A0%95-%EA%B0%80%EC%9D%B4%EB%93%9C-%EC%9A%94%EA%B5%AC%EC%82%AC%ED%95%AD-%EB%AA%85%EC%84%B8%EB%B6%80%ED%84%B0-%EA%B2%AC%EC%A0%81%EA%B9%8C%EC%A7%80</guid>
-      <pubDate>Tue, 23 Jun 2026 03:59:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학회 및 MICE 행사의 사전등록 운영 요구사항을 소프트웨어 개발사의 사전등록 시스템 개발 범위로 누락 없이 정의하고 견적을 준비하는 방법을 확인해 보세요. 결론 및 사전등록 시스템 기획 전 필수 준비물 단계별 개발 범위 명세: 폼·결제 연동부터 현장 무인 체크인·명찰 출력까지 판단 포인트 본문의 기</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>학술대회 스폰서 노출 항목 기획 기준: 등급별 구좌 설계와 성과 데이터</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%8A%A4%ED%8F%B0%EC%84%9C-%EB%85%B8%EC%B6%9C-%ED%95%AD%EB%AA%A9-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80-%EB%93%B1%EA%B8%89%EB%B3%84-%EA%B5%AC%EC%A2%8C-%EC%84%A4%EA%B3%84%EC%99%80-%EC%84%B1%EA%B3%BC-%EB%8D%B0%EC%9D%B4%ED%84%B0</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%8A%A4%ED%8F%B0%EC%84%9C-%EB%85%B8%EC%B6%9C-%ED%95%AD%EB%AA%A9-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80-%EB%93%B1%EA%B8%89%EB%B3%84-%EA%B5%AC%EC%A2%8C-%EC%84%A4%EA%B3%84%EC%99%80-%EC%84%B1%EA%B3%BC-%EB%8D%B0%EC%9D%B4%ED%84%B0</guid>
-      <pubDate>Tue, 23 Jun 2026 03:44:03 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 국제학술대회 기획 시 예산과 시스템에 맞춰 학술대회 스폰서 노출 항목을 차등 설계하는 실무 기준을 확인하세요. 등급별 노출 면적 산정부터 실시간 리드 데이터 수집까지 성과를 극대화하는 구축 노하우를 제공합니다. 스폰서 Tier별 노출 면적·횟수 차등 설계와 구좌별 가치 산정 기준 다수 스폰서 로고 자</description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>참가자 등록 시스템 API 연동 전 필수 점검 6가지 오류 방지 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%A0%90%EA%B2%80-6%EA%B0%80%EC%A7%80-%EC%98%A4%EB%A5%98-%EB%B0%A9%EC%A7%80-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-api-%EC%97%B0%EB%8F%99-%EC%A0%84-%ED%95%84%EC%88%98-%EC%A0%90%EA%B2%80-6%EA%B0%80%EC%A7%80-%EC%98%A4%EB%A5%98-%EB%B0%A9%EC%A7%80-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Tue, 23 Jun 2026 03:34:18 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 참가자 등록 시스템 개발 시 API 연동 단계에서 발생할 수 있는 결제, 트래픽, 보안 오류를 예방하기 위해 사전에 확인해야 할 필수 점검 항목과 기술적 조건을 정리했습니다. 연동 전 준비물: 데이터 포맷·파라미터 스펙 사전 정의와 SSL/TLS 보안 조건 단계별 절차 1: 결제·문자 API 일일 요</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>초록 접수 시스템 개발: 엑셀 업무를 없애는 화면 설계 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EC%97%91%EC%85%80-%EC%97%85%EB%AC%B4%EB%A5%BC-%EC%97%86%EC%95%A0%EB%8A%94-%ED%99%94%EB%A9%B4-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EC%97%91%EC%85%80-%EC%97%85%EB%AC%B4%EB%A5%BC-%EC%97%86%EC%95%A0%EB%8A%94-%ED%99%94%EB%A9%B4-%EC%84%A4%EA%B3%84-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Tue, 23 Jun 2026 03:34:17 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학술대회 초록 접수 시스템 개발 시 관리자의 수동 엑셀 작업을 최소화하는 화면 설계 및 자동화 방법을 알아봅니다. 접수, 결제, 알림톡 발송까지 한 번에 해결하세요. 1. 엑셀 작업이 발생하는 원인 분석 및 DB 연동 전제조건 2. 시스템 내 데이터 처리를 위한 프론트엔드 및 관리자 화면 설계 판단 </description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>국제학술대회 세션 운영 항목 설계 기준과 학회 관리자 시스템 연동</title>
-      <link>https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%84%B8%EC%85%98-%EC%9A%B4%EC%98%81-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%99%ED%9A%8C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%84%B8%EC%85%98-%EC%9A%B4%EC%98%81-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%99%ED%9A%8C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</guid>
-      <pubDate>Tue, 23 Jun 2026 03:19:04 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 국제학술대회 세션 운영 항목 설계 기준을 트랙 배정, 결제 연동, QR 출입 관리 측면에서 알아봅니다. 하이브리드 학술대회의 멀티홀 스케줄부터 통합 프로세스까지 성공적인 학회 운영을 위한 핵심 가이드를 제공합니다. 발표 종류별 세션 시간·트랙 배정과 동시 진행 스케줄 충돌 방지 기준 등록 연동·세션별</description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>참가자 등록 시스템 알림톡 이메일 발송 기준과 구현 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EA%B5%AC%ED%98%84-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9D%B4%EB%A9%94%EC%9D%BC-%EB%B0%9C%EC%86%A1-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EA%B5%AC%ED%98%84-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Tue, 23 Jun 2026 03:19:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 참가자 등록 시스템 개발 시 알림톡 이메일 발송 시점, 조건, 대규모 병목 현상 방지 및 Fallback 예외 처리 전략까지. 성공적인 시스템 연동 기준 설정을 위한 핵심 가이드를 확인해 보세요. 발송 우선순위 설계와 API 연동 필수 준비물 이벤트 트리거 기반 상황별 발송 시나리오 및 Fallbac</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>국제학술대회 행사 데이터 관리: 항목 설계 기준과 시스템 연동</title>
-      <link>https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%96%89%EC%82%AC-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EA%B4%80%EB%A6%AC-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%96%89%EC%82%AC-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EA%B4%80%EB%A6%AC-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80%EA%B3%BC-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%97%B0%EB%8F%99</guid>
-      <pubDate>Tue, 23 Jun 2026 02:19:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 국제학술대회 행사 데이터 관리를 위해 통합 DB 계층 구조 설계 기준부터 사전등록, 현장 출결, 보안 암호화, 아카이빙까지 시스템 연동 방안을 단계별로 확인해 보세요. 운영 현장의 데이터 문제 → 통합 DB 계층 구조 설계 기준 사전 등록과 현장 데스크 간 실시간 동기화 및 불일치 방지 필드 판단 포</description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>학원 홈페이지 제작, 결제 연동과 알림톡 선설계 필수 가이드</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%97%B0%EB%8F%99%EA%B3%BC-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%84%A0%EC%84%A4%EA%B3%84-%ED%95%84%EC%88%98-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%97%B0%EB%8F%99%EA%B3%BC-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%84%A0%EC%84%A4%EA%B3%84-%ED%95%84%EC%88%98-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Tue, 23 Jun 2026 01:54:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학원 홈페이지 제작 시 디자인보다 결제 연동과 알림톡 발송 기능을 먼저 설계해야 하는 이유와 필수 점검 항목을 확인하세요. 수작업을 줄이는 효율적인 세팅 기준을 안내합니다. 1. 왜 학원 홈페이지는 디자인보다 결제와 알림톡 설계가 먼저인가 2. 결제 연동과 알림톡 자동 발송을 위한 준비물 및 세팅 기</description>
-      <category>홈페이지제작</category>
-    </item>
-    <item>
-      <title>학원 홈페이지 제작 필수 SEO 세팅: 검색 노출 항목과 우선순위</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%95%84%EC%88%98-seo-%EC%84%B8%ED%8C%85-%EA%B2%80%EC%83%89-%EB%85%B8%EC%B6%9C-%ED%95%AD%EB%AA%A9%EA%B3%BC-%EC%9A%B0%EC%84%A0%EC%88%9C%EC%9C%84</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%ED%95%84%EC%88%98-seo-%EC%84%B8%ED%8C%85-%EA%B2%80%EC%83%89-%EB%85%B8%EC%B6%9C-%ED%95%AD%EB%AA%A9%EA%B3%BC-%EC%9A%B0%EC%84%A0%EC%88%9C%EC%9C%84</guid>
-      <pubDate>Tue, 23 Jun 2026 01:09:04 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 학원 홈페이지 제작 시 구글 및 네이버 검색 상위 노출을 위한 기본 SEO 세팅 항목을 알아봅니다. 메타 태그 설계부터 로컬 지도 연동, 서치콘솔 등록까지 검색 유입을 결정하는 우선순위별 설계 기준을 확인해 보세요. 1. 학원 홈페이지 검색 노출을 위한 메타 태그와 메뉴 구조 설계 2. 로컬 학원 특</description>
-      <category>SEO</category>
-    </item>
-    <item>
-      <title>학술대회 사후보고서 항목 설계 기준: 정량 데이터부터 시스템 개선까지</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%82%AC%ED%9B%84%EB%B3%B4%EA%B3%A0%EC%84%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%95%EB%9F%89-%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B6%80%ED%84%B0-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EC%84%A0%EA%B9%8C%EC%A7%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%82%AC%ED%9B%84%EB%B3%B4%EA%B3%A0%EC%84%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%95%EB%9F%89-%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B6%80%ED%84%B0-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EC%84%A0%EA%B9%8C%EC%A7%80</guid>
-      <pubDate>Tue, 23 Jun 2026 00:44:02 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 국제학술대회 종료 후 데이터 기반의 성과를 측정하고 시스템 한계를 점검하는 학술대회 사후보고서 항목 설계 기준을 알아봅니다. 마케팅, 시스템 오류, 만족도 분석으로 차기 행사를 개선하세요. 정량·정성 보고 항목 산정 기준: QR 입퇴장·결제·투표 데이터를 성과 지표로 환산하는 방법 마케팅 채널 성과와</description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>현장등록 운영 기준: 학회·행사 접수대 혼잡 줄이기 완벽 가이드</title>
-      <link>https://beokmkt.web.app/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%ED%95%99%ED%9A%8C-%ED%96%89%EC%82%AC-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1-%EC%A4%84%EC%9D%B4%EA%B8%B0-%EC%99%84%EB%B2%BD-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%ED%95%99%ED%9A%8C-%ED%96%89%EC%82%AC-%EC%A0%91%EC%88%98%EB%8C%80-%ED%98%BC%EC%9E%A1-%EC%A4%84%EC%9D%B4%EA%B8%B0-%EC%99%84%EB%B2%BD-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Tue, 23 Jun 2026 00:29:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학회 및 행사 현장등록 운영 시 접수대 혼잡을 줄이는 구체적인 기준을 안내합니다. 창구 분리, 인력 배치, 발권 및 결제 시스템 연동을 통한 대기열 통제 방법을 확인해 보세요. 현장등록 병목 현황 점검 및 사전등록 마감에 따른 창구·동선 설계 기준 시간당 처리 건수(MPU) 기반 접수 인력 배치 및 </description>
-      <category>학회운영</category>
-    </item>
-    <item>
-      <title>참가자 등록 시스템 개발, UI보다 검색과 필터를 먼저 설계해야 하는 이유</title>
-      <link>https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-ui%EB%B3%B4%EB%8B%A4-%EA%B2%80%EC%83%89%EA%B3%BC-%ED%95%84%ED%84%B0%EB%A5%BC-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-ui%EB%B3%B4%EB%8B%A4-%EA%B2%80%EC%83%89%EA%B3%BC-%ED%95%84%ED%84%B0%EB%A5%BC-%EB%A8%BC%EC%A0%80-%EC%84%A4%EA%B3%84%ED%95%B4%EC%95%BC-%ED%95%98%EB%8A%94-%EC%9D%B4%EC%9C%A0</guid>
-      <pubDate>Tue, 23 Jun 2026 00:29:02 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 참가자 등록 시스템 개발 시 현장 병목 현상을 막기 위해 UI보다 검색과 필터 기능을 먼저 설계해야 하는 이유와 DB 스키마 설계부터 시스템 구축까지의 핵심 노하우를 확인해 보세요. UI보다 검색·필터를 먼저 설계해야 하는 이유와 운영 데이터 모델링 현장 병목 현상 해결을 위한 DB 스키마 설계와 인</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>학술대회 등록 페이지 항목 설계: 결제부터 QR 연동 기준</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B2%B0%EC%A0%9C%EB%B6%80%ED%84%B0-qr-%EC%97%B0%EB%8F%99-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EB%93%B1%EB%A1%9D-%ED%8E%98%EC%9D%B4%EC%A7%80-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B2%B0%EC%A0%9C%EB%B6%80%ED%84%B0-qr-%EC%97%B0%EB%8F%99-%EA%B8%B0%EC%A4%80</guid>
-      <pubDate>Tue, 23 Jun 2026 00:19:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 국제학술대회 등록 페이지 항목 설계 시 고려해야 할 참가자 데이터 구조, 조건별 차등 결제 로직, 초록 제출 API 연동 및 사후 관리 기준을 핵심 가이드로 정리했습니다. 국제학술대회 특성 반영 참가자 정보 필드 표준화 및 다국어 UI 설계 기준 회원/비회원·사전/현장 등록 차등 결제 구현과 다국가 </description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>초록 접수 시스템 관리자 권한 분리 설계 및 보안 적용 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EA%B6%8C%ED%95%9C-%EB%B6%84%EB%A6%AC-%EC%84%A4%EA%B3%84-%EB%B0%8F-%EB%B3%B4%EC%95%88-%EC%A0%81%EC%9A%A9-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B4%88%EB%A1%9D-%EC%A0%91%EC%88%98-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EA%B6%8C%ED%95%9C-%EB%B6%84%EB%A6%AC-%EC%84%A4%EA%B3%84-%EB%B0%8F-%EB%B3%B4%EC%95%88-%EC%A0%81%EC%9A%A9-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Tue, 23 Jun 2026 00:14:05 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학술대회 등 행사 규모에 맞춰 초록 접수 시스템 관리자 권한을 세분화하고 안전하게 적용하는 방법을 알아봅니다. RBAC 역할 정의부터 프론트엔드 UI 제어, 백엔드 API 접근 통제 및 보안 취약점 방지 조치까지 상세히 확인해 보세요. 초록 접수 권한 설계 전 필수 준비: 역할 정의와 데이터베이스 스</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>현장등록 관리자 화면: 대기줄 없이 완벽 처리 필수 항목</title>
-      <link>https://beokmkt.web.app/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%EB%8C%80%EA%B8%B0%EC%A4%84-%EC%97%86%EC%9D%B4-%EC%99%84%EB%B2%BD-%EC%B2%98%EB%A6%AC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%EB%8C%80%EA%B8%B0%EC%A4%84-%EC%97%86%EC%9D%B4-%EC%99%84%EB%B2%BD-%EC%B2%98%EB%A6%AC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</guid>
-      <pubDate>Tue, 23 Jun 2026 00:09:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 행사 당일 대기줄을 줄이는 현장등록 관리자 화면 구축 방법을 알아봅니다. 모바일 UI 최적화부터 빠른 검색, 결제 연동, 명찰 발권 자동화, 현장 병목 모니터링까지 꼭 필요한 필수 항목을 확인하세요. 1. 현장등록 준비 및 관리자 화면 필수 정보 항목 구성 2. 빠른 검색·결제 연동·명찰 발권 자동화</description>
-      <category>학회운영</category>
-    </item>
-    <item>
-      <title>국제학술대회 통역 안내 항목 설계 기준: 접속·권한·돌발상황 대응</title>
-      <link>https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%86%B5%EC%97%AD-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%91%EC%86%8D-%EA%B6%8C%ED%95%9C-%EB%8F%8C%EB%B0%9C%EC%83%81%ED%99%A9-%EB%8C%80%EC%9D%91</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%86%B5%EC%97%AD-%EC%95%88%EB%82%B4-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%91%EC%86%8D-%EA%B6%8C%ED%95%9C-%EB%8F%8C%EB%B0%9C%EC%83%81%ED%99%A9-%EB%8C%80%EC%9D%91</guid>
-      <pubDate>Mon, 22 Jun 2026 08:04:15 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 국제학술대회 통역 운영 시 안내 항목 설계 기준과 시스템 연동 방안을 정리했습니다. 통역 지원 범위 설정부터 BYOD 접속 채널 분리, 권한 부여 및 사전 용어집 구축까지 성공적인 행사 운영을 위한 핵심 체크리스트를 확인하세요. 통역 지원 범위 설계 → 등록 시스템 연동으로 언어 권한 부여 하이브리드</description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>사전등록 관리자 화면 필수 항목: 학회·MICE 백오피스 구축 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9-%ED%95%99%ED%9A%8C-mice-%EB%B0%B1%EC%98%A4%ED%94%BC%EC%8A%A4-%EA%B5%AC%EC%B6%95-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9-%ED%95%99%ED%9A%8C-mice-%EB%B0%B1%EC%98%A4%ED%94%BC%EC%8A%A4-%EA%B5%AC%EC%B6%95-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Mon, 22 Jun 2026 07:04:08 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학회 및 행사 사전등록 시스템 구축 시 운영자에게 필수적인 사전등록 관리자 화면 항목을 정리합니다. 결제, 현장 접수, 출입 통제까지 효율적인 참가자 관리를 위한 백오피스 필수 기능을 확인해 보세요. 1. 사전등록 데이터 폼 설계: 참가자 정보부터 MICE 특화 필드 통합 관리 2. 결제 및 재무 이</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>국제학술대회 현장 체크인 항목 설계 기준: 접수 병목 해소와 DB 연동</title>
-      <link>https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5-%EC%B2%B4%ED%81%AC%EC%9D%B8-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%91%EC%88%98-%EB%B3%91%EB%AA%A9-%ED%95%B4%EC%86%8C%EC%99%80-db-%EC%97%B0%EB%8F%99</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5-%EC%B2%B4%ED%81%AC%EC%9D%B8-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EC%A0%91%EC%88%98-%EB%B3%91%EB%AA%A9-%ED%95%B4%EC%86%8C%EC%99%80-db-%EC%97%B0%EB%8F%99</guid>
-      <pubDate>Mon, 22 Jun 2026 06:14:05 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 국제학술대회 현장 체크인 항목 설계 기준을 알아봅니다. 접수 데스크 동선 차별화, QR 실시간 체크인 시스템 연동을 통한 입장 권한 통제, 결제 오류 등 돌발 상황 대응 매뉴얼로 혼잡을 막고 명단을 정확하게 관리하는 방안을 제시합니다. 접수 데스크 동선 차별화와 오프라인 명단 대조 병목 분석 QR 실</description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>사전등록 운영 기준: 행사 당일 접수대 병목 현상 해결 전략</title>
-      <link>https://beokmkt.web.app/blog/%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%ED%96%89%EC%82%AC-%EB%8B%B9%EC%9D%BC-%EC%A0%91%EC%88%98%EB%8C%80-%EB%B3%91%EB%AA%A9-%ED%98%84%EC%83%81-%ED%95%B4%EA%B2%B0-%EC%A0%84%EB%9E%B5</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%ED%96%89%EC%82%AC-%EB%8B%B9%EC%9D%BC-%EC%A0%91%EC%88%98%EB%8C%80-%EB%B3%91%EB%AA%A9-%ED%98%84%EC%83%81-%ED%95%B4%EA%B2%B0-%EC%A0%84%EB%9E%B5</guid>
-      <pubDate>Mon, 22 Jun 2026 04:59:05 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 행사 당일 접수대 병목 현상을 방지하는 효과적인 사전등록 운영 기준을 확인하세요. 사전 결제 유도, 동선 분리, 체크인 시스템 세팅과 현장 대응 매뉴얼을 제공합니다. 1. 사전등록 참여율을 높이는 조기 신청 유도 정책과 안내 타임라인 2. 접수대 병목 방지를 위한 물리적 동선 분리 및 맞춤형 체크인 </description>
-      <category>학회운영</category>
-    </item>
-    <item>
-      <title>참가자 등록 시스템 관리자 권한 분리 설계 및 적용 가이드</title>
-      <link>https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EA%B6%8C%ED%95%9C-%EB%B6%84%EB%A6%AC-%EC%84%A4%EA%B3%84-%EB%B0%8F-%EC%A0%81%EC%9A%A9-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B4%80%EB%A6%AC%EC%9E%90-%EA%B6%8C%ED%95%9C-%EB%B6%84%EB%A6%AC-%EC%84%A4%EA%B3%84-%EB%B0%8F-%EC%A0%81%EC%9A%A9-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Mon, 22 Jun 2026 04:04:15 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 참가자 등록 시스템 개발 시 보안과 운영 효율을 높이기 위해 관리자 권한을 세분화하는 방법을 알아봅니다. RBAC 구조 설계와 권한 분리 가이드를 확인하세요. 1. 행사 운영 시스템 권한 설계 전 준비사항과 역할 분리 기준 2. RBAC 기반 백엔드 DB 테이블 설계 및 무단 접근 차단 단계 판단 포</description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>학원 홈페이지 제작 예약 시스템: 접수·변경 항목 설계 기준</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%98%88%EC%95%BD-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%A0%91%EC%88%98-%EB%B3%80%EA%B2%BD-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%98%88%EC%95%BD-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%A0%91%EC%88%98-%EB%B3%80%EA%B2%BD-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
-      <pubDate>Mon, 22 Jun 2026 03:59:04 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학원 홈페이지 제작 예약 시스템 구축 시 전화 응대를 줄이고 업무 효율을 높이는 핵심 설계 기준을 정리합니다. 모바일 예약 폼 기획부터 일정 변경 통합 관리 백오피스 설계까지 실무에 바로 적용 가능한 가이드를 확인하세요. 1. 전제 조건: 예약·변경 접수의 목적과 견적 산정 기준 먼저 잡기 2. 단계</description>
-      <category>홈페이지제작</category>
-    </item>
-    <item>
-      <title>학술대회 현장등록 시스템, 홈페이지 DB 실시간 연동 구축 및 운영</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-db-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EC%97%B0%EB%8F%99-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-db-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EC%97%B0%EB%8F%99-%EA%B5%AC%EC%B6%95-%EB%B0%8F-%EC%9A%B4%EC%98%81</guid>
-      <pubDate>Mon, 22 Jun 2026 03:59:03 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 학술대회 당일 긴 접수 대기줄을 해결하는 학술대회 현장등록 시스템 구축 가이드입니다. 홈페이지 DB와 모바일 결제, QR 체크인을 실시간 연동하여 중복 등록 방지와 원스톱 명찰 발권을 운영하는 방법을 확인해 보세요. 현장등록 연동, 사전 준비와 시스템 연결 순서 당일 원스톱 워크플로우: 결제·QR 체</description>
-      <category>학회운영</category>
-    </item>
-    <item>
-      <title>참가자 등록 시스템 개발: 담당자 인수인계 리스크 없는 세팅</title>
-      <link>https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%8B%B4%EB%8B%B9%EC%9E%90-%EC%9D%B8%EC%88%98%EC%9D%B8%EA%B3%84-%EB%A6%AC%EC%8A%A4%ED%81%AC-%EC%97%86%EB%8A%94-%EC%84%B8%ED%8C%85</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EC%B0%B8%EA%B0%80%EC%9E%90-%EB%93%B1%EB%A1%9D-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EA%B0%9C%EB%B0%9C-%EB%8B%B4%EB%8B%B9%EC%9E%90-%EC%9D%B8%EC%88%98%EC%9D%B8%EA%B3%84-%EB%A6%AC%EC%8A%A4%ED%81%AC-%EC%97%86%EB%8A%94-%EC%84%B8%ED%8C%85</guid>
-      <pubDate>Mon, 22 Jun 2026 03:14:05 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 참가자 등록 시스템 개발 시 담당자 교체로 인한 운영 리스크를 줄이는 인수인계 세팅 방법을 알아봅니다. 데이터 연속성 확보부터 트러블슈팅, 클라우드 구축까지 실무적인 해결책을 제공합니다. 인수인계 리스크를 줄이는 데이터베이스 설계 및 관리자 권한 기준 개발사가 제공해야 할 관리자 매뉴얼과 트러블슈팅 </description>
-      <category>시스템개발</category>
-    </item>
-    <item>
-      <title>학원 홈페이지 제작 데이터 내보내기: 엑셀 추출 항목 설계 기준</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EB%82%B4%EB%B3%B4%EB%82%B4%EA%B8%B0-%EC%97%91%EC%85%80-%EC%B6%94%EC%B6%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%8D%B0%EC%9D%B4%ED%84%B0-%EB%82%B4%EB%B3%B4%EB%82%B4%EA%B8%B0-%EC%97%91%EC%85%80-%EC%B6%94%EC%B6%9C-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
-      <pubDate>Mon, 22 Jun 2026 01:19:04 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 학원 홈페이지 제작 시 상담 신청 등 수집된 고객 데이터를 엑셀로 유연하게 내보내기 위해, 데이터베이스 항목 설계 기준과 권한 제어, 오류 방지 등 적용 방법을 알아봅니다. 1. 준비 단계: 상담 신청 폼 필수/선택값 구분과 엑셀 추출 항목 설계 기준 2. 구현 및 흔한 실수 예방: 관리자 페이지 엑</description>
-      <category>홈페이지제작</category>
-    </item>
-    <item>
-      <title>국제학술대회 운영 대행: 학술대회 커뮤니케이션 항목 설계 기준</title>
-      <link>https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%9A%B4%EC%98%81-%EB%8C%80%ED%96%89-%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%BB%A4%EB%AE%A4%EB%8B%88%EC%BC%80%EC%9D%B4%EC%85%98-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%EA%B5%AD%EC%A0%9C%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%9A%B4%EC%98%81-%EB%8C%80%ED%96%89-%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%EC%BB%A4%EB%AE%A4%EB%8B%88%EC%BC%80%EC%9D%B4%EC%85%98-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
-      <pubDate>Mon, 22 Jun 2026 01:19:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 국제학술대회 운영 대행 시 클라이언트와의 원활한 소통을 위해 학술대회 커뮤니케이션 항목 설계 기준을 알아봅니다. 요구사항 변경 통제부터 정산 데이터 인계까지 효율적인 운영 노하우를 확인하세요. 킥오프부터 요구사항 수렴까지: 국제학술대회 특화 커뮤니케이션 항목 설계 기준 홈페이지·등록 시스템 연동 과정</description>
-      <category>학술대회</category>
-    </item>
-    <item>
-      <title>학원 홈페이지 제작 관리자 대시보드 설계 기준 및 핵심 세팅</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B4%80%EB%A6%AC%EC%9E%90-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%ED%95%B5%EC%8B%AC-%EC%84%B8%ED%8C%85</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B4%80%EB%A6%AC%EC%9E%90-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EB%B0%8F-%ED%95%B5%EC%8B%AC-%EC%84%B8%ED%8C%85</guid>
-      <pubDate>Mon, 22 Jun 2026 00:54:02 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학원 홈페이지 제작 시 관리자 대시보드 선행 설계가 중요한 이유와 권한 분리, 자동화 등 필수 항목 세팅 기준을 확인하세요. 운영 효율을 극대화하는 방법을 알아보세요. 1. 준비 단계: 학원 백오피스 대시보드를 &amp;#x27;먼저&amp;#x27; 설계해야 하는 이유와 필수 항목 2. 단계별 세팅: 다점포 권한</description>
-      <category>홈페이지제작</category>
-    </item>
-    <item>
-      <title>학원 홈페이지 제작: 자료실 및 회원 권한 설계 기준 가이드</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%9E%90%EB%A3%8C%EC%8B%A4-%EB%B0%8F-%ED%9A%8C%EC%9B%90-%EA%B6%8C%ED%95%9C-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B0%80%EC%9D%B4%EB%93%9C</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%9E%90%EB%A3%8C%EC%8B%A4-%EB%B0%8F-%ED%9A%8C%EC%9B%90-%EA%B6%8C%ED%95%9C-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%EA%B0%80%EC%9D%B4%EB%93%9C</guid>
-      <pubDate>Mon, 22 Jun 2026 00:44:03 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 학원 홈페이지 제작 시 원생, 학부모, 강사별 회원 DB와 자료실 접근 권한을 효율적으로 분류하고 설정하는 기준, 보안 체크리스트와 자동화 방안을 확인해 보세요. 원생·학부모·강사별 회원 DB 구조와 만 14세 미만 가입 절차 자료실 접근 등급 분류와 미등록자·탈퇴 회원 차단 방식 판단 포인트 운영 </description>
-      <category>홈페이지제작</category>
-    </item>
-    <item>
-      <title>학회 현장등록 운영: 당일 혼란을 막는 사무국 필수 체크리스트</title>
-      <link>https://beokmkt.web.app/blog/%ED%95%99%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EB%8B%B9%EC%9D%BC-%ED%98%BC%EB%9E%80%EC%9D%84-%EB%A7%89%EB%8A%94-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/%ED%95%99%ED%9A%8C-%ED%98%84%EC%9E%A5%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EB%8B%B9%EC%9D%BC-%ED%98%BC%EB%9E%80%EC%9D%84-%EB%A7%89%EB%8A%94-%EC%82%AC%EB%AC%B4%EA%B5%AD-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
-      <pubDate>Mon, 22 Jun 2026 00:29:03 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학회 학술대회 당일 현장등록 혼잡과 오류를 방지하기 위한 사무국 사전 점검 및 대응 체크리스트를 소개합니다. 동선 설계부터 시스템 연동과 장애 대비까지 핵심 가이드를 확인하세요. 1. 현장등록 폭주 대비: 접수 동선 설계와 사전 명찰 발급 유도 2. 중복 수령·미수금 방지: 사전 결제와 현장 결제 시</description>
-      <category>학회운영</category>
-    </item>
-    <item>
-      <title>MICE 사전등록 운영 기준: 신청 폼 설계부터 현장 QR 발권까지</title>
-      <link>https://beokmkt.web.app/blog/mice-%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%EC%8B%A0%EC%B2%AD-%ED%8F%BC-%EC%84%A4%EA%B3%84%EB%B6%80%ED%84%B0-%ED%98%84%EC%9E%A5-qr-%EB%B0%9C%EA%B6%8C%EA%B9%8C%EC%A7%80</link>
-      <guid isPermaLink="true">https://beokmkt.web.app/blog/mice-%EC%82%AC%EC%A0%84%EB%93%B1%EB%A1%9D-%EC%9A%B4%EC%98%81-%EA%B8%B0%EC%A4%80-%EC%8B%A0%EC%B2%AD-%ED%8F%BC-%EC%84%A4%EA%B3%84%EB%B6%80%ED%84%B0-%ED%98%84%EC%9E%A5-qr-%EB%B0%9C%EA%B6%8C%EA%B9%8C%EC%A7%80</guid>
-      <pubDate>Mon, 22 Jun 2026 00:19:04 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 MICE 행사의 성공은 체계적인 사전등록 운영에 달려 있습니다. 신청 폼 설계, 모바일 접수 최적화, 현장 QR 발권 및 시스템 연동까지 전 단계 준비 기준과 체크리스트를 정리했습니다. 1. 행사 유형별 사전등록 신청 폼 설계와 결제·보안 검토 기준 2. 모바일 접수 환경 최적화와 이탈률을 낮추는 리</description>
-      <category>학술대회</category>
     </item>
   </channel>
 </rss>

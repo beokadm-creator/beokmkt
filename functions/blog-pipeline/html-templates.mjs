@@ -2,7 +2,7 @@ const COMPANY_BRANDING = {
   mice: {
     site: 'hongcomm.kr',
     name: '홍커뮤니케이션',
-    logo_url: 'https://beokmkt.web.app/assets/hongcomm-logo.png',
+    logo_url: 'https://beoksolution.com/assets/hongcomm-logo.png',
     tagline: 'MICE 행사기획 · IT 솔루션 · 동시통역',
     cta_text: '학술행사·국제회의·컨퍼런스 운영을 기획부터 현장까지 지원합니다.',
     cta_link: 'https://hongcomm.kr',
@@ -11,7 +11,7 @@ const COMPANY_BRANDING = {
   marketing: {
     site: 'hongcomm.kr',
     name: '홍커뮤니케이션',
-    logo_url: 'https://beokmkt.web.app/assets/hongcomm-logo.png',
+    logo_url: 'https://beoksolution.com/assets/hongcomm-logo.png',
     tagline: 'MICE 행사기획 · IT 솔루션 · 동시통역',
     cta_text: '디지털 마케팅과 콘텐츠 전략이 필요하신가요?',
     cta_link: 'https://hongcomm.kr',
@@ -20,7 +20,7 @@ const COMPANY_BRANDING = {
   company: {
     site: 'beoksolution.com',
     name: '비오케이솔루션',
-    logo_url: 'https://beokmkt.web.app/assets/beoksolution-logo.png',
+    logo_url: 'https://beoksolution.com/assets/beoksolution-logo.png',
     tagline: '맞춤 소프트웨어 · 예약시스템 · 관리자 · 플랫폼',
     cta_text: '맞춤 소프트웨어 개발, 예약 시스템, 관리자 대시보드를 제안드립니다.',
     cta_link: 'https://beoksolution.com',
