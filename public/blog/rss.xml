@@ -7,6 +7,14 @@
     <description>비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 다루는 공식 실무 블로그입니다.</description>
     <language>ko-KR</language>
     <item>
+      <title>협회 홈페이지 제작: 결제·알림톡 자동화 사전 설계 기준</title>
+      <link>https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9E%90%EB%8F%99%ED%99%94-%EC%82%AC%EC%A0%84-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%B0%EC%A0%9C-%EC%95%8C%EB%A6%BC%ED%86%A1-%EC%9E%90%EB%8F%99%ED%99%94-%EC%82%AC%EC%A0%84-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
+      <pubDate>Fri, 26 Jun 2026 06:14:02 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 협회 홈페이지 제작 시 회원 및 행사 결제 연동과 알림톡 자동 발송 시스템을 오류 없이 구축하기 위한 사전 설계 기준과 필수 확인 항목을 정리했습니다. 결제 수단별 연동 설계와 입금자명 자동 매칭 구축 카카오 알림톡 템플릿 심사 통과와 예외 상황별 발송 시나리오 판단 포인트 운영 목적과 신청/문의 흐</description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
       <title>협회 홈페이지 제작 문의폼 설계: 입력 항목부터 관리자 화면까지</title>
       <link>https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EC%9E%85%EB%A0%A5-%ED%95%AD%EB%AA%A9%EB%B6%80%ED%84%B0-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4%EA%B9%8C%EC%A7%80</link>
       <guid isPermaLink="true">https://beoksolution.com/blog/%ED%98%91%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EB%AC%B8%EC%9D%98%ED%8F%BC-%EC%84%A4%EA%B3%84-%EC%9E%85%EB%A0%A5-%ED%95%AD%EB%AA%A9%EB%B6%80%ED%84%B0-%EA%B4%80%EB%A6%AC%EC%9E%90-%ED%99%94%EB%A9%B4%EA%B9%8C%EC%A7%80</guid>
@@ -397,14 +405,6 @@
       <pubDate>Tue, 23 Jun 2026 05:34:11 GMT</pubDate>
       <description>핵심 요약 읽기 3분 학회 및 논문 초록 접수 시스템 개발 시 저자, 심사위원, 운영자 간의 원활한 프로세스를 위한 상태값 분류 기준과 권한 제어 로직을 완벽하게 정리했습니다. DB 설계 및 예외 통제 방법을 확인해 보세요. 초록 접수부터 최종 게재까지: 전체 프로세스 상태값 정의 및 흐름도 설계 저자·심사위원·운영자 역</description>
       <category>시스템개발</category>
-    </item>
-    <item>
-      <title>학원 홈페이지 제작 체크리스트: 상담 전 기획 기준과 필수 항목</title>
-      <link>https://beoksolution.com/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EC%83%81%EB%8B%B4-%EC%A0%84-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</link>
-      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%9B%90-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8-%EC%83%81%EB%8B%B4-%EC%A0%84-%EA%B8%B0%ED%9A%8D-%EA%B8%B0%EC%A4%80%EA%B3%BC-%ED%95%84%EC%88%98-%ED%95%AD%EB%AA%A9</guid>
-      <pubDate>Tue, 23 Jun 2026 04:59:05 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학원 홈페이지 제작 체크리스트의 핵심은 예산과 목적에 맞춰 필수 기능을 선별하는 것입니다. 상담 전 기획자가 먼저 잡아야 할 설계 기준과 체크리스트 항목을 확인해 보세요. 1단계. 목적과 보유 자료를 먼저 정리해 불필요한 기능 배제하기 2단계. 결제·수강증·학사 관리 연동과 모바일 SEO 레이아웃 설</description>
-      <category>홈페이지제작</category>
     </item>
   </channel>
 </rss>

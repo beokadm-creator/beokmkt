@@ -5881,7 +5881,7 @@ function serviceOfferJsonLd(baseUrl) {
 
 app.get('/blog', (req, res, next) => {
   if (req.path === '/blog/') return next()
-  res.redirect(301, `${spaBaseUrl(req)}/blog/`)
+  res.redirect(301, '/blog/')
 })
 
 app.get('/blog/', async (req, res) => {

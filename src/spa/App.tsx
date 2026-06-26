@@ -23,7 +23,6 @@ function RequireAuth() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/blog/" replace />} />
       <Route path="/blog" element={<PublicBlogPage />} />
       <Route path="/blog/:slug" element={<PublicBlogPostPage />} />
       <Route path="/login" element={<LoginPage />} />
