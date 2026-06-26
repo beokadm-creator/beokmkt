@@ -113,7 +113,7 @@ def build_og_svg(post: dict, width: int = 1200, height: int = 630) -> str:
     <text x="100" y="117" font-size="26" font-weight="700" fill="#ffffff" opacity="0.95">{kicker_esc}</text>
     <text y="{start_y}" font-size="74" font-weight="800" fill="#ffffff" letter-spacing="-1">{tspans}</text>
     <text x="80" y="{height - 64}" font-size="30" font-weight="700" fill="#ffffff" opacity="0.92">{brand}</text>
-    <text x="80" y="{height - 28}" font-size="22" font-weight="500" fill="#ffffff" opacity="0.6">beokmkt.web.app</text>
+    <text x="80" y="{height - 28}" font-size="22" font-weight="500" fill="#ffffff" opacity="0.6">beoksolution.com</text>
   </g>
 </svg>"""
 

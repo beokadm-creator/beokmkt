@@ -94,7 +94,7 @@ def balanced_topics(limit: int = 24) -> list[tuple[str, str, str, str]]:
 
 
 def _api_base() -> str:
-    return (config.SELFHOST_API_URL or "https://beokmkt.web.app").rstrip("/")
+    return (config.SELFHOST_API_URL or "https://beoksolution.com").rstrip("/")
 
 
 def _fetch_public_posts() -> list[dict]:

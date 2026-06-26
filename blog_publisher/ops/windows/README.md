@@ -85,7 +85,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\r
 Firebase Functions에서 Windows 운영 PC에 작업을 지시할 수 있다. Function은 Firestore에 명령을 넣고, Windows의 `run-control.ps1`이 outbound로 가져가 허용된 작업만 실행한다.
 
 ```bash
-curl -X POST https://beokmkt.web.app/api/pipeline/commands \
+curl -X POST https://beoksolution.com/api/pipeline/commands \
   -H "X-API-Key: $BLOG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"runbook":"reset-draft-backlog-and-drain","reason":"품질 낮은 미공개 draft 리셋 후 새 원고 생성"}'

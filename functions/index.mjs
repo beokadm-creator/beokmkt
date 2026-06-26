@@ -175,6 +175,16 @@ function spaBaseUrl(req) {
   return `${proto}://${host}`.replace(/\/+$/, '')
 }
 
+function requestHostname(req) {
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || '').split(',')[0].trim()
+  return host.split(':')[0].toLowerCase()
+}
+
+function isDefaultHostingHost(req) {
+  const hostname = requestHostname(req)
+  return hostname === 'beokmkt.web.app' || hostname === 'beokmkt.firebaseapp.com'
+}
+
 function publicBlogPath(post) {
   const slug = typeof post?.slug === 'string' && post.slug.trim() ? post.slug.trim() : post?.id
   return `/blog/${encodeURIComponent(slug)}`
@@ -5885,6 +5895,10 @@ app.get('/blog', (req, res, next) => {
 })
 
 app.get('/blog/', async (req, res) => {
+  if (isDefaultHostingHost(req)) {
+    res.redirect(302, '/')
+    return
+  }
   try {
     const baseUrl = spaBaseUrl(req)
     const snap = await db.collection('blog_posts').where('status', '==', 'published').get()

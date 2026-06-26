@@ -87,7 +87,7 @@ def external_image_count(value: str | None) -> int:
     count = 0
     for url in image_urls(value):
         host = urlparse(url).netloc.lower()
-        if host and ("hongcomm.kr" in host or "beoksolution.com" in host or "beokmkt.web.app" in host):
+        if host and ("hongcomm.kr" in host or "beoksolution.com" in host):
             count += 1
     return count
 

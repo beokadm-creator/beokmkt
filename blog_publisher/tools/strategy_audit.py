@@ -24,7 +24,7 @@ from tools.content_quality import (
     title_signature,
 )
 
-DEFAULT_PUBLIC_BASE = "https://beokmkt.web.app"
+DEFAULT_PUBLIC_BASE = "https://beoksolution.com"
 
 REMOVE_PATTERNS = (
     "테스트", "무선이어폰", "가성비", "마케팅 트렌드", "콘텐츠 생태계",

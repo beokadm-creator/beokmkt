@@ -96,7 +96,7 @@ if (!$NoPull -and (Test-Path $GitUpdate)) {
 $BaseUrl = $env:PIPELINE_CONTROL_API_URL
 if (!$BaseUrl) { $BaseUrl = Read-DotEnvValue "PIPELINE_CONTROL_API_URL" }
 if (!$BaseUrl) { $BaseUrl = Read-DotEnvValue "SELFHOST_API_URL" }
-if (!$BaseUrl) { $BaseUrl = "https://beokmkt.web.app" }
+if (!$BaseUrl) { $BaseUrl = "https://beoksolution.com" }
 $BaseUrl = $BaseUrl.TrimEnd("/")
 
 $ApiKey = $env:PIPELINE_CONTROL_API_KEY

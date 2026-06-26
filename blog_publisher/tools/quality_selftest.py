@@ -26,7 +26,7 @@ def _subprocess_env(**overrides: str) -> dict[str, str]:
 
 SAMPLE_MD = """학회 운영 사무국의 명찰 출력은 참가자 응대 품질과 바로 연결됩니다.
 
-![학회 명찰 출력 체크리스트](https://beokmkt.web.app/assets/blog/beok/checklist-card.svg)
+![학회 명찰 출력 체크리스트](https://beoksolution.com/assets/blog/beok/checklist-card.svg)
 
 ## 핵심 요약
 
@@ -953,7 +953,7 @@ def _test_image_diversity() -> list[str]:
         sparse_urls = re.findall(r"!\[[^\]]*]\(([^)]+)\)", rendered_sparse)
         trusted = [
             url for url in set(sparse_urls)
-            if "hongcomm.kr/" in url or "beokmkt.web.app/" in url or "beoksolution.com/" in url
+            if "hongcomm.kr/" in url or "beoksolution.com/" in url
         ]
         if len(trusted) < 2:
             issues.append(f"image-bank: {brand_key} sparse 운영 글 신뢰 이미지 부족({len(trusted)}/2, urls={sparse_urls})")
@@ -1450,7 +1450,7 @@ const result = await rewriteForChannel({{
   title: '학회 운영 사무국 명찰 출력 품질 셀프테스트',
   html: source,
   channel: 'tistory',
-  canonicalUrl: 'https://beokmkt.web.app/blog/sample',
+  canonicalUrl: 'https://beoksolution.com/blog/sample',
 }})
 const required = process.env.TISTORY_REWRITE_REQUIRED !== 'false'
 const shouldBlock = required && channelRewriteEnabled() && !result.rewritten

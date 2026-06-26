@@ -206,7 +206,8 @@ NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL", "")  # 슬랙 등 incoming 
 NOTIFY_MIN_LEVEL = os.getenv("NOTIFY_MIN_LEVEL", "warn")  # info|warn|error
 
 # ---- 자체 블로그 ----
-SELFHOST_API_URL = os.getenv("SELFHOST_API_URL", "")      # 예: https://beokmkt.web.app
+SELFHOST_API_URL = os.getenv("SELFHOST_API_URL", "")      # 예: https://beoksolution.com
+SELFHOST_PUBLIC_URL = os.getenv("SELFHOST_PUBLIC_URL", "https://beoksolution.com")
 SELFHOST_POST_PATH = os.getenv("SELFHOST_POST_PATH", "/api/blog-posts")  # POST 엔드포인트
 SELFHOST_API_KEY = os.getenv("SELFHOST_API_KEY", "")
 SELFHOST_RENDER_HTML = os.getenv("SELFHOST_RENDER_HTML", "true").lower() == "true"  # 기획 09

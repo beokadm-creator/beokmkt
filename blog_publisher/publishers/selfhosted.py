@@ -86,7 +86,8 @@ class SelfHostedPublisher:
         if resp.status_code in (200, 201):
             data = resp.json().get("data", {})
             slug = data.get("slug") or data.get("id", "")
-            return f"{config.SELFHOST_API_URL}/blog/{slug}" if slug else ""
+            public_base = (config.SELFHOST_PUBLIC_URL or config.SELFHOST_API_URL).rstrip("/")
+            return f"{public_base}/blog/{slug}" if slug else ""
         if resp.status_code in (401, 403):
             raise FatalError(f"인증 실패: {resp.status_code}")
         if resp.status_code >= 500:

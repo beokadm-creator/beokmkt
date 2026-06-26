@@ -169,22 +169,22 @@ _BEOK_BRAND: list[dict] = [
         },
     },
     {
-        "url": "https://beokmkt.web.app/assets/blog/beok/workflow-card.svg",
+        "url": "https://beoksolution.com/assets/blog/beok/workflow-card.svg",
         "alt": "비오케이솔루션 홈페이지 운영 흐름 카드",
         "keywords": {"운영", "흐름", "제작", "문의", "개선", "관리", "서비스"},
     },
     {
-        "url": "https://beokmkt.web.app/assets/blog/beok/seo-card.svg",
+        "url": "https://beoksolution.com/assets/blog/beok/seo-card.svg",
         "alt": "비오케이솔루션 검색 노출 기본 세팅 카드",
         "keywords": {"SEO", "검색", "노출", "구글", "서치콘솔", "사이트맵", "색인", "메타"},
     },
     {
-        "url": "https://beokmkt.web.app/assets/blog/beok/automation-card.svg",
+        "url": "https://beoksolution.com/assets/blog/beok/automation-card.svg",
         "alt": "비오케이솔루션 예약 결제 알림 자동화 카드",
         "keywords": {"예약", "결제", "알림톡", "AI", "자동화", "문의", "응대", "폼"},
     },
     {
-        "url": "https://beokmkt.web.app/assets/blog/beok/checklist-card.svg",
+        "url": "https://beoksolution.com/assets/blog/beok/checklist-card.svg",
         "alt": "비오케이솔루션 홈페이지 운영 체크리스트 카드",
         "keywords": {"체크리스트", "준비", "주의", "필수", "방법", "단계", "확인", "운영"},
     },
@@ -242,7 +242,7 @@ def image_urls(value: str | None) -> list[str]:
 
 
 def _is_trusted_url(url: str) -> bool:
-    return any(host in url for host in ("hongcomm.kr/", "beoksolution.com/", "beokmkt.web.app/"))
+    return any(host in url for host in ("hongcomm.kr/", "beoksolution.com/"))
 
 
 def recent_published_image_urls(limit: int = 18, exclude_id: int | None = None) -> set[str]:
