@@ -96,6 +96,44 @@ try {
   $checks["recover"] = "error"
 }
 
+# 3b) stall detection: if pipeline has been idle too long with draft posts available, kick generate.
+try {
+  Set-Location $PublisherDir
+  $stallCheck = & $Python "-c" @'
+import sys, sqlite3, datetime
+sys.stdout.reconfigure(errors="replace")
+conn = sqlite3.connect("db/blog.db")
+c = conn.cursor()
+c.execute("SELECT COUNT(*) FROM posts WHERE status='queued' OR status='reviewing' OR status='reviewed' OR status='publishing'")
+active = c.fetchone()[0]
+c.execute("SELECT COUNT(*) FROM posts WHERE status='draft' AND (body IS NULL OR body='')")
+draft_ready = c.fetchone()[0]
+c.execute("SELECT MAX(updated_at) FROM posts WHERE status='published'")
+last_pub = c.fetchone()[0]
+conn.close()
+stall_hours = 0
+if last_pub:
+    dt = datetime.datetime.strptime(last_pub, "%Y-%m-%d %H:%M:%S")
+    stall_hours = (datetime.datetime.utcnow() - dt).total_seconds() / 3600
+print(f"active={active} draft_ready={draft_ready} stall_hours={stall_hours:.1f}")
+if active == 0 and draft_ready > 0 and stall_hours > 6:
+    print("STALL_DETECTED")
+'@ 2>&1 | Out-String
+  Set-Location $RepoRoot
+  $checks["stall_hours"] = ($stallCheck -split "`n" | Where-Object { $_ -match "^active=" } | Select-Object -First 1).Trim()
+  if ($stallCheck -match "STALL_DETECTED") {
+    Write-Log "pipeline stall detected -> triggering generate"
+    Set-Location $PublisherDir
+    $env:PYTHONUTF8 = "1"
+    $env:PYTHONIOENCODING = "utf-8"
+    & $Python "run.py" "generate" 2>&1 | Out-String | Write-Log
+    Set-Location $RepoRoot
+    $actions += "stall_generate_triggered"
+  }
+} catch {
+  Write-Log "stall check failed: $($_.Exception.Message)"
+}
+
 # 4) refresh health.json (tistory session + worker) via the existing reporter.
 if (Test-Path $MonitorPy) {
   try {

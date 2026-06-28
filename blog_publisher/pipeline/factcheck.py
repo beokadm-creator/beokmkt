@@ -117,7 +117,9 @@ def run_once(batch: int = 5) -> tuple[int, int]:
                 db.claim(post["id"], "factchecking", "draft")
                 db.mark_review_failed(post["id"], ["no_evidence_facts"])
                 db.save_body(post["id"], "", to_status="draft")
-                db.save_grounding(post["id"], 0.0)
+                db.requeue_draft(post["id"], post["attempts"] + 1,
+                                 "no_evidence_facts", post["max_attempts"])
+                print(f"[factcheck] id={post['id']} no_evidence_facts attempts={post['attempts']+1}/{post['max_attempts']}")
                 failed += 1
                 continue
             result = check(llm, post["body"], evidence)
@@ -138,13 +140,16 @@ def run_once(batch: int = 5) -> tuple[int, int]:
         db.claim(post["id"], "factchecking", "draft")  # 평가 끝, draft 유지
 
         if ratio < config.MIN_GROUNDING_RATIO:
-            # 근거 부족 -> 재생성 대상. 본문/grounding 초기화.
+            # 근거 부족 -> 재생성 대상. 본문/grounding 초기화 + backoff.
+            err = f"low_grounding:{ratio:.2f}"
             db.mark_review_failed(post["id"], [
-                f"low_grounding:{ratio:.2f}",
+                err,
                 *[f"unsupported:{u}" for u in result.get("unsupported", [])[:5]],
             ])
             db.save_body(post["id"], "", to_status="draft")  # 본문 비워 재생성 유도
-            db.save_grounding(post["id"], ratio)
+            db.requeue_draft(post["id"], post["attempts"] + 1,
+                             err, post["max_attempts"])
+            print(f"[factcheck] id={post['id']} low_grounding={ratio:.2f} attempts={post['attempts']+1}/{post['max_attempts']}")
             failed += 1
         else:
             passed += 1
