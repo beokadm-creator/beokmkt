@@ -250,13 +250,14 @@ def mark_reviewed(post_id: int) -> None:
 
 
 def mark_review_failed(post_id: int, issues: list[str]) -> None:
-    """검수 탈락 -> draft로 되돌려 재생성 대상이 되게 한다."""
+    """검수 탈락 -> draft로 되돌려 재생성 대상이 되게 한다. 1시간 backoff로 다른 글 먼저 처리."""
+    next_run = _iso(_utcnow() + timedelta(hours=1))
     with connect() as conn:
         conn.execute(
             "UPDATE posts SET status = 'draft', body = '', grounding_ratio = NULL, "
-            "review_issues = ?, updated_at = ? "
+            "review_issues = ?, next_run_at = ?, updated_at = ? "
             "WHERE id = ?",
-            (json.dumps(issues, ensure_ascii=False), _iso(_utcnow()), post_id),
+            (json.dumps(issues, ensure_ascii=False), next_run, _iso(_utcnow()), post_id),
         )
 
 
