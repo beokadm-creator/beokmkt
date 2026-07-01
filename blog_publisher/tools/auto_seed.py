@@ -9,6 +9,7 @@ cron 예시:
 """
 from __future__ import annotations
 
+import random
 import re
 
 import config
@@ -36,10 +37,34 @@ def _existing_topics() -> set[str]:
     return {_normalize(r["topic"]) for r in rows}
 
 
+# AUTO_SEED_REQUIRED_TERMS는 beoksolution/hongcomm 블로그의 주제 일관성(C-Rank 단일
+# 분야 집중, 기획 08)을 위한 필터다. 완전히 다른 브랜드/사이트(예: notebook_return)의
+# 키워드는 이 용어 목록과 무관하므로 이 필터에서 제외한다.
+_FOCUS_GATED_BRANDS = {"beok", "hong", ""}
+
+# 채널별로 시드 가능한 brand_key. beoksolution 채널(selfhosted/naver/tistory)은
+# beok/hong 두 브랜드를 함께 발행해 왔으므로 그대로 유지하고, 새 브랜드 채널은
+# 자기 브랜드 키만 허용한다(다른 브랜드 콘텐츠가 엉뚱한 채널로 새는 것을 막는다).
+_CHANNEL_ALLOWED_BRANDS = {
+    "selfhosted": {"beok", "hong"},
+    "naver": {"beok", "hong"},
+    "tistory": {"beok", "hong"},
+}
+
+
+def _brand_allowed_for_channel(channel: str, brand_key: str) -> bool:
+    allowed = _CHANNEL_ALLOWED_BRANDS.get(channel)
+    if allowed is not None:
+        return brand_key in allowed
+    return brand_key == channel
+
+
 def _matches_focus(topic: str = "", brand_key: str = "") -> bool:
     brand_filter = (config.AUTO_SEED_BRAND_FILTER or "").strip()
     if brand_filter and brand_key != brand_filter:
         return False
+    if brand_key not in _FOCUS_GATED_BRANDS:
+        return True
     terms = config.AUTO_SEED_REQUIRED_TERMS
     if not terms:
         return True
@@ -57,7 +82,10 @@ def _inventory_count(channel: str) -> int:
     if brand_filter:
         where.append("category = ?")
         params.append(brand_filter)
-    if config.AUTO_SEED_REQUIRED_TERMS:
+    # REQUIRED_TERMS는 beoksolution/hongcomm 원 채널의 주제 일관성 필터다.
+    # 다른 브랜드용 채널(예: notebook_return)의 재고 집계에는 적용하지 않는다
+    # (적용하면 실제 재고를 항상 0으로 잘못 세어 매번 목표치만큼 과다 시드하게 됨).
+    if channel in {"selfhosted", "naver", "tistory"} and config.AUTO_SEED_REQUIRED_TERMS:
         where.append(f"({' OR '.join(['topic LIKE ?' for _ in config.AUTO_SEED_REQUIRED_TERMS])})")
         params.extend(f"%{term}%" for term in config.AUTO_SEED_REQUIRED_TERMS)
     with db.connect() as conn:
@@ -72,9 +100,66 @@ def _inventory_count(channel: str) -> int:
     return int(row["n"])
 
 
+def _anchor(topic: str) -> str:
+    """같은 틀 주제(예: '교육기관 홈페이지…', '명찰 재발행…') 끼리 묶는 키.
+    앞 2단어를 정규화해 사용 — 한 배치에서 같은 앵커가 몰리지 않게 한다."""
+    toks = [t for t in (topic or "").split() if t]
+    return _normalize("".join(toks[:2]))
+
+
+def _recent_topics(limit: int) -> list[str]:
+    """channel 무관, 최근 갱신된 topic 목록(테마 편중 판단용)."""
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT topic FROM posts WHERE topic IS NOT NULL "
+            "ORDER BY updated_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [r["topic"] for r in rows]
+
+
+def _saturated_markers(recent: list[str]) -> set[str]:
+    """최근 재고에서 이미 상한 비율 이상을 차지한 테마 마커 집합."""
+    if not recent:
+        return set()
+    saturated = set()
+    for marker in config.AUTO_SEED_THEME_MARKERS:
+        ratio = sum(1 for t in recent if marker in t) / len(recent)
+        if ratio >= config.AUTO_SEED_THEME_CAP_RATIO:
+            saturated.add(marker)
+    return saturated
+
+
+def _select_spread(candidates: list, max_seeds: int) -> list:
+    """후보를 앵커별로 그룹화한 뒤 라운드로빈으로 뽑는다.
+    같은 틀의 주제가 한 배치에 연달아 들어가는 것을 막는다."""
+    groups: dict[str, list] = {}
+    order: list[str] = []
+    for c in candidates:
+        a = _anchor(c[0])
+        if a not in groups:
+            groups[a] = []
+            order.append(a)
+        groups[a].append(c)
+    queues = [list(groups[a]) for a in order]
+    out: list = []
+    while len(out) < max_seeds:
+        progressed = False
+        for q in queues:
+            if len(out) >= max_seeds:
+                break
+            if q:
+                out.append(q.pop(0))
+                progressed = True
+        if not progressed:
+            break  # 모든 큐 소진
+    return out
+
+
 def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
     """
     아직 다루지 않은 키워드에서 최대 max_seeds개의 draft를 생성.
+    매 실행마다 후보를 섞고, 같은 틀(앵커) 주제가 한 배치에 몰리지 않게 분산한다.
     반환: 생성된 시드 수.
     """
     if channel in {"naver", "tistory"} and not config.ALLOW_EXTERNAL_AUTO_SEED:
@@ -82,16 +167,30 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
         return 0
 
     existing = _existing_topics()
+    candidates = [
+        (topic, content_type, brand_key)
+        for topic, content_type, brand_key in KEYWORDS
+        if _brand_allowed_for_channel(channel, brand_key)
+        and _matches_focus(topic, brand_key)
+        and _normalize(topic) not in existing
+    ]
+
+    saturated = _saturated_markers(_recent_topics(config.AUTO_SEED_THEME_LOOKBACK))
+    if saturated:
+        filtered = [
+            c for c in candidates
+            if not any(marker in c[0] for marker in saturated)
+        ]
+        if filtered:
+            candidates = filtered
+        else:
+            print(f"  테마 편중 경고: {saturated} 외 후보 없음 — 임시로 편중 마커 포함 허용")
+
+    random.shuffle(candidates)
+    chosen = _select_spread(candidates, max_seeds)
+
     created = 0
-
-    for topic, content_type, brand_key in KEYWORDS:
-        if created >= max_seeds:
-            break
-        if not _matches_focus(topic, brand_key):
-            continue
-        if _normalize(topic) in existing:
-            continue
-
+    for topic, content_type, brand_key in chosen:
         pid = db.insert_draft(
             channel=channel,
             topic=topic,

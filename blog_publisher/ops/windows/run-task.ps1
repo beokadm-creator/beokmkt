@@ -2,6 +2,7 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateSet(
     "stock-seed",
+    "stock-seed-notebook-return",
     "generate",
     "factcheck",
     "review",
@@ -76,6 +77,7 @@ if ($RunControl -and !$SkipControl -and (Test-Path $RunControlScript)) {
 
 $argsByTask = @{
   "stock-seed"       = @("run.py", "stock_seed", "selfhosted", "40")
+  "stock-seed-notebook-return" = @("run.py", "stock_seed", "notebook_return", "10")
   "generate"         = @("run.py", "generate")
   "factcheck"        = @("run.py", "factcheck")
   "review"           = @("run.py", "review")

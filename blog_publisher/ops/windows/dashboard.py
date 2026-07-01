@@ -10,7 +10,7 @@ import os
 import sqlite3
 import webbrowser
 from datetime import datetime, timezone, timedelta
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Timer
 
@@ -26,6 +26,10 @@ STATUS_DIR = Path(os.environ.get(
     r"C:\Users\Aaron\Claude\Projects\beokmkt\status",
 ))
 HEALTH_FILE = STATUS_DIR / "health.json"
+COUPANG_HEARTBEAT = Path(os.environ.get(
+    "COUPANG_HEARTBEAT_FILE",
+    r"C:\Users\Aaron\Claude\Projects\coupang\.runtime\heartbeat.json",
+))
 
 STATUSES = [
     "draft", "generating", "factchecking", "reviewing", "reviewed",
@@ -91,11 +95,21 @@ def _health_data() -> dict:
         return {"ok": False, "error": str(e)}
 
 
+def _coupang_data() -> dict:
+    """쿠팡 스크래퍼 로컬 하트비트 파일(.runtime/heartbeat.json)을 읽는다."""
+    try:
+        raw = json.loads(COUPANG_HEARTBEAT.read_text(encoding="utf-8"))
+        return {"ok": True, **raw}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 def _status() -> dict:
     return {
         "timestamp": datetime.now(tz=KST).isoformat(),
         "pipeline": _pipeline_data(),
         "health": _health_data(),
+        "coupang": _coupang_data(),
     }
 
 
@@ -167,6 +181,13 @@ h1{font-size:1.1rem;font-weight:600;letter-spacing:.06em;color:#64748b;margin-bo
 </div>
 
 <div class="card" style="margin-bottom:14px">
+  <div class="card-title">쿠팡 스크래퍼</div>
+  <div class="badge" id="cp-b"><span class="dot"></span><span>—</span></div>
+  <div class="sub" id="cp-s">—</div>
+  <div class="extras" id="cp-x"></div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
   <div class="card-title">파이프라인</div>
   <div class="pipe-flow" id="pipe">—</div>
   <div class="extras" id="extras"></div>
@@ -234,6 +255,32 @@ function render(data){
   else if(kOk===false)badge('k-b','err','실패');
   else badge('k-b','warn','미실행');
   document.getElementById('k-s').textContent=kAt?kst(kAt):'—';
+
+  // Coupang scraper (로컬 heartbeat.json 기반)
+  const cp=data.coupang||{};
+  if(cp.ok){
+    const st=cp.status||'unknown';
+    const upd=cp.updatedAt?new Date(cp.updatedAt):null;
+    const ageMin=upd?((Date.now()-upd.getTime())/60000):null;
+    // max-interval 7200s(2h) 기준: 150분 넘게 갱신 없으면 정지로 간주
+    let cls='ok',label=st;
+    if(st==='stopped'){cls='warn';label='중지됨';}
+    else if(st==='scanning'){cls='ok';label='스캔 중';}
+    else if(st==='idle'){cls='ok';label='대기';}
+    else if(st==='starting'){cls='ok';label='시작 중';}
+    if(ageMin!==null&&ageMin>150){cls='err';label='정지(갱신 끊김)';}
+    badge('cp-b',cls,label);
+    document.getElementById('cp-s').textContent='갱신 '+(upd?kst(cp.updatedAt):'—');
+    let ex='';
+    if(cp.scanCount!=null)ex+=`<span>스캔 ${cp.scanCount}회</span>`;
+    if(cp.errorCount)ex+=`<span class="c-err">에러 ${cp.errorCount}</span>`;
+    if(cp.nextScanAt)ex+=`<span style="color:#334155">다음 ${kst(cp.nextScanAt)}</span>`;
+    document.getElementById('cp-x').innerHTML=ex;
+  } else {
+    badge('cp-b','err','미실행/없음');
+    document.getElementById('cp-s').textContent='heartbeat.json 없음 (스크래퍼 미동작)';
+    document.getElementById('cp-x').innerHTML='';
+  }
 
   // Pipeline
   const pipe=document.getElementById('pipe');
@@ -335,11 +382,20 @@ class _Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=5050)
+    ap.add_argument(
+        "--no-browser",
+        action="store_true",
+        default=bool(os.environ.get("DASHBOARD_NO_BROWSER")),
+        help="Do not auto-open a browser (use when running as a service).",
+    )
     args = ap.parse_args()
     url = f"http://localhost:{args.port}"
     print(f"대시보드: {url}")
     print(f"DB: {DB_PATH}")
     print(f"health.json: {HEALTH_FILE}")
     print("종료: Ctrl+C")
-    Timer(1.0, lambda: webbrowser.open(url)).start()
-    HTTPServer(("127.0.0.1", args.port), _Handler).serve_forever()
+    if not args.no_browser:
+        Timer(1.0, lambda: webbrowser.open(url)).start()
+    # ThreadingHTTPServer: 한 요청이 느리거나 막혀도(예: DB 잠금) 전체 페이지가
+    # 멈추지 않도록 요청마다 별도 스레드로 처리한다.
+    ThreadingHTTPServer(("127.0.0.1", args.port), _Handler).serve_forever()

@@ -60,6 +60,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 등록되는 작업:
 
 - 부팅 시 `BEOK Blog Worker`: Node 워커 실행
+- `BEOK Blog Dashboard`: 모니터링 대시보드(http://localhost:7070). 1분마다 워치독으로 살아있는지 확인하고, 죽어 있으면 ~1분 내 자동 재기동(`IgnoreNew`로 정상 동작 중에는 중복 실행 안 함). 요청별 스레드(`ThreadingHTTPServer`)로 처리해 한 요청이 막혀도 페이지 전체가 멈추지 않는다. 블로그 파이프라인과 함께 **쿠팡 스크래퍼 상태**도 표시한다(쿠팡 프로젝트가 쓰는 로컬 하트비트 `C:\Users\Aaron\Claude\Projects\coupang\.runtime\heartbeat.json`를 읽음. 경로는 `COUPANG_HEARTBEAT_FILE` 환경변수로 변경 가능).
 - 매일 10:00, 22:00 `BEOK Blog Keepalive AM/PM`: 티스토리/네이버 세션 갱신 확인
 - 1분마다 `BEOK Blog Control`: Firebase 명령 큐 폴링, worker health watchdog
 - 5분마다 `publish`
@@ -67,6 +68,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 - 30분마다 `generate/review/recover/sync_snapshot`
 - 15분마다 `schedule`
 - 60분마다 `stock_seed selfhosted 40`
+- 240분마다 `stock_seed notebook_return 10` (쿠팡 반품 노트북 가이드 콘텐츠 — Firestore `articles` 컬렉션에 발행, 실제 사이트 렌더링은 별도 Mac 세션 담당)
 - 매일 `backup/verify_public/quality_selftest/image_audit`
 
 각 작업은 실행 전에 `git fetch origin main` + `git merge --ff-only origin/main`을 시도한다. 여러 예약 작업이 동시에 떠도 `.git/beok-update.lock`으로 Git 업데이트를 직렬화하며, GitHub 일시 장애나 잠금 경합이 있어도 현재 checkout으로 본 작업은 계속 실행한다. 운영 PC에 로컬 코드 수정이 있으면 merge가 실패하므로, 운영 PC에서는 코드를 수정하지 않는다. 분 단위 작업은 20분 실행 제한과 `IgnoreNew`로 등록되어, 멈춘 작업이 기본 72시간 동안 다음 실행을 막지 않게 한다.

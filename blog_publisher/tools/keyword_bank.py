@@ -6,6 +6,10 @@ beoksolution.com / hongcomm.kr 서비스를 검색 유입으로 소개해 문의
 """
 from __future__ import annotations
 
+import random
+
+import config
+
 # ---------------------------------------------------------------------------
 # 브랜드 메타데이터
 # ---------------------------------------------------------------------------
@@ -33,7 +37,25 @@ BRANDS: dict[str, dict] = {
         "cta": "홍커뮤니케이션 문의",
         "contact": "TEL: 02-6959-3871~3 / info@hongcomm.kr",
     },
+    # 상담 유도가 아니라 실제 상품 구매 결정을 돕는 소비자 콘텐츠(쿠팡 파트너스 제휴).
+    # cta/contact는 "문의"가 아니라 "지금 시세 확인" 성격으로 다르게 쓴다.
+    "notebook_return": {
+        "name": "반품노트북 큐레이션",
+        "url": "https://notebook-return.web.app",
+        "service_summary": (
+            "쿠팡 반품·리퍼 노트북 매물을 등급(최상/상/중/리퍼)과 실시간 가격/재고로 "
+            "큐레이션하는 사이트. 삼성·LG·HP·레노버 등 브랜드별 반품마켓 직링크와 "
+            "SRP 반품배지 매물을 비교해 보여준다."
+        ),
+        "cta": "지금 시세·재고 확인하기",
+        "contact": "",
+    },
 }
+
+# 쿠팡 파트너스 활동 고지(공정위 표시광고법 대응, 반드시 본문에 포함).
+NOTEBOOK_RETURN_DISCLOSURE = (
+    "이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
+)
 
 # ---------------------------------------------------------------------------
 # 키워드 목록 (주제, content_type, brand_key)
@@ -130,6 +152,28 @@ KEYWORDS: list[tuple[str, str, str]] = [
     ("기업 시상식·어워드 행사 기획 방법", "howto", "hong"),
     ("하이브리드 학술대회 운영 방법", "howto", "hong"),
     ("MICE 행사 사후 보고서 작성 방법", "howto", "hong"),
+
+    # ── notebook_return: 쿠팡 반품 노트북 구매 가이드(소비자 콘텐츠, 상담 유도 아님) ──
+    ("반품 노트북 등급(최상/상/중/리퍼) 차이와 고르는 기준", "howto", "notebook_return"),
+    ("쿠팡 반품마켓 직링크와 SRP 반품배지 차이 이해하기", "niche", "notebook_return"),
+    ("반품 노트북과 중고 노트북, 무엇이 다른가", "niche", "notebook_return"),
+    ("삼성 갤럭시북·그램 반품 노트북 시세 비교", "review", "notebook_return"),
+    ("LG 그램 반품 노트북 싸게 사는 법", "howto", "notebook_return"),
+    ("HP 반품 노트북 재고와 가격 확인하는 법", "howto", "notebook_return"),
+    ("레노버 씽크패드 반품 노트북 시세 비교", "review", "notebook_return"),
+    ("예산 50만원대 반품 노트북 브랜드별 비교", "review", "notebook_return"),
+    ("예산 100만원대 반품 노트북 브랜드별 비교", "review", "notebook_return"),
+    ("반품 노트북 구매 전 꼭 확인할 체크리스트", "howto", "notebook_return"),
+    ("리퍼 노트북 구매 시 주의할 점", "howto", "notebook_return"),
+    ("반품 노트북 로켓배송 여부가 구매에 미치는 영향", "niche", "notebook_return"),
+    ("사무용·인강용 반품 노트북 고르는 기준", "howto", "notebook_return"),
+    ("대학생 자취용 반품 노트북 예산별 추천 기준", "howto", "notebook_return"),
+    ("반품 노트북 A/S와 보증 확인하는 방법", "howto", "notebook_return"),
+    ("반품 노트북 매물이 자주 바뀌는 이유와 확인 주기", "niche", "notebook_return"),
+    ("게이밍 노트북도 반품마켓에서 저렴하게 살 수 있을까", "niche", "notebook_return"),
+    ("신제품 대신 반품 노트북을 고려해야 하는 이유", "niche", "notebook_return"),
+    ("반품 노트북 가격이 정가 대비 얼마나 저렴한지 확인하는 법", "howto", "notebook_return"),
+    ("직장인 재택근무용 반품 노트북 선택 기준", "howto", "notebook_return"),
 ]
 
 _BASE_KEYWORD_COUNT = len(KEYWORDS)
@@ -172,13 +216,22 @@ def _expand_operational_keywords() -> None:
         "자료실과 회원 권한", "검색 노출 기본 세팅", "모바일 신청폼", "상담 전 체크리스트",
         "운영자 대시보드", "고객 데이터 내보내기", "SSL과 도메인 운영",
     ]
+    # 템플릿당(앵커당) 양산을 막기 위해 변형은 무작위로 섞고 cap개까지만 만든다.
+    # add()가 실제로 새 항목을 추가한 경우에만 카운트(중복 스킵 고려).
+    cap = max(1, config.SEED_MAX_PER_ANCHOR)
+
     for service in homepage_services:
-        for flow in homepage_flows:
+        flows = list(homepage_flows); random.shuffle(flows)
+        made = 0
+        for flow in flows:
+            if made >= cap: break
+            n0 = len(buckets["homepage"])
             add("homepage", f"{service} 홈페이지 제작에서 {flow} 항목을 먼저 설계하는 기준", "howto", "beok")
+            if len(buckets["homepage"]) > n0: made += 1
 
     system_domains = [
         "참가자 등록", "초록 접수", "심사 배정", "등록비 결제", "현장 체크인",
-        "명찰 재발행", "사후 보고", "회원 관리", "문의 응대", "자료 제출",
+        "사후 보고", "회원 관리", "문의 응대", "자료 제출",
         "권한 관리", "데이터 정산",
     ]
     system_decisions = [
@@ -188,12 +241,17 @@ def _expand_operational_keywords() -> None:
         "운영 로그를 남기는 기준", "담당자 인수인계를 쉽게 하는 구조",
     ]
     for domain in system_domains:
-        for decision in system_decisions:
+        decisions = list(system_decisions); random.shuffle(decisions)
+        made = 0
+        for decision in decisions:
+            if made >= cap: break
+            n0 = len(buckets["system"])
             add("system", f"{domain} 시스템 개발에서 {decision}", "howto", "beok")
+            if len(buckets["system"]) > n0: made += 1
 
     conference_ops = [
         "사전등록", "현장등록", "초록 접수", "발표자 관리", "좌장·연자 표기",
-        "QR 체크인", "명찰 출력", "명찰 재발행", "등록비 확인", "참가자 안내",
+        "QR 체크인", "등록비 확인", "참가자 안내",
         "세션 참석 확인", "행사 후 데이터 정리",
     ]
     conference_contexts = [
@@ -203,9 +261,14 @@ def _expand_operational_keywords() -> None:
         "비오케이솔루션 개발 범위로 정리하는 방법",
     ]
     for op in conference_ops:
-        for context in conference_contexts:
+        contexts = list(conference_contexts); random.shuffle(contexts)
+        made = 0
+        for context in contexts:
+            if made >= cap: break
             brand = "hong" if "홍커뮤니케이션" in context else "beok"
+            n0 = len(buckets["conference"])
             add("conference", f"{op} 운영: {context}", "howto", brand)
+            if len(buckets["conference"]) > n0: made += 1
 
     mice_events = [
         "국제학술대회", "기업 컨퍼런스", "산업 세미나", "전시 부대행사",
@@ -218,8 +281,13 @@ def _expand_operational_keywords() -> None:
         "운영 사후보고", "클라이언트 커뮤니케이션", "행사 데이터 관리",
     ]
     for event in mice_events:
-        for service in mice_services:
+        services = list(mice_services); random.shuffle(services)
+        made = 0
+        for service in services:
+            if made >= cap: break
+            n0 = len(buckets["mice"])
             add("mice", f"홍커뮤니케이션 {event} 운영에서 {service} 항목을 설계하는 기준", "niche", "hong")
+            if len(buckets["mice"]) > n0: made += 1
 
     order = ("homepage", "system", "conference", "mice")
     max_len = max(len(items) for items in buckets.values())

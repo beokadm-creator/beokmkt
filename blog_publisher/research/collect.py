@@ -34,6 +34,7 @@ class CollectedSource:
     url: str
     text: str
     trust: str   # high|med|low
+    thumbnail: str = ""  # 실제 상품 등 이미지 출처가 있는 경우(notebook_return)
 
 
 def _domain(url: str) -> str:
@@ -53,13 +54,27 @@ def _trust_of(url: str) -> str | None:
     return "med"
 
 
-def collect(queries: list[str]) -> list[CollectedSource]:
-    """여러 쿼리로 검색·수집해 중복 제거된 출처 목록을 반환."""
+def collect(queries: list[str], category: str = "", topic: str = "") -> list[CollectedSource]:
+    """여러 쿼리로 검색·수집해 중복 제거된 출처 목록을 반환.
+
+    category가 실제 상품 데이터를 근거로 쓰는 브랜드(예: notebook_return)면
+    웹 검색 대신(보다 앞서) 실제 크롤 데이터를 근거로 우선 투입한다.
+    """
     from research.official_sources import collect_official_sources
 
     provider = get_provider()
     seen: set[str] = set()
     sources: list[CollectedSource] = []
+
+    if category == "notebook_return":
+        from research.product_sources import collect_product_sources
+        for source in collect_product_sources(topic or " ".join(queries)):
+            if source.url in seen:
+                continue
+            seen.add(source.url)
+            sources.append(source)
+            if len(sources) >= config.MAX_SOURCES:
+                return sources
 
     for source in collect_official_sources():
         if source.url in seen:

@@ -93,8 +93,17 @@ def external_image_count(value: str | None) -> int:
 
 
 def is_operational_post(post) -> bool:
-    text = f"{post['category'] or ''} {post['title'] or ''} {post['topic'] or ''} {post['body'] or ''}"
-    return (post["category"] in {"beok", "hong"}) or any(term in text for term in OPERATIONAL_TERMS)
+    category = post["category"] or ""
+    if category in {"beok", "hong"}:
+        return True
+    # category가 명시적으로 다른 브랜드(예: notebook_return)로 태그돼 있으면,
+    # 본문에 우연히 겹치는 일반 단어("등록", "접수" 등)가 있어도 beok/hong
+    # 전용 게이트(hongcomm.kr/beoksolution.com 이미지 요구 등)를 적용하지 않는다.
+    # 용어 폴백은 category가 비어 있는 레거시 글에만 쓴다.
+    if category:
+        return False
+    text = f"{post['title'] or ''} {post['topic'] or ''} {post['body'] or ''}"
+    return any(term in text for term in OPERATIONAL_TERMS)
 
 
 def field(post, key: str) -> str:

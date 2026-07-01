@@ -15,6 +15,7 @@ $RunKeepalive = Join-Path $OpsDir "run-keepalive.ps1"
 $RunMonitor   = Join-Path $OpsDir "run-session-monitor.ps1"
 $RunControl   = Join-Path $OpsDir "run-control.ps1"
 $RunHealth    = Join-Path $OpsDir "run-healthcheck.ps1"
+$RunDashboard = Join-Path $OpsDir "run-dashboard.ps1"
 
 if (!(Test-Path $RunTask) -or !(Test-Path $RunWorker) -or !(Test-Path $RunKeepalive)) {
   throw "Windows ops scripts not found. Clone/pull repo first: $RepoRoot"
@@ -99,13 +100,28 @@ function Register-StartupWorker() {
   Set-TaskRuntimePolicy -TaskName $tn -NoTimeLimit -RestartOnFailure
 }
 
+function Register-Dashboard([int]$Port = 7070) {
+  # Watchdog model: fire every minute, but IgnoreNew + no time limit means the
+  # long-running server stays a single Running instance and later triggers are
+  # ignored. run-dashboard.ps1 also no-ops if the port is already up. If the
+  # dashboard dies, the next minute trigger revives it within ~1 min, including
+  # after a reboot. This is more reliable than Task Scheduler RestartOnFailure,
+  # which does not fire when the child process is killed.
+  $tn = "$TaskPrefix Dashboard"
+  $tr = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File $(Quote $RunDashboard) -RepoRoot $(Quote $RepoRoot) -Python $(Quote $Python) -Port $Port -NoBrowser"
+  schtasks /Create /F /TN $tn /SC MINUTE /MO 1 /TR $tr | Out-Host
+  Set-TaskRuntimePolicy -TaskName $tn -NoTimeLimit
+}
+
 Register-StartupWorker
+Register-Dashboard
 Register-SessionMonitor
 Register-ControlTask
 Register-HealthcheckTask
 Register-DailyKeepalive "Keepalive AM" "10:00"
 Register-DailyKeepalive "Keepalive PM" "22:00"
 Register-MinuteTask "Stock Seed" "stock-seed" 60
+Register-MinuteTask "Stock Seed NotebookReturn" "stock-seed-notebook-return" 240
 Register-MinuteTask "Generate" "generate" 30
 Register-MinuteTask "Factcheck" "factcheck" 15
 Register-MinuteTask "Review" "review" 30

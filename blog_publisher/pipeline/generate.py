@@ -325,6 +325,8 @@ def _brand_hint(brand_key: str) -> str:
 
 def _image_brand_key(brand_key: str, topic: str, body_text: str) -> str:
     """운영 글 이미지 풀을 고른다. category가 축 이름이어도 운영 글이면 이미지를 넣는다."""
+    if brand_key == "notebook_return":
+        return "notebook_return"  # 정적 image_bank 대신 실제 상품 썸네일 사용(호출부에서 분기)
     if brand_key in {"hong", "beok"}:
         return brand_key
     key = (brand_key or "").lower()
@@ -343,6 +345,24 @@ def _image_brand_key(brand_key: str, topic: str, body_text: str) -> str:
     if any(term in text for term in operational_terms):
         return "beok"
     return ""
+
+
+def _inject_notebook_return_images(body_text: str, topic: str) -> str:
+    """정적 image_bank 대신 실제로 크롤된 상품 썸네일을 본문에 삽입한다.
+    상품 조회 실패 시 이미지 없이 원문을 그대로 반환(이 브랜드는 품질 게이트가
+    이미지 개수를 요구하지 않으므로 안전)."""
+    try:
+        from research.product_sources import collect_product_sources
+        sources = [s for s in collect_product_sources(topic, limit=4) if s.thumbnail]
+    except Exception as e:  # noqa: BLE001
+        print(f"[notebook_return] 상품 이미지 조회 실패(이미지 없이 진행): {e}")
+        return body_text
+    if not sources:
+        return body_text
+    figures = "\n\n".join(
+        f'![{s.title}]({s.thumbnail})' for s in sources[:2]
+    )
+    return f"{body_text}\n\n{figures}"
 
 
 def _build_outline(llm: LLMClient, post: dict, evidence: dict) -> dict:
@@ -588,7 +608,7 @@ def generate_article(
     _log_stage(topic, f"serp:{engine}")
     serp = collect.analyze_serp(engine, plan["primary_keyword"])
     _log_stage(topic, "source_collect")
-    sources = collect.collect(ev.search_queries(plan))
+    sources = collect.collect(ev.search_queries(plan), category=brand_key, topic=public_topic)
     if not sources and config.MIN_GROUNDING_RATIO > 0:
         raise RuntimeError(
             "근거 출처 0건: 검색 공급자/키워드/출처 수집을 확인해야 하므로 자동 생성 중단"
@@ -668,7 +688,9 @@ def compose_article(
         body_text = _sanitize_naver_body(body_text)
     else:
         image_brand_key = _image_brand_key(brand_key, topic, body_text)
-    if engine != "naver" and image_brand_key:
+    if engine != "naver" and image_brand_key == "notebook_return":
+        body_text = _inject_notebook_return_images(body_text, topic)
+    elif engine != "naver" and image_brand_key:
         from tools.image_bank import inject_images, recent_published_image_urls
         body_text = inject_images(
             body_text,
@@ -681,7 +703,8 @@ def compose_article(
     meta = _strip_run_meta_text(meta)
     body_text = _strip_run_meta_text(body_text)
     body_text = _remove_unsupported_specific_claims(body_text, evidence)
-    if engine != "naver" and image_brand_key:
+    # notebook_return은 beok/hong 전용 "상담 전 확인" 문구가 어울리지 않으므로 제외.
+    if engine != "naver" and image_brand_key and image_brand_key != "notebook_return":
         body_text = _fit_operational_length_band(body_text, evidence, topic=topic)
 
     return _validate_generated_article({
