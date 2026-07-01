@@ -44,6 +44,8 @@ async function main() {
     tags: Array.isArray(payload.tags) ? payload.tags : [],
     relatedProductIds: Array.isArray(payload.relatedProductIds) ? payload.relatedProductIds : [],
     contentType: payload.contentType || 'howto',
+    permalink: payload.permalink || '',
+    canonicalUrl: payload.canonicalUrl || '',
     source: 'blog_publisher',
     updatedAt: FieldValue.serverTimestamp(),
   }

@@ -9,6 +9,7 @@ published_url은 Mac 쪽이 해당 라우트를 배포하기 전까지는 실제
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import os
 import re
@@ -56,15 +57,29 @@ class NotebookReturnPublisher:
         from render.renderer import render_body
 
         body = post.get("body", "")
+
+        # Compute slug and public URL early (before rendering)
+        slug = _slugify(post.get("title") or post.get("topic") or f"post-{post.get('id')}")
+        public_url = f"{config.NOTEBOOK_RETURN_PUBLIC_URL}/guide/{slug}"
+
+        # Render body with canonical_url for JSON-LD
         body_html = render_body({
             "title": post.get("title", ""),
             "body": body,
             "meta_desc": post.get("meta_desc", ""),
             "tags": _loads(post.get("tags")),
             "lang": post.get("locale", "ko"),
+            "canonical_url": public_url,
         })
 
-        slug = _slugify(post.get("title") or post.get("topic") or f"post-{post.get('id')}")
+        # Append visible permalink footer to body_html
+        footer_html = (
+            f'<footer class="permalink">원문 주소: '
+            f'<a href="{html.escape(public_url)}" rel="canonical noopener">'
+            f'{html.escape(config.NOTEBOOK_RETURN_PUBLIC_URL)}/guide/{html.escape(slug)}</a></footer>'
+        )
+        body_html = f"{body_html}\n{footer_html}"
+
         payload = {
             "slug": slug,
             "title": post.get("title", ""),
@@ -74,6 +89,8 @@ class NotebookReturnPublisher:
             "tags": _loads(post.get("tags")),
             "relatedProductIds": _related_product_ids(post),
             "contentType": post.get("content_type", "howto"),
+            "permalink": public_url,
+            "canonicalUrl": public_url,
         }
 
         with tempfile.NamedTemporaryFile(
@@ -104,7 +121,7 @@ class NotebookReturnPublisher:
             data = {}
 
         if result.returncode == 0 and data.get("ok"):
-            return f"{config.NOTEBOOK_RETURN_PUBLIC_URL}/guide/{data.get('slug', slug)}"
+            return f"{config.NOTEBOOK_RETURN_PUBLIC_URL}/guide/{data.get('slug') or slug}"
 
         reason = data.get("reason") or result.stderr or stdout or f"exit={result.returncode}"
         if result.returncode == 3 or data.get("skip"):
