@@ -190,7 +190,10 @@ SEED_MAX_PER_ANCHOR = int(os.getenv("SEED_MAX_PER_ANCHOR", "3"))
 # 최근 AUTO_SEED_THEME_LOOKBACK건 중 마커 포함 비율이 CAP_RATIO 이상이면
 # 이번 시드 배치에서 해당 마커가 들어간 후보를 제외한다(다른 후보가 없으면 예외 허용).
 AUTO_SEED_THEME_MARKERS = [
-    m.strip() for m in os.getenv("AUTO_SEED_THEME_MARKERS", "명찰").split(",") if m.strip()
+    m.strip() for m in os.getenv(
+        "AUTO_SEED_THEME_MARKERS",
+        "명찰,홍커뮤니케이션,학회,학술대회,MICE,행사,참가자,초록,등록비,홈페이지,반품",
+    ).split(",") if m.strip()
 ]
 AUTO_SEED_THEME_CAP_RATIO = float(os.getenv("AUTO_SEED_THEME_CAP_RATIO", "0.2"))
 AUTO_SEED_THEME_LOOKBACK = int(os.getenv("AUTO_SEED_THEME_LOOKBACK", "40"))
