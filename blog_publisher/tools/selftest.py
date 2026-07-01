@@ -46,7 +46,7 @@ def _install_mocks():
     # 검색 mock (네트워크/키 불필요)
     from research import collect
     from research.collect import CollectedSource
-    collect.collect = lambda q: [
+    collect.collect = lambda q, category="", topic="": [
         CollectedSource("출처A", "http://a.test", "제품 A는 6시간 재생, 89000원, IPX4 방수.", "high"),
         CollectedSource("출처B", "http://b.test", "제품 B는 8시간 재생, 노이즈캔슬링 지원.", "med"),
     ]
