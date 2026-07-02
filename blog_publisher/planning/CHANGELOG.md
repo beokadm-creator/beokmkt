@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-07-02 — 공개 근접중복 글 정리(247→154건)
+
+주제 편중 구조 수정(아래 항목)과 별도로, 이미 공개된 selfhosted 글 중 "같은 틀+변형" 조합형 근접중복을 실제로 정리했다. `strategy_audit`의 문자열 완전일치 중복 탐지는 0건이었지만(GLM이 매번 문구를 바꿔 씀), 제목 앞 2단어(앵커) 기준 군집 분석 결과 "명찰재발행"(11건), "학회홈페이지"(11건), "협회/병원/학원 홈페이지"(각 10건) 등 16개 이상 앵커가 3~11건씩 중복 발행돼 있었다.
+
+| 대상 | 내용 |
+|---|---|
+| `tools/prune_duplicate_anchors.py`(신규) | 공개 API 전체 페이지네이션 조회 → 앵커별 그룹화 → 앵커당 cap개 초과분을 선정(기본 가장 오래된 글 유지)해 `DELETE /api/blog-posts/{id}`로 soft-delete. `--apply` 없으면 dry-run, 실행 결과는 `reports/prune-duplicate-anchors-*.json`에 기록 |
+| `public/sitemap.xml`, `public/rss.xml`, `public/blog/rss.xml` | `scripts/generate-static-sitemaps.mjs` 재실행으로 삭제 후 154건 기준 재생성(다음 `npm run build:spa` 배포 시 반영) |
+
+실행:
+- cap=2(앵커당 2건 유지, 가장 오래된 글 우선) 기준 사용자 승인 후 즉시 실행
+- 삭제 93건 전부 성공(실패 0), 공개 API 재조회로 247→154건 확인
+- soft-delete이므로 `deleted_at` 기록 방식 — 필요 시 Firestore에서 해당 필드 제거로 복구 가능
+
+미완료(별도 승인 필요):
+- 로컬 sitemap/rss는 커밋했지만 `dist/`는 gitignore 대상 빌드 산출물이라 실제 배포(`npm run build:spa` + firebase deploy)는 수행하지 않음
+
+---
+
 ## 2026-07-02 — 주제 편중(명찰 도배) 구조 해소 + 브랜드별 퍼블리싱 개편
 
 발행 214건 중 명찰 계열이 과점하고("명찰 재발행 시스템 ○○" 템플릿 양산), 렌더 컴포넌트가 명찰/학회 전용 하드코딩이라 그 외 주제(홈페이지 개발·MICE·반품 노트북)는 평문으로 발행되던 문제를 구조적으로 해결했다. notebook_return은 사이트가 bodyHtml을 그대로 innerHTML로 꽂는데 컴포넌트 CSS가 없어 순수 텍스트로 보이던 결함도 함께 수정.
