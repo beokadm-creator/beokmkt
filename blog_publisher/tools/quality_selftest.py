@@ -1043,8 +1043,13 @@ def _test_review_llm_advisory_gate() -> list[str]:
             return self.response
 
     original_min_score = config.MIN_REVIEW_SCORE
+    original_hard_fail = config.REVIEW_HARD_FAIL_SCORE
     try:
         config.MIN_REVIEW_SCORE = 80
+        # 운영 PC .env가 임계값을 낮춰도(예: 40) 테스트는 코드 기본값 기준으로
+        # 결정적으로 돌아야 한다. score=40 케이스가 40<40=False로 통과 실패하는
+        # 환경 의존을 제거한다.
+        config.REVIEW_HARD_FAIL_SCORE = 50
         cases = [
             (
                 "subjective-soft-fail",
@@ -1089,6 +1094,7 @@ def _test_review_llm_advisory_gate() -> list[str]:
         return issues
     finally:
         config.MIN_REVIEW_SCORE = original_min_score
+        config.REVIEW_HARD_FAIL_SCORE = original_hard_fail
 
 
 def _test_operational_agenda_defaults() -> list[str]:
