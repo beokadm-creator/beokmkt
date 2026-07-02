@@ -69,6 +69,13 @@ def _pipeline_data() -> dict:
             ORDER BY updated_at DESC
             LIMIT 15
         """).fetchall()
+        published_today = conn.execute(
+            "SELECT COUNT(*) AS n FROM posts WHERE status='published' "
+            "AND date(updated_at,'+9 hours')=date('now','+9 hours')"
+        ).fetchone()["n"]
+        last_published_at = conn.execute(
+            "SELECT MAX(updated_at) AS v FROM posts WHERE status='published'"
+        ).fetchone()["v"]
         conn.close()
         by_channel: dict = {}
         for r in rows:
@@ -83,6 +90,8 @@ def _pipeline_data() -> dict:
             "queued_due": queued_due, "next_queued": next_queued,
             "by_channel": by_channel,
             "recent_posts": recent_posts,
+            "published_today": published_today,
+            "last_published_at": last_published_at,
         }
     except Exception as e:
         return {"ok": False, "error": str(e), "counts": {s: 0 for s in STATUSES}}
@@ -93,6 +102,31 @@ def _health_data() -> dict:
         return {"ok": True, **json.loads(HEALTH_FILE.read_text(encoding="utf-8"))}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+LOG_DIR = Path(os.environ.get("BLOG_LOG_DIR", r"C:\beokmkt\logs"))
+_ACTIVITY_TASKS = ("publish", "generate", "factcheck", "review", "schedule")
+
+
+def _ops_activity() -> dict:
+    """예약 작업별 마지막 실행 시각(로그 파일 mtime). 파이프라인 카운트가 전부
+    0인 순간에도 시스템이 살아 도는지를 보여주는 liveness 신호."""
+    out: dict = {}
+    try:
+        for task in _ACTIVITY_TASKS:
+            latest = 0.0
+            for f in LOG_DIR.glob(f"blog-{task}-*.log"):
+                try:
+                    mt = f.stat().st_mtime
+                    if mt > latest:
+                        latest = mt
+                except OSError:
+                    continue
+            if latest:
+                out[task] = datetime.fromtimestamp(latest, tz=KST).isoformat()
+    except Exception:
+        pass
+    return out
 
 
 def _coupang_data() -> dict:
@@ -110,6 +144,7 @@ def _status() -> dict:
         "pipeline": _pipeline_data(),
         "health": _health_data(),
         "coupang": _coupang_data(),
+        "activity": _ops_activity(),
     }
 
 
@@ -144,7 +179,7 @@ h1{font-size:1.1rem;font-weight:600;letter-spacing:.06em;color:#64748b;margin-bo
 .c-act{color:#60a5fa}.c-zero{color:#1e293b}.c-pub{color:#4ade80}.c-warn{color:#facc15}.c-err{color:#f87171}
 .cs{display:flex;justify-content:space-between;font-size:.78rem;color:#475569;margin-top:5px}
 .cs span:last-child{color:#e2e8f0;font-weight:600;font-variant-numeric:tabular-nums}
-.extras{margin-top:12px;font-size:.75rem;display:flex;gap:12px}
+.extras{margin-top:12px;font-size:.75rem;display:flex;gap:12px;flex-wrap:wrap}
 .recent-table{width:100%;border-collapse:collapse;margin-top:4px}
 .recent-table th{font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#334155;text-transform:uppercase;padding:0 8px 8px 0;text-align:left;white-space:nowrap}
 .recent-table td{font-size:.78rem;padding:6px 8px 6px 0;border-top:1px solid #1e293b;vertical-align:middle}
@@ -215,6 +250,19 @@ function kst(iso){
   if(!iso)return'—';
   try{return new Date(iso).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}
   catch{return iso}
+}
+function ago(iso,assumeUtc){
+  if(!iso)return null;
+  try{
+    let s=iso;
+    if(assumeUtc&&!/[Z+]/.test(s))s=s.replace(' ','T')+'Z';
+    const min=Math.floor((Date.now()-new Date(s).getTime())/60000);
+    if(min<0)return null;
+    if(min<1)return'방금';
+    if(min<60)return`${min}분 전`;
+    if(min<1440)return`${Math.floor(min/60)}시간 ${min%60}분 전`;
+    return`${Math.floor(min/1440)}일 전`;
+  }catch{return null}
 }
 function badge(id,cls,txt){
   const el=document.getElementById(id);
@@ -297,9 +345,21 @@ function render(data){
   const nh=counts.needs_human||0,fa=counts.failed||0;
   const nq=p.next_queued;
   let ex='';
+  // liveness: 중간 단계 카운트가 전부 0이어도 오늘 실제로 돌았는지 보여준다
+  const today=p.published_today||0;
+  ex+=`<span class="${today>0?'c-pub':'c-warn'}">오늘 발행 ${today}건</span>`;
+  const lastPub=ago(p.last_published_at,true);
+  if(lastPub)ex+=`<span style="color:#64748b">마지막 발행 ${lastPub}</span>`;
   if(nh)ex+=`<span class="c-err">⚠ needs_human: ${nh}</span>`;
   if(fa)ex+=`<span class="c-err">✗ failed: ${fa}</span>`;
-  if(nq&&!nh&&!fa)ex+=`<span style="color:#334155">다음 예약 KST ${kst(nq)}</span>`;
+  if(nq)ex+=`<span style="color:#334155">다음 예약 KST ${kst(nq)}</span>`;
+  else if(!nh&&!fa)ex+=`<span style="color:#334155">발행 큐 비어있음 (다음 스케줄 주기 대기)</span>`;
+  // 예약 작업 최근 실행(로그 기반) — 워커들이 실제로 돌고 있는지
+  const act=data.activity||{};
+  const actParts=['publish','generate','factcheck','review','schedule']
+    .map(k=>{const a=ago(act[k]);return a?`${k} ${a}`:null}).filter(Boolean);
+  if(actParts.length)ex+=`<span style="color:#475569;flex-basis:100%">작업 실행: ${actParts.join(' · ')}</span>`;
+  else ex+=`<span class="c-err" style="flex-basis:100%">⚠ 예약 작업 실행 로그 없음 — 스케줄러 확인 필요</span>`;
   extras.innerHTML=ex;
 
   // Channels
