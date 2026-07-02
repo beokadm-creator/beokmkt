@@ -9,18 +9,17 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
 from db import db
-from tools.keyword_bank import KEYWORDS
+from tools.auto_seed import _brand_allowed_for_channel, _select_spread
+from tools.keyword_bank import KEYWORDS, pillar_of
 
 ACTIVE_STATUSES = ("draft", "generating", "factchecking", "reviewing")
 DEFAULT_CHANNELS = ("selfhosted",)
 DEFAULT_SEED_TARGET = 24
-AXIS_ORDER = ("homepage", "conference_system", "mice_reference", "badge_ops")
 
 
 def _utcnow() -> str:
@@ -37,19 +36,6 @@ def _parse_channels(value: str) -> tuple[str, ...]:
     if not channels or unknown:
         raise argparse.ArgumentTypeError(f"unknown channel: {', '.join(unknown) or value}")
     return channels
-
-
-def topic_axis(topic: str) -> str:
-    text = topic or ""
-    if any(term in text for term in ("초기 제작비", "월 5만원", "구독", "SEO", "Search Console", "SSL", "예약", "결제", "알림톡", "AI 상담", "홈페이지 제작")):
-        return "homepage"
-    if any(term in text for term in ("홍커뮤니케이션", "MICE", "국제회의", "동시통역", "레퍼런스", "컨퍼런스")):
-        return "mice_reference"
-    if any(term in text for term in ("명찰", "접수대", "재발행", "QR", "체크인", "바코드")):
-        return "badge_ops"
-    if any(term in text for term in ("학회", "학술대회", "초록", "논문", "기관 홈페이지", "관리자", "백오피스")):
-        return "conference_system"
-    return "homepage"
 
 
 def _candidate_rows(channels: Iterable[str], statuses: Iterable[str]):
@@ -88,29 +74,25 @@ def _protected_topic_keys(channels: Iterable[str], archive_ids: Iterable[int]) -
 
 
 def replacement_topics(limit: int, channel: str, archive_ids: Iterable[int]) -> list[tuple[str, str, str, str]]:
+    """새 draft 시드 후보를 뽑는다.
+
+    앵커/주제축 분산은 keyword_bank.pillar_of() + auto_seed._select_spread를
+    그대로 재사용한다(단일 기준 유지 — 이 도구만 별도 4축 분류를 쓰면 auto_seed가
+    적용하는 pillar 다양성 규칙과 어긋나 다시 편중이 생길 수 있다)."""
     protected = _protected_topic_keys((channel,), archive_ids)
-    by_axis: dict[str, list[tuple[str, str, str, str]]] = defaultdict(list)
     seen: set[str] = set()
+    candidates: list[tuple[str, str, str]] = []
     for topic, content_type, brand_key in KEYWORDS:
+        if not _brand_allowed_for_channel(channel, brand_key):
+            continue
         key = _normalize(topic)
         if key in protected or key in seen:
             continue
         seen.add(key)
-        axis = topic_axis(topic)
-        by_axis[axis].append((topic, content_type, brand_key, axis))
+        candidates.append((topic, content_type, brand_key))
 
-    selected: list[tuple[str, str, str, str]] = []
-    while len(selected) < limit:
-        added = False
-        for axis in AXIS_ORDER:
-            if by_axis[axis]:
-                selected.append(by_axis[axis].pop(0))
-                added = True
-                if len(selected) >= limit:
-                    break
-        if not added:
-            break
-    return selected
+    chosen = _select_spread(candidates, limit)
+    return [(topic, content_type, brand_key, pillar_of(topic, brand_key)) for topic, content_type, brand_key in chosen]
 
 
 def _insert_replacements(channel: str, topics: list[tuple[str, str, str, str]]) -> list[dict]:

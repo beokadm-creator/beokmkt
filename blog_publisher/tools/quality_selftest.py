@@ -1166,11 +1166,14 @@ def _test_reset_draft_backlog_plan() -> list[str]:
     try:
         reset_draft_backlog._protected_topic_keys = lambda _channels, _archive_ids: set()
         topics = reset_draft_backlog.replacement_topics(8, "selfhosted", archive_ids=[])
-        axes = {axis for _topic, _ctype, _brand, axis in topics}
+        pillars = {axis for _topic, _ctype, _brand, axis in topics}
         issues: list[str] = []
-        for axis in {"homepage", "conference_system", "mice_reference", "badge_ops"}:
-            if axis not in axes:
-                issues.append(f"draft-reset: replacement plan axis 누락: {axis}")
+        # notebook_return은 별도 브랜드(쿠팡 파트너스)이므로 selfhosted 채널
+        # 재시드 계획에 절대 섞이면 안 된다(auto_seed와 동일한 채널 필터 적용 검증).
+        if "notebook_return" in pillars:
+            issues.append("draft-reset: selfhosted 채널에 notebook_return 주제 유입")
+        if len(pillars) < 5:
+            issues.append(f"draft-reset: replacement plan 주제축 다양성 부족({len(pillars)}종: {sorted(pillars)})")
         if not topics or "초기 제작비" not in topics[0][0]:
             issues.append("draft-reset: beoksolution 홈페이지 운영형 주제가 우선 배치되지 않음")
         return issues
