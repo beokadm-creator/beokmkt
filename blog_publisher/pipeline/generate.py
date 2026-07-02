@@ -762,6 +762,40 @@ def _validate_outline(outline: dict) -> dict:
     return outline
 
 
+def _order_by_pillar_diversity(ready: list) -> list:
+    """생성 순서를 주제축(pillar) 기준으로 재배열한다.
+
+    시드 순서(FIFO)가 같은 축으로 몰려 있어도 — 예: 명찰 draft가 연번으로 쌓인
+    백로그 — 최근 생성된 글과 다른 축의 draft를 먼저 집어 발행 흐름을 섞는다."""
+    if len(ready) <= 1:
+        return list(ready)
+    try:
+        from tools.keyword_bank import pillar_of
+    except Exception:  # noqa: BLE001
+        return list(ready)
+
+    with db.connect() as conn:
+        recent = conn.execute(
+            "SELECT topic, category FROM posts "
+            "WHERE body IS NOT NULL AND body != '' AND topic IS NOT NULL "
+            "ORDER BY updated_at DESC LIMIT 12"
+        ).fetchall()
+    recent_counts: dict[str, int] = {}
+    for r in recent:
+        p = pillar_of(r["topic"] or "", r["category"] or "")
+        recent_counts[p] = recent_counts.get(p, 0) + 1
+
+    # 최근에 덜 나온 축 우선, 같은 축이면 오래된 draft 우선(원래 FIFO 유지)
+    return sorted(
+        ready,
+        key=lambda post: (
+            recent_counts.get(pillar_of(post["topic"] or "", post["category"] or ""), 0),
+            post["created_at"] or "",
+            post["id"],
+        ),
+    )
+
+
 def run_once(batch: int | None = None) -> int:
     """본문이 없는 draft(next_run_at 지난 것)를 근거기반 생성. 처리 건수 반환."""
     batch = batch or config.GENERATE_BATCH
@@ -777,7 +811,10 @@ def run_once(batch: int | None = None) -> int:
             print(f"[generate] 공식 출처/근거 수집 미설정으로 이번 주기 건너뜀: {health['reason']}", flush=True)
             return processed
 
-        for post in db.fetch_generate_ready(limit=batch):
+        ready = _order_by_pillar_diversity(db.fetch_generate_ready(limit=max(batch * 8, 16)))
+        for post in ready:
+            if attempted >= batch:
+                break
             if not db.claim(post["id"], "draft", "generating"):
                 continue
             attempted += 1

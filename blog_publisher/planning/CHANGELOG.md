@@ -5,6 +5,33 @@
 
 ---
 
+## 2026-07-02 — 주제 편중(명찰 도배) 구조 해소 + 브랜드별 퍼블리싱 개편
+
+발행 214건 중 명찰 계열이 과점하고("명찰 재발행 시스템 ○○" 템플릿 양산), 렌더 컴포넌트가 명찰/학회 전용 하드코딩이라 그 외 주제(홈페이지 개발·MICE·반품 노트북)는 평문으로 발행되던 문제를 구조적으로 해결했다. notebook_return은 사이트가 bodyHtml을 그대로 innerHTML로 꽂는데 컴포넌트 CSS가 없어 순수 텍스트로 보이던 결함도 함께 수정.
+
+| 대상 | 내용 |
+|---|---|
+| `tools/keyword_bank.py` | 명찰 전용 20개 블록 → 대표 6개로 축소. beok 홈페이지·시스템 개발 홍보 10개, hong 솔루션(Society Portal/e-Regi/AI통역) 8개 추가. `pillar_of()` 주제축 분류기 신설(7축). notebook_return 브랜드×관점·용도×예산 확장 100개 |
+| `tools/auto_seed.py` | 배치 선택을 앵커 단일 라운드로빈 → pillar→앵커 2단계 라운드로빈으로 교체(한 축의 배치 독점 차단). 테마 포화 시 전면 재허용 폴백 → 포화 마커 최소 후보 우선으로 수정 |
+| `pipeline/generate.py` | draft 선택을 FIFO → 최근 12건에서 덜 나온 pillar 우선으로 재배열(명찰 draft 연번 백로그가 있어도 발행 흐름이 섞임) |
+| `pipeline/schedule_publish.py` | 발행 큐 선택도 pillar→앵커 2단계 라운드로빈 |
+| `render/renderer.py` | 점검범위/운영흐름/비교표/CTA/요약판단을 문맥(badge/conference/beok/hong/notebook_return)별 변형으로 교체. hong CTA(hongcomm.kr), notebook_return CTA(시세·재고 확인) 신설. 쿠팡 파트너스 고지 블록(미사용이던 `NOTEBOOK_RETURN_DISCLOSURE`) 자동 삽입 |
+| `render/embed_style.css` + `render_body_embed()` | 외부 호스트(innerHTML 삽입)용 스타일 내장 fragment. `.bp-article` 스코프로 호스트 CSS 오염 없이 컴포넌트 스타일 보장 |
+| `publishers/notebook_return.py` | `render_body_embed` 사용 + category/topic 전달(컴포넌트 분기·고지 활성화), permalink footer를 스코프 안으로 이동 |
+| `tistory-html-adapter.mjs` | 문맥 분류(`contentContext`) 신설, 점검범위/흐름/비교표/CTA를 badge/conference/beok/hong 변형으로 교체, 검증기도 문맥 기반으로 갱신 |
+| `config.py` | `SEED_MAX_PER_ANCHOR` 3→6 (확장 풀 129개는 소진 후 편중 재유입 원인; 250+ 유지) |
+| `quality_selftest.py` | 브랜드 변형 렌더 회귀테스트 추가. 사전 존재하던 mock 시그니처 불일치(collect category kwarg, FakeDb.requeue_draft) 수리. stock-seed 다양성 검증을 토큰 매칭 → pillar 커버리지로 교체 |
+
+운영 적용:
+- 로컬 DB: `reset_draft_backlog --apply`로 명찰/학회 편중 draft 17건 archive + 4축 라운드로빈 24건 재시드 완료
+- Windows 운영 PC: git pull 후 `run-task.ps1 -Task reset-draft-backlog` 1회 실행 필요(기존 편중 백로그 격리)
+
+검증:
+- 시드 시뮬레이션: selfhosted 15건 배치가 6개 pillar로 균등 분산(badge_ops 2/15)
+- `python3 run.py quality_selftest` PASS / `python3 run.py selftest` PASS / `node --check tistory-html-adapter.mjs` PASS
+
+---
+
 ## 2026-06-21 — 키워드 고갈 재고 보충 복구
 
 Windows 운영 PC에서 `draft/reviewed/queued=0`이고 `stock_seed selfhosted 40`이 "새 키워드 없음"으로 종료됐다. 게이트 문제가 아니라 `keyword_bank.py`의 82개 기본 주제가 모두 DB에 사용된 공급 고갈이므로, 운영 축별 조합 주제를 대폭 확장했다.

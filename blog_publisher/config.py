@@ -183,7 +183,9 @@ STOCK_BUFFER_DAYS = int(os.getenv("STOCK_BUFFER_DAYS", "3"))         # 유지할
 ALLOW_EXTERNAL_AUTO_SEED = os.getenv("ALLOW_EXTERNAL_AUTO_SEED", "false").lower() == "true"
 # 주제 다양성: 조합 생성 시 하나의 '앵커'(예: 교육기관 홈페이지, 명찰 재발행)별로
 # 허용할 변형 주제 수. 템플릿 양산으로 비슷한 글이 몰리는 것을 막는다.
-SEED_MAX_PER_ANCHOR = int(os.getenv("SEED_MAX_PER_ANCHOR", "3"))
+# 3이면 확장 풀이 129개로 줄어 소진 후 편중 마커가 재유입되므로(모노토니 재발),
+# 기본 6으로 풀 250+를 유지한다. 배치 편중은 pillar 라운드로빈+테마 캡이 막는다.
+SEED_MAX_PER_ANCHOR = int(os.getenv("SEED_MAX_PER_ANCHOR", "6"))
 
 # 주제 다양성: 서로 다른 앵커에 걸쳐 있어도(예: '학회 명찰', '명찰 재발행',
 # 'QR 명찰 출력') 하나의 테마 키워드가 최근 재고를 과점하는 것을 막는다.

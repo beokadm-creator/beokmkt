@@ -14,7 +14,7 @@ import re
 
 import config
 from db import db
-from tools.keyword_bank import KEYWORDS
+from tools.keyword_bank import KEYWORDS, pillar_of
 
 INVENTORY_STATUSES = (
     "draft",
@@ -131,25 +131,40 @@ def _saturated_markers(recent: list[str]) -> set[str]:
 
 
 def _select_spread(candidates: list, max_seeds: int) -> list:
-    """후보를 앵커별로 그룹화한 뒤 라운드로빈으로 뽑는다.
-    같은 틀의 주제가 한 배치에 연달아 들어가는 것을 막는다."""
-    groups: dict[str, list] = {}
-    order: list[str] = []
+    """후보를 주제축(pillar)→앵커 2단계로 그룹화한 뒤 라운드로빈으로 뽑는다.
+
+    1단계(pillar): 한 배치가 홈페이지/시스템/학회/MICE/솔루션 축을 고르게 돌게 한다
+    — 같은 축(예: 명찰 운영)이 배치를 독점하는 것을 구조적으로 차단.
+    2단계(anchor): 같은 축 안에서도 같은 틀 주제가 연달아 들어가지 않게 한다."""
+    pillar_groups: dict[str, dict[str, list]] = {}
+    pillar_order: list[str] = []
     for c in candidates:
+        p = pillar_of(c[0], c[2])
         a = _anchor(c[0])
-        if a not in groups:
-            groups[a] = []
-            order.append(a)
-        groups[a].append(c)
-    queues = [list(groups[a]) for a in order]
+        if p not in pillar_groups:
+            pillar_groups[p] = {}
+            pillar_order.append(p)
+        pillar_groups[p].setdefault(a, []).append(c)
+
+    # pillar별 앵커 라운드로빈 큐를 만든다
+    pillar_queues: dict[str, list] = {}
+    for p, anchors in pillar_groups.items():
+        anchor_queues = [list(q) for q in anchors.values()]
+        merged: list = []
+        while any(anchor_queues):
+            for q in anchor_queues:
+                if q:
+                    merged.append(q.pop(0))
+        pillar_queues[p] = merged
+
     out: list = []
     while len(out) < max_seeds:
         progressed = False
-        for q in queues:
+        for p in pillar_order:
             if len(out) >= max_seeds:
                 break
-            if q:
-                out.append(q.pop(0))
+            if pillar_queues[p]:
+                out.append(pillar_queues[p].pop(0))
                 progressed = True
         if not progressed:
             break  # 모든 큐 소진
@@ -175,6 +190,8 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
         and _normalize(topic) not in existing
     ]
 
+    random.shuffle(candidates)
+
     saturated = _saturated_markers(_recent_topics(config.AUTO_SEED_THEME_LOOKBACK))
     if saturated:
         filtered = [
@@ -184,9 +201,14 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
         if filtered:
             candidates = filtered
         else:
-            print(f"  테마 편중 경고: {saturated} 외 후보 없음 — 임시로 편중 마커 포함 허용")
+            # 모든 후보가 포화 마커를 포함하면 전면 허용(과거 동작) 대신
+            # 포화 마커 포함 개수가 적은 후보부터 쓴다 — 편중이 가장 덜한 쪽 우선.
+            print(f"  테마 편중 경고: {saturated} 외 후보 없음 — 편중 마커가 적은 후보 우선 사용")
+            candidates = sorted(
+                candidates,
+                key=lambda c: sum(1 for marker in saturated if marker in c[0]),
+            )
 
-    random.shuffle(candidates)
     chosen = _select_spread(candidates, max_seeds)
 
     created = 0

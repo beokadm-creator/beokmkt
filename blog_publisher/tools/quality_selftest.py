@@ -384,7 +384,7 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
             config.AUTO_SEED_REQUIRED_TERMS = []
             config.SEARCH_PROVIDER = "tavily"
             config.TAVILY_API_KEY = "mock"
-            collect.collect = lambda _queries: [
+            collect.collect = lambda _queries, category="", topic="": [
                 CollectedSource("비오케이솔루션", "https://beoksolution.com/", "비오케이솔루션은 홈페이지 제작과 맞춤형 시스템 개발을 제공한다.", "high"),
                 CollectedSource("홍커뮤니케이션", "https://hongcomm.kr/", "홍커뮤니케이션은 MICE 행사 운영과 학술대회 운영 레퍼런스를 보유한다.", "high"),
             ]
@@ -701,6 +701,8 @@ def _test_factcheck_all_failed_stop_runbook() -> list[str]:
                 "id": 1,
                 "body": "근거와 맞지 않는 본문",
                 "evidence": '{"facts":[{"statement":"근거"}]}',
+                "attempts": 0,
+                "max_attempts": 5,
             }]
 
         def claim(self, _post_id, _from_status, _to_status):
@@ -714,6 +716,9 @@ def _test_factcheck_all_failed_stop_runbook() -> list[str]:
 
         def save_body(self, _post_id, _body, to_status="draft"):
             return None
+
+        def requeue_draft(self, _post_id, _attempts, _error, _max_attempts=5):
+            return "draft"
 
     original_db = factcheck.db
     original_check = factcheck.check
@@ -1140,10 +1145,12 @@ def _test_stock_seed_after_base_keyword_exhaustion() -> list[str]:
             issues.append(f"stock-seed: 기본 키워드 소진 후 확장 주제 생성 부족({created}/8)")
         if total < _BASE_KEYWORD_COUNT + 8:
             issues.append(f"stock-seed: 전체 draft 수 부족({total})")
-        joined = "\n".join(row["topic"] for row in new_rows)
-        for token in ["홈페이지", "시스템", "학회", "홍커뮤니케이션"]:
-            if token not in joined:
-                issues.append(f"stock-seed: 확장 주제 축 누락: {token}")
+        # 특정 토큰(홈페이지/학회 등)은 테마 포화 캡에 걸려 의도적으로 회피될 수
+        # 있으므로, 문자 매칭 대신 주제축(pillar) 커버리지로 다양성을 검증한다.
+        from tools.keyword_bank import pillar_of
+        pillars = {pillar_of(row["topic"] or "", row["category"] or "") for row in new_rows}
+        if len(pillars) < 3:
+            issues.append(f"stock-seed: 확장 주제 축 다양성 부족(pillar {len(pillars)}종: {sorted(pillars)})")
         return issues
     finally:
         db.DB_PATH = original_db_path
@@ -1286,6 +1293,63 @@ def _test_selfhosted_renderer() -> list[str]:
         issues.append("selfhosted: 저장 fragment에 article/h1 포함")
     if "[이미지:" in html:
         issues.append("selfhosted: 이미지 텍스트 마커 노출")
+    return issues
+
+
+def _test_renderer_brand_variants() -> list[str]:
+    """브랜드/주제축별 렌더 컴포넌트 분기 — 명찰 전용 블록 하드코딩 회귀 방지.
+
+    beok(홈페이지 개발)·hong(MICE)·notebook_return(반품 노트북) 글에도 각자의
+    점검 범위/운영 흐름/비교표/CTA가 붙어야 하고, 서로의 문구가 섞이면 안 된다.
+    notebook_return은 쿠팡 파트너스 고지와 스타일 내장(embed)까지 검증한다.
+    """
+    from render.renderer import render_body, render_body_embed
+
+    issues: list[str] = []
+
+    beok_html = render_body({
+        "title": "학원 홈페이지 제작에서 예약 시스템 설계 기준",
+        "body": SAMPLE_MD,
+        "meta_desc": "홈페이지 개발 렌더 테스트",
+        "category": "beok",
+        "topic": "학원 홈페이지 제작 예약 결제 관리자",
+    })
+    issues += _assert_contains("renderer-beok", beok_html, [
+        "service-proof", "비오케이솔루션 구축 범위",
+        "operation-flow", "개발 진행 흐름",
+        "ops-comparison", "soft-cta", "beoksolution.com",
+    ])
+    if "명찰 발행은" in beok_html:
+        issues.append("renderer-beok: 홈페이지 글에 명찰 운영 블록 노출")
+
+    hong_html = render_body({
+        "title": "국제학술대회 AI 동시통역 준비 방법",
+        "body": SAMPLE_MD,
+        "meta_desc": "MICE 렌더 테스트",
+        "category": "hong",
+        "topic": "홍커뮤니케이션 MICE 동시통역",
+    })
+    issues += _assert_contains("renderer-hong", hong_html, [
+        "홍커뮤니케이션 운영 범위", "행사 운영 흐름", "hongcomm.kr", "홍커뮤니케이션 문의하기",
+    ])
+    if ">상담 문의하기<" in hong_html:
+        issues.append("renderer-hong: hong 글 CTA가 비오케이솔루션으로 잘못 연결")
+
+    nb_html = render_body_embed({
+        "title": "반품 노트북 등급 차이와 고르는 기준",
+        "body": SAMPLE_MD,
+        "meta_desc": "반품 노트북 렌더 테스트",
+        "category": "notebook_return",
+        "topic": "반품 노트북 등급 비교",
+    })
+    issues += _assert_contains("renderer-notebook", nb_html, [
+        "partner-disclosure", "쿠팡 파트너스 활동",
+        "구매 전 확인 범위", "구매 판단 흐름",
+        "notebook-return.web.app", "시세·재고 확인하기",
+        "<style>", "bp-article",
+    ])
+    if "상담 문의하기" in nb_html:
+        issues.append("renderer-notebook: 소비자 콘텐츠에 상담 CTA 노출")
     return issues
 
 
@@ -1507,6 +1571,7 @@ def run() -> bool:
         + _test_content_reboot_plan()
         + _test_windows_ops_orchestration_contract()
         + _test_selfhosted_renderer()
+        + _test_renderer_brand_variants()
         + _test_renderer_security_and_normalization()
         + _test_tistory_adapter()
         + _test_channel_rewriter_gate()

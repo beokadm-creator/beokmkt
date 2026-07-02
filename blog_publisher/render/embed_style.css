@@ -1,0 +1,125 @@
+/* 임베드용 컴포넌트 스타일 — 외부 사이트(예: notebook-return.web.app)가
+   렌더러 fragment(bodyHtml)를 그대로 innerHTML로 꽂을 때 쓴다.
+   호스트 페이지 CSS에 의존하지 않도록 모든 선택자를 .bp-article로 스코프하고,
+   html/body 같은 전역 리셋은 넣지 않는다(호스트 파괴 방지). */
+.bp-article {
+  --bp-fg: #15181d; --bp-muted: #5b6470; --bp-soft-fg: #39414d;
+  --bp-accent: #2563eb; --bp-accent-soft: #eff4ff;
+  --bp-border: #e6e9ef; --bp-soft: #f7f9fc;
+  --bp-warn: #d97706; --bp-warn-soft: #fff5e8;
+  --bp-tip: #0f9d72; --bp-tip-soft: #e9f9f2;
+  --bp-radius: 14px;
+  color: var(--bp-fg); font-size: 17px; line-height: 1.78;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+@media (prefers-color-scheme: dark) {
+  .bp-article {
+    --bp-fg: #e7eaef; --bp-muted: #9aa3b2; --bp-soft-fg: #c2c8d2;
+    --bp-accent: #7aa7ff; --bp-accent-soft: #18233a;
+    --bp-border: #262a33; --bp-soft: #14171d;
+    --bp-warn-soft: #2c2113; --bp-tip-soft: #0e2a22;
+  }
+}
+.bp-article h2 { font-size: 1.4rem; font-weight: 800; line-height: 1.34; margin: 2em 0 0.7em; }
+.bp-article h3 { font-size: 1.12rem; font-weight: 700; margin: 1.6em 0 0.5em; }
+.bp-article p { margin: 0 0 1em; }
+.bp-article ul, .bp-article ol { margin: 0 0 1.2em; padding-left: 1.3em; }
+.bp-article li { margin: 0.3em 0; }
+.bp-article a { color: var(--bp-accent); }
+.bp-article img { max-width: 100%; height: auto; border-radius: 10px; }
+.bp-article figure { margin: 1.4em 0; }
+.bp-article figcaption { color: var(--bp-muted); font-size: 0.85rem; margin-top: 6px; text-align: center; }
+.bp-article .post-hero { margin: 0 0 24px; border-radius: var(--bp-radius); overflow: hidden; border: 1px solid var(--bp-border); }
+.bp-article .post-hero img { display: block; width: 100%; border-radius: 0; }
+
+.bp-article .summary-card {
+  margin: 0 0 24px; padding: 18px 20px; border: 1px solid var(--bp-border);
+  border-radius: var(--bp-radius); background: var(--bp-soft);
+}
+.bp-article .summary-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.bp-article .summary-kicker { font-weight: 800; color: var(--bp-accent); font-size: 0.92rem; }
+.bp-article .summary-time { color: var(--bp-muted); font-size: 0.85rem; }
+.bp-article .summary-card ul { margin: 0.4em 0 0; }
+.bp-article .summary-decision {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px;
+  border-top: 1px dashed var(--bp-border); font-size: 0.95rem;
+}
+.bp-article .summary-decision strong { color: var(--bp-accent); }
+
+.bp-article .service-proof, .bp-article .operation-flow, .bp-article .ops-comparison {
+  margin: 24px 0; padding: 18px 20px; border: 1px solid var(--bp-border);
+  border-radius: var(--bp-radius); background: var(--bp-soft);
+}
+.bp-article .proof-kicker, .bp-article .flow-kicker {
+  font-weight: 800; color: var(--bp-accent); font-size: 0.92rem; margin-bottom: 10px;
+}
+.bp-article .service-proof ul {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px; margin: 0; padding: 0; list-style: none;
+}
+.bp-article .service-proof li {
+  padding: 12px 14px; border: 1px solid var(--bp-border); border-radius: 10px; background: rgba(255,255,255,0.5);
+}
+@media (prefers-color-scheme: dark) { .bp-article .service-proof li { background: rgba(255,255,255,0.04); } }
+@media (max-width: 560px) { .bp-article .service-proof ul { grid-template-columns: 1fr; } }
+.bp-article .service-proof strong { display: block; margin-bottom: 4px; }
+.bp-article .service-proof span { color: var(--bp-soft-fg); font-size: 0.92rem; }
+.bp-article .operation-flow h2 { margin: 0 0 14px; font-size: 1.2rem; }
+.bp-article .operation-flow ol { margin: 0; padding: 0; list-style: none; }
+.bp-article .operation-flow li { display: flex; gap: 12px; margin: 0 0 10px; }
+.bp-article .flow-num {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 30px;
+  width: 30px; height: 30px; border-radius: 999px; background: var(--bp-accent);
+  color: #fff; font-size: 0.85rem; font-weight: 800;
+}
+.bp-article .operation-flow p { margin: 2px 0 0; color: var(--bp-soft-fg); font-size: 0.92rem; }
+.bp-article .ops-comparison h2 { margin: 0 0 12px; font-size: 1.2rem; }
+
+.bp-article .toc {
+  margin: 24px 0; padding: 16px 20px; border: 1px solid var(--bp-border);
+  border-radius: var(--bp-radius); font-size: 0.95rem;
+}
+.bp-article .toc ol { margin: 8px 0 0; }
+.bp-article .toc a { text-decoration: none; }
+
+.bp-article .table-wrap { overflow-x: auto; margin: 1.2em 0; }
+.bp-article table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+.bp-article th, .bp-article td { padding: 10px 12px; border: 1px solid var(--bp-border); text-align: left; vertical-align: top; }
+.bp-article th { background: var(--bp-accent-soft); font-weight: 700; }
+
+.bp-article .content-callout {
+  margin: 1.2em 0; padding: 14px 16px; border-left: 4px solid var(--bp-accent);
+  border-radius: 8px; background: var(--bp-accent-soft); font-size: 0.96rem;
+}
+.bp-article .content-callout.is-warn { border-left-color: var(--bp-warn); background: var(--bp-warn-soft); }
+.bp-article .content-callout.is-tip { border-left-color: var(--bp-tip); background: var(--bp-tip-soft); }
+.bp-article .partner-disclosure { font-size: 0.88rem; color: var(--bp-soft-fg); }
+
+.bp-article .check-list { list-style: none; padding-left: 0; }
+.bp-article .check-item { display: flex; gap: 8px; align-items: baseline; }
+.bp-article .check-box {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 18px;
+  width: 18px; height: 18px; border: 1.5px solid var(--bp-accent); border-radius: 5px;
+  font-size: 12px; color: var(--bp-accent);
+}
+
+.bp-article .soft-cta {
+  margin: 28px 0 0; padding: 20px 22px; border-radius: var(--bp-radius);
+  background: var(--bp-accent-soft); border: 1px solid var(--bp-border);
+}
+.bp-article .soft-cta strong { display: block; margin-bottom: 6px; font-size: 1.05rem; }
+.bp-article .soft-cta p { margin: 0 0 12px; color: var(--bp-soft-fg); font-size: 0.95rem; }
+.bp-article .soft-cta a {
+  display: inline-block; padding: 9px 16px; border-radius: 999px;
+  background: var(--bp-accent); color: #fff; text-decoration: none; font-weight: 700; font-size: 0.93rem;
+}
+
+.bp-article .tags { margin: 20px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.bp-article .tags a {
+  font-size: 0.85rem; color: var(--bp-muted); text-decoration: none;
+  padding: 4px 10px; border: 1px solid var(--bp-border); border-radius: 999px;
+}
+.bp-article .src, .bp-article .permalink {
+  margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--bp-border);
+  color: var(--bp-muted); font-size: 0.85rem;
+}

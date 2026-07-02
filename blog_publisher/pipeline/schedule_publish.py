@@ -75,27 +75,47 @@ def _queued_anchors() -> set[str]:
     return out
 
 
+def _pillar(post) -> str:
+    try:
+        from tools.keyword_bank import pillar_of
+        return pillar_of(post["topic"] or post["title"] or "", post["category"] or "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _select_diverse(candidates: list, n: int, avoid: set[str]) -> list:
-    """후보를 앵커별 라운드로빈으로 뽑되, 회피셋(이미 큐에 있는 틀)은 뒤로 미룬다.
-    같은 틀의 글이 한 발행 흐름에서 연달아 나가는 것을 막는다."""
-    groups: dict[str, list] = {}
-    order: list[str] = []
+    """후보를 주제축(pillar)→앵커 2단계 라운드로빈으로 뽑되, 회피셋(이미 큐에
+    있는 틀)은 뒤로 미룬다. 같은 축·같은 틀의 글이 한 발행 흐름에서 연달아
+    나가는 것을 막는다."""
+    pillar_groups: dict[str, dict[str, list]] = {}
+    pillar_order: list[str] = []
     for c in candidates:
+        p = _pillar(c)
         a = _anchor(c["topic"] if c["topic"] else c["title"])
-        if a not in groups:
-            groups[a] = []
-            order.append(a)
-        groups[a].append(c)
-    order.sort(key=lambda a: 0 if a not in avoid else 1)  # 새로운 틀 우선
-    queues = [list(groups[a]) for a in order]
+        if p not in pillar_groups:
+            pillar_groups[p] = {}
+            pillar_order.append(p)
+        pillar_groups[p].setdefault(a, []).append(c)
+
+    pillar_queues: dict[str, list] = {}
+    for p, anchors in pillar_groups.items():
+        anchor_order = sorted(anchors, key=lambda a: 0 if a not in avoid else 1)  # 새로운 틀 우선
+        anchor_queues = [list(anchors[a]) for a in anchor_order]
+        merged: list = []
+        while any(anchor_queues):
+            for q in anchor_queues:
+                if q:
+                    merged.append(q.pop(0))
+        pillar_queues[p] = merged
+
     out: list = []
     while len(out) < n:
         progressed = False
-        for q in queues:
+        for p in pillar_order:
             if len(out) >= n:
                 break
-            if q:
-                out.append(q.pop(0))
+            if pillar_queues[p]:
+                out.append(pillar_queues[p].pop(0))
                 progressed = True
         if not progressed:
             break  # 후보 소진

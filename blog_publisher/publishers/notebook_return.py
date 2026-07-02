@@ -54,7 +54,7 @@ class NotebookReturnPublisher:
     name = "notebook_return"
 
     def publish(self, post) -> str:
-        from render.renderer import render_body
+        from render.renderer import render_body_embed
 
         body = post.get("body", "")
 
@@ -62,23 +62,26 @@ class NotebookReturnPublisher:
         slug = _slugify(post.get("title") or post.get("topic") or f"post-{post.get('id')}")
         public_url = f"{config.NOTEBOOK_RETURN_PUBLIC_URL}/guide/{slug}"
 
-        # Render body with canonical_url for JSON-LD
-        body_html = render_body({
+        # Visible permalink footer (fragment 안에 포함해 스코프 스타일을 받게 한다)
+        footer_html = (
+            f'<footer class="permalink">원문 주소: '
+            f'<a href="{html.escape(public_url)}" rel="canonical noopener">'
+            f'{html.escape(config.NOTEBOOK_RETURN_PUBLIC_URL)}/guide/{html.escape(slug)}</a></footer>'
+        )
+
+        # 사이트가 bodyHtml을 그대로 innerHTML로 삽입하므로 스타일 내장판을 쓴다
+        # (없으면 요약카드/비교표/CTA가 전부 평문 텍스트로 보인다).
+        body_html = render_body_embed({
             "title": post.get("title", ""),
             "body": body,
             "meta_desc": post.get("meta_desc", ""),
             "tags": _loads(post.get("tags")),
             "lang": post.get("locale", "ko"),
             "canonical_url": public_url,
-        })
-
-        # Append visible permalink footer to body_html
-        footer_html = (
-            f'<footer class="permalink">원문 주소: '
-            f'<a href="{html.escape(public_url)}" rel="canonical noopener">'
-            f'{html.escape(config.NOTEBOOK_RETURN_PUBLIC_URL)}/guide/{html.escape(slug)}</a></footer>'
-        )
-        body_html = f"{body_html}\n{footer_html}"
+            # 렌더 컴포넌트(구매 흐름/비교표/CTA/쿠팡 파트너스 고지) 분기용
+            "category": post.get("category") or "notebook_return",
+            "topic": post.get("topic", ""),
+        }, extra_footer_html=footer_html)
 
         payload = {
             "slug": slug,

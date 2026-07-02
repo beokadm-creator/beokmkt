@@ -387,23 +387,35 @@ function hasDecisionChecklist(html) {
   return /운영\s*체크포인트|실행\s*체크|판단\s*기준/i.test(plainTextFromHtml(html))
 }
 
+// 문맥 분류 — 렌더 컴포넌트(점검 범위/운영 흐름/비교표/CTA)의 브랜드 분기 기준.
+// 과거에는 명찰/학회 문맥만 있어 그 외 주제(홈페이지 개발, MICE 대행)가
+// 평문으로 발행되거나 매번 같은 명찰 블록을 달고 나갔다.
+function contentContext(html) {
+  const text = plainTextFromHtml(html)
+  if (/명찰|재발행/.test(text)) return 'badge'
+  if (/홍커뮤니케이션|MICE|동시통역|포상여행|컨벤션|행사\s*대행|전시회/.test(text)) return 'hong'
+  if (/학회|학술대회|국제회의|사무국|참가자|초록|체크인|접수대/.test(text)) return 'conference'
+  if (/홈페이지|웹사이트|랜딩페이지|시스템|관리자|대시보드|자동화|연동|예약|결제/.test(text)) return 'beok'
+  return ''
+}
+
 function isConferenceBadgeContent(html) {
-  return /학회|명찰|사무국|참가자|재발행|접수대/.test(plainTextFromHtml(html))
+  return contentContext(html) === 'badge'
 }
 
 function hasServiceProof(html) {
   const text = plainTextFromHtml(html)
-  return /실무\s*점검\s*범위/.test(text) || (/데이터\s*검수/.test(text) && /사후\s*정리/.test(text))
+  return /(점검|구축|운영|확인)\s*범위/.test(text) || (/데이터\s*검수/.test(text) && /사후\s*정리/.test(text))
 }
 
 function hasOperationFlow(html) {
   const text = plainTextFromHtml(html)
-  return /사무국\s*운영\s*흐름|명찰\s*발행은\s*데이터\s*확정부터/.test(text)
+  return /(운영|진행|구축)\s*흐름/.test(text) || /명찰\s*발행은\s*데이터\s*확정부터/.test(text)
 }
 
 function hasOpsComparison(html) {
   const text = plainTextFromHtml(html)
-  return /현장\s*혼잡을\s*줄이는\s*운영\s*기준\s*비교|흔한\s*문제\s*권장\s*기준/.test(text)
+  return /(기준|방식|준비\s*방식)\s*비교/.test(text) || /흔한\s*문제\s*권장\s*기준/.test(text)
 }
 
 function extractHeadingTexts(html, max = 4) {
@@ -460,14 +472,37 @@ function ensureTistoryDecisionChecklist(html) {
   return `${html}\n${checklist}`
 }
 
-function ensureTistoryServiceProof(html) {
-  if (!html.trim() || !isConferenceBadgeContent(html) || hasServiceProof(html)) return html
-  const items = [
+const SERVICE_PROOF_VARIANTS = {
+  badge: ['비오케이솔루션 실무 점검 범위', [
     ['데이터 검수', '이름·소속·역할·등록 구분을 기준 파일 하나로 고정합니다.'],
     ['출력 기준', '줄바꿈, QR·바코드, 여분 수량을 샘플 출력으로 확인합니다.'],
     ['현장 재발행', '승인 기준과 출력 기록을 남겨 중복 처리를 줄입니다.'],
     ['사후 정리', '미수령·변경 요청을 다음 행사 기준으로 남깁니다.'],
-  ]
+  ]],
+  conference: ['비오케이솔루션 학회 시스템 구축 범위', [
+    ['등록·결제', '참가자 등록, 등록비 결제, 영수증 처리를 한 흐름으로 연결합니다.'],
+    ['초록·심사', '초록 접수와 심사 배정을 관리자 화면에서 처리합니다.'],
+    ['현장 체크인', 'QR 체크인과 명찰 출력을 등록 데이터와 연동합니다.'],
+    ['사후 데이터', '참석·결제 기록을 보고서용 데이터로 정리합니다.'],
+  ]],
+  beok: ['비오케이솔루션 구축 범위', [
+    ['요구사항 정리', '업무 흐름을 화면과 데이터 구조로 먼저 정리합니다.'],
+    ['홈페이지·시스템', '홈페이지, 관리자 대시보드, 맞춤 업무 화면을 구축합니다.'],
+    ['연동 개발', '예약·결제·알림톡·이메일 API를 업무 흐름에 연결합니다.'],
+    ['운영·유지보수', '서버, SSL, 검색 노출 기본 세팅까지 운영을 지원합니다.'],
+  ]],
+  hong: ['홍커뮤니케이션 운영 범위', [
+    ['행사 기획', '국제학술대회·기업행사·전시회를 기획부터 정산까지 대행합니다.'],
+    ['등록 시스템', 'e-Regi 등록, 결제, 논문 투고를 학회 홈페이지와 연결합니다.'],
+    ['AI 동시통역', '38개국 실시간 통역을 행사 규모에 맞춰 구성합니다.'],
+    ['현장 운영', '체크인, 세션 운영, 사후 보고까지 현장 인력이 지원합니다.'],
+  ]],
+}
+
+function ensureTistoryServiceProof(html) {
+  const ctx = contentContext(html)
+  if (!html.trim() || !ctx || hasServiceProof(html)) return html
+  const [kicker, items] = SERVICE_PROOF_VARIANTS[ctx]
   const rows = items.map(([title, desc]) => [
     `<li style="margin:0;padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:10px;background:#ffffff;">`,
     `<strong style="display:block;margin:0 0 4px;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">${title}</strong>`,
@@ -476,21 +511,44 @@ function ensureTistoryServiceProof(html) {
   ].join('')).join('')
   const proof = [
     `<section style="margin:26px 0;padding:18px 20px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:14px;background:${DESIGN_SYSTEM.colors.highlight};">`,
-    `<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:${DESIGN_SYSTEM.colors.accent};font-weight:800;">비오케이솔루션 실무 점검 범위</p>`,
+    `<p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:${DESIGN_SYSTEM.colors.accent};font-weight:800;">${kicker}</p>`,
     `<ul style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none;">${rows}</ul>`,
     `</section>`,
   ].join('')
   return `${html}\n${proof}`
 }
 
-function ensureTistoryOperationFlow(html) {
-  if (!html.trim() || !isConferenceBadgeContent(html) || hasOperationFlow(html)) return html
-  const steps = [
+const OPERATION_FLOW_VARIANTS = {
+  badge: ['사무국 운영 흐름', '명찰 발행은 데이터 확정부터 현장 기록까지 이어집니다', [
     ['1', '명단 확정', '최종 파일과 QR·바코드 열을 잠급니다.'],
     ['2', '샘플 출력', '긴 소속명, 줄바꿈, 코드 스캔을 확인합니다.'],
     ['3', '현장 배치', '접수대와 재발행 창구 역할을 나눕니다.'],
     ['4', '기록 정리', '수정·미수령·현장 등록 기록을 남깁니다.'],
-  ]
+  ]],
+  conference: ['학회 시스템 구축 흐름', '등록부터 사후 데이터까지 하나의 운영 데이터로 연결합니다', [
+    ['1', '요구 정리', '등록 항목, 결제 방식, 심사 절차를 확정합니다.'],
+    ['2', '시스템 구축', '등록 페이지와 관리자 화면을 함께 만듭니다.'],
+    ['3', '현장 운영', 'QR 체크인과 명찰 출력을 실데이터로 검증합니다.'],
+    ['4', '사후 정리', '참석·결제 데이터를 보고서로 넘깁니다.'],
+  ]],
+  beok: ['개발 진행 흐름', '상담부터 오픈까지 단계마다 확인하며 진행합니다', [
+    ['1', '상담·견적', '업무 흐름을 듣고 화면 단위로 범위를 정합니다.'],
+    ['2', '설계 확정', '화면 시안과 데이터 구조를 먼저 확인받습니다.'],
+    ['3', '구축·연동', '홈페이지·관리자·API 연동을 구축합니다.'],
+    ['4', '오픈·운영', '검색 노출 세팅과 유지보수 기준을 정리합니다.'],
+  ]],
+  hong: ['행사 운영 흐름', '기획부터 사후 보고까지 한 팀이 책임집니다', [
+    ['1', '기획·예산', '행사 목적에 맞춰 프로그램과 예산을 설계합니다.'],
+    ['2', '등록 오픈', '등록·결제·초록 접수 시스템을 오픈합니다.'],
+    ['3', '현장 운영', '체크인, 통역, 세션 운영을 현장에서 지원합니다.'],
+    ['4', '사후 보고', '등록·참석·정산 데이터를 보고서로 정리합니다.'],
+  ]],
+}
+
+function ensureTistoryOperationFlow(html) {
+  const ctx = contentContext(html)
+  if (!html.trim() || !ctx || hasOperationFlow(html)) return html
+  const [kicker, heading, steps] = OPERATION_FLOW_VARIANTS[ctx]
   const items = steps.map(([num, title, desc]) => [
     `<li style="display:flex;gap:12px;margin:0 0 10px;padding:14px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:12px;background:#ffffff;list-style:none;">`,
     `<span style="display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;height:32px;border-radius:999px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;font-size:13px;font-weight:800;">${num}</span>`,
@@ -502,28 +560,51 @@ function ensureTistoryOperationFlow(html) {
   ].join('')).join('')
   const flow = [
     `<section style="margin:28px 0;padding:18px 20px;border:1px solid ${DESIGN_SYSTEM.colors.border};border-radius:14px;background:${DESIGN_SYSTEM.colors.highlight};">`,
-    `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;color:${DESIGN_SYSTEM.colors.accent};font-weight:800;">사무국 운영 흐름</p>`,
-    `<h2 style="margin:0 0 14px;padding:0;border:0;background:transparent;font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">명찰 발행은 데이터 확정부터 현장 기록까지 이어집니다</h2>`,
+    `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;color:${DESIGN_SYSTEM.colors.accent};font-weight:800;">${kicker}</p>`,
+    `<h2 style="margin:0 0 14px;padding:0;border:0;background:transparent;font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">${heading}</h2>`,
     `<ol style="margin:0;padding:0;">${items}</ol>`,
     `</section>`,
   ].join('')
   return `${html}\n${flow}`
 }
 
-function ensureTistoryOpsComparison(html) {
-  if (!html.trim() || !isConferenceBadgeContent(html) || hasOpsComparison(html)) return html
-  const rows = [
+const OPS_COMPARISON_VARIANTS = {
+  badge: ['현장 혼잡을 줄이는 운영 기준 비교', [
     ['명단 파일', '파일 분산', '기준 파일 1개'],
     ['출력 검수', '현장 오류 발견', '샘플 출력 선확인'],
     ['재발행', '즉시 재출력', '승인·사유 기록'],
     ['행사 후', '기록 소실', '정산 자료화'],
-  ]
+  ]],
+  conference: ['학회 운영 방식 비교', [
+    ['등록 관리', '엑셀 수기 취합', '등록 시스템 자동 집계'],
+    ['결제 확인', '입금 대조 수작업', '결제·영수증 자동 연동'],
+    ['현장 확인', '명단 출력물 대조', 'QR 체크인'],
+    ['사후 보고', '기억에 의존', '데이터 기반 보고서'],
+  ]],
+  beok: ['홈페이지·시스템 운영 방식 비교', [
+    ['문의 접수', '전화·수기 메모', '문의폼·관리자 알림'],
+    ['예약·결제', '수동 확인', '자동 연동·알림톡'],
+    ['데이터 관리', '엑셀 분산', '관리자 대시보드'],
+    ['검색 노출', '방치', '기본 SEO 세팅'],
+  ]],
+  hong: ['행사 준비 방식 비교', [
+    ['등록 접수', '이메일 취합', 'e-Regi 등록 시스템'],
+    ['통역', '부스·장비 임대', 'AI 실시간 동시통역'],
+    ['현장 운영', '사무국 단독 대응', '전문 운영 인력 배치'],
+    ['사후 보고', '자료 소실', '등록·참석 데이터 보고'],
+  ]],
+}
+
+function ensureTistoryOpsComparison(html) {
+  const ctx = contentContext(html)
+  if (!html.trim() || !ctx || hasOpsComparison(html)) return html
+  const [heading, rows] = OPS_COMPARISON_VARIANTS[ctx]
   const body = rows.map(([label, risk, standard]) => (
     `<tr><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${label}</td><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${risk}</td><td style="padding:12px 14px;border:1px solid ${DESIGN_SYSTEM.colors.border};color:${DESIGN_SYSTEM.colors.text};vertical-align:top;">${standard}</td></tr>`
   )).join('')
   const comparison = [
     `<section style="margin:28px 0;">`,
-    `<h2 style="margin:0 0 14px;padding:14px 18px;border-left:5px solid ${DESIGN_SYSTEM.colors.point};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">현장 혼잡을 줄이는 운영 기준 비교</h2>`,
+    `<h2 style="margin:0 0 14px;padding:14px 18px;border-left:5px solid ${DESIGN_SYSTEM.colors.point};border-radius:10px;background:${DESIGN_SYSTEM.colors.highlight};font-size:${DESIGN_SYSTEM.fonts.h2};line-height:1.45;color:${DESIGN_SYSTEM.colors.primary};font-weight:800;">${heading}</h2>`,
     `<table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:14px;">`,
     `<thead><tr><th style="padding:12px 14px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">항목</th><th style="padding:12px 14px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">흔한 문제</th><th style="padding:12px 14px;background:${DESIGN_SYSTEM.colors.accent};color:#fff;border:1px solid ${DESIGN_SYSTEM.colors.accent};text-align:left;">권장 기준</th></tr></thead>`,
     `<tbody>${body}</tbody>`,
@@ -533,17 +614,33 @@ function ensureTistoryOpsComparison(html) {
   return `${html}\n${comparison}`
 }
 
+const CTA_VARIANTS = {
+  badge: [
+    '학회 명찰 출력과 현장 재발행 기준이 필요하신가요?',
+    '비오케이솔루션은 명단 정리, 명찰 출력, QR·바코드 확인, 현장 재발행 동선을 행사 흐름에 맞춰 점검합니다.',
+  ],
+  conference: [
+    '학회 등록·초록·체크인 시스템 구축이 필요하신가요?',
+    '비오케이솔루션은 참가자 등록, 결제, 초록 접수, QR 체크인을 하나의 운영 데이터로 연결합니다.',
+  ],
+  beok: [
+    '운영 환경 점검이 필요하신가요?',
+    '홈페이지 구축, 보안 설정, 신청폼 연동은 비오케이솔루션에 현재 상황을 문의해 점검할 수 있습니다.',
+  ],
+  hong: [
+    '국제학술대회·MICE 행사 운영 파트너가 필요하신가요?',
+    '행사 기획, e-Regi 등록 시스템, 38개국 AI 동시통역, 현장 운영까지 홍커뮤니케이션(02-6959-3871~3)에 문의할 수 있습니다.',
+  ],
+}
+
 function ensureTistoryCta(html) {
   if (!html.trim() || hasCtaText(html)) return html
-  const conference = isConferenceBadgeContent(html)
+  const ctx = contentContext(html) || 'beok'
+  const [heading, desc] = CTA_VARIANTS[ctx]
   const cta = [
     `<section style="margin:34px 0 0;padding:20px 22px;border-radius:14px;background:${DESIGN_SYSTEM.colors.primary};color:#fff;">`,
-    conference
-      ? `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">학회 명찰 출력과 현장 재발행 기준이 필요하신가요?</p>`
-      : `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">운영 환경 점검이 필요하신가요?</p>`,
-    conference
-      ? `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">비오케이솔루션은 명단 정리, 명찰 출력, QR·바코드 확인, 현장 재발행 동선을 행사 흐름에 맞춰 점검합니다.</p>`
-      : `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">홈페이지 구축, 보안 설정, 신청폼 연동은 비오케이솔루션에 현재 상황을 문의해 점검할 수 있습니다.</p>`,
+    `<p style="margin:0 0 8px;font-size:16px;line-height:1.7;color:#fff;font-weight:800;">${heading}</p>`,
+    `<p style="margin:0;font-size:15px;line-height:1.8;color:#fff;">${desc}</p>`,
     `</section>`,
   ].join('')
   return `${html}\n${cta}`
@@ -563,7 +660,7 @@ function tistoryHtmlQuality(html) {
     bolds: (value.match(/<strong\b/gi) || []).length,
     hasLeadSummary: /핵심\s*요약|요약|먼저\s*확인|결론부터/i.test(text.slice(0, 700)),
     hasCta: /상담|문의|운영\s*상담/i.test(text.slice(-900)),
-    hasBrandedCta: /비오케이솔루션/.test(text.slice(-1000)),
+    hasBrandedCta: /비오케이솔루션|홍커뮤니케이션/.test(text.slice(-1000)),
     hasDecisionChecklist: hasDecisionChecklist(value),
     hasServiceProof: hasServiceProof(value),
     hasOperationFlow: hasOperationFlow(value),
@@ -587,9 +684,10 @@ function validateTistoryHtml(html) {
   if (!quality.hasCta) reasons.push('상담 CTA 없음')
   if (!quality.hasBrandedCta) reasons.push('비오케이솔루션 CTA 없음')
   if (!quality.hasDecisionChecklist) reasons.push('운영 체크포인트 없음')
-  if (isConferenceBadgeContent(html) && !quality.hasServiceProof) reasons.push('실무 점검 범위 없음')
-  if (isConferenceBadgeContent(html) && !quality.hasOperationFlow) reasons.push('사무국 운영 흐름 없음')
-  if (isConferenceBadgeContent(html) && !quality.hasOpsComparison) reasons.push('운영 기준 비교표 없음')
+  const ctx = contentContext(html)
+  if (ctx && !quality.hasServiceProof) reasons.push('서비스 점검/구축 범위 없음')
+  if (ctx && !quality.hasOperationFlow) reasons.push('운영/진행 흐름 없음')
+  if (ctx && !quality.hasOpsComparison) reasons.push('기준 비교표 없음')
   return { ok: reasons.length === 0, reasons, quality }
 }
 

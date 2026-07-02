@@ -88,24 +88,13 @@ KEYWORDS: list[tuple[str, str, str]] = [
     ("MICE 행사 사후 보고서를 위해 등록 결제 참석 데이터를 남기는 방법", "howto", "hong"),
 
     # ── beoksolution: 학회 운영 사무국 명찰 출력 발행 ───────────────────
+    # 주의: 이 축은 과거 20개 주제가 몰려 블로그 전체가 명찰 글로 도배되는
+    # 단조로움의 주 원인이었다(발행 214건 중 명찰 계열 과점). 대표 주제만 남기고
+    # 나머지는 다른 서비스 축(홈페이지/시스템/MICE)에 지면을 양보한다.
     ("학회 명찰 출력 전 사무국 데이터 검수 체크리스트", "howto", "beok"),
-    ("학회 운영 사무국 명찰 발행 절차와 현장 접수 기준", "howto", "beok"),
-    ("학회 참가자 명단 정리부터 명찰 재발행까지 운영 방법", "howto", "beok"),
-    ("학술대회 명찰 제작 시 소속 직책 표기 오류 줄이는 방법", "howto", "beok"),
-    ("학회 현장 접수대 명찰 출력 장비와 인력 배치 기준", "howto", "beok"),
     ("QR 바코드 명찰 발행 전 사무국이 확인할 항목", "howto", "beok"),
-    ("학회 명찰 재출력 요청 처리 기준과 승인 흐름", "howto", "beok"),
     ("사전등록 현장등록 참가자를 나누는 명찰 운영 방식", "howto", "beok"),
-    ("학회 좌장 연자 스태프 명찰 구분 표기 기준", "niche", "beok"),
-    ("학회 사무국 명찰 출력 대행 업체 선정 기준", "review", "beok"),
-    ("참가자 데이터 엑셀 파일을 명찰 출력용으로 정리하는 방법", "howto", "beok"),
-    ("학회 접수 혼잡을 줄이는 명찰 가나다순 분류 방법", "howto", "beok"),
     ("국제학회 영문 이름 소속 명찰 표기 검수 방법", "howto", "beok"),
-    ("학회 명찰 목걸이 봉투 배포 동선까지 함께 설계하는 이유", "niche", "beok"),
-    ("명찰 출력 후 행사 종료 정산 자료를 남기는 방법", "howto", "beok"),
-    ("학회 운영 사무국이 명찰 발행 일정을 역산하는 방법", "howto", "beok"),
-    ("참가자 역할 변경이 많은 학회 명찰 운영 리스크", "niche", "beok"),
-    ("학회 명찰 출력 샘플 검수에서 꼭 봐야 할 요소", "howto", "beok"),
     ("현장 등록자가 많은 학회 명찰 재발행 대응 방법", "howto", "beok"),
     ("학회 명찰 출력과 접수 시스템을 함께 점검해야 하는 이유", "niche", "beok"),
 
@@ -130,6 +119,28 @@ KEYWORDS: list[tuple[str, str, str]] = [
     ("온라인 신청폼·문의폼 홈페이지에 붙이는 방법", "howto", "beok"),
     ("AI 고객 상담 챗봇 홈페이지 연동 방법", "howto", "beok"),
     ("헤어샵·네일샵 홈페이지 예약 시스템 구축", "howto", "beok"),
+
+    # ── beoksolution: 홈페이지·시스템 개발 서비스 홍보(브랜드 지면 보강) ──
+    ("비오케이솔루션 홈페이지 제작 프로세스 상담부터 오픈까지 단계별 정리", "niche", "beok"),
+    ("맞춤형 업무 시스템 개발 외주 견적을 받기 전 정리할 요구사항", "howto", "beok"),
+    ("관리자 대시보드 개발에서 사업자가 매일 보는 화면을 먼저 정하는 이유", "niche", "beok"),
+    ("문자 이메일 알림톡 API 연동 개발 범위와 비용 산정 기준", "howto", "beok"),
+    ("엑셀로 운영하던 업무를 웹 시스템으로 옮기는 단계별 로드맵", "howto", "beok"),
+    ("홈페이지 리뉴얼 시 기존 검색 노출을 잃지 않는 이전 체크리스트", "howto", "beok"),
+    ("쇼핑몰이 아닌 서비스업 결제 페이지 개발에서 확인할 것", "howto", "beok"),
+    ("개발사 선정 시 유지보수 계약 범위를 먼저 확인해야 하는 이유", "review", "beok"),
+    ("사업 초기 웹사이트와 랜딩페이지 중 무엇부터 만들어야 하나", "review", "beok"),
+    ("업무 자동화 개발 사례로 보는 반복 업무 줄이는 방법", "niche", "beok"),
+
+    # ── hongcomm: 솔루션·서비스 홍보(Society Portal / e-Regi / AI 통역) ──
+    ("학회 통합 운영 솔루션 Society Portal로 해결되는 사무국 업무", "niche", "hong"),
+    ("e-Regi 스마트 행사 등록 시스템 도입 전 확인할 운영 조건", "howto", "hong"),
+    ("38개국 AI 실시간 동시통역 서비스가 필요한 행사 유형", "niche", "hong"),
+    ("학술대회 대행 견적 문의 전 사무국이 정리할 행사 정보", "howto", "hong"),
+    ("1000건 행사 운영 경험에서 나온 국제행사 리스크 관리 기준", "niche", "hong"),
+    ("모바일 디지털 명찰 시스템이 기존 종이 명찰과 다른 점", "review", "hong"),
+    ("학회 온라인 결제 시스템 도입 시 카드 계좌이체 영수증 처리 기준", "howto", "hong"),
+    ("전시회와 학술대회를 함께 여는 행사의 운영 대행 범위", "niche", "hong"),
 
     # ── hongcomm ─────────────────────────────────────────────────────────
     ("국제학술대회 기획사 선택 방법", "review", "hong"),
@@ -177,6 +188,44 @@ KEYWORDS: list[tuple[str, str, str]] = [
 ]
 
 _BASE_KEYWORD_COUNT = len(KEYWORDS)
+
+# ---------------------------------------------------------------------------
+# 주제축(pillar) 분류 — 시드/생성/발행 다양성 쿼터의 공통 기준
+# ---------------------------------------------------------------------------
+# 순서 중요: 구체적 축(badge_ops)을 일반 축(conference_system)보다 먼저 검사한다.
+PILLARS: tuple[str, ...] = (
+    "notebook_return",     # 반품 노트북 구매 가이드(별도 브랜드)
+    "badge_ops",           # 명찰 출력·재발행 운영
+    "hong_mice",           # MICE·행사 기획 운영(홍커뮤니케이션)
+    "hong_solution",       # 등록/통역/포털 솔루션(홍커뮤니케이션)
+    "conference_system",   # 학회 등록·초록·체크인 시스템(비오케이)
+    "beok_homepage",       # 홈페이지 제작·운영(비오케이)
+    "beok_system",         # 맞춤 업무 시스템·연동 개발(비오케이)
+)
+
+_PILLAR_TERMS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("badge_ops", ("명찰",)),
+    ("hong_solution", ("동시통역", "통역", "Society Portal", "e-Regi", "논문 투고", "논문투고", "디지털 명찰", "결제 시스템 도입")),
+    ("hong_mice", ("MICE", "홍커뮤니케이션", "컨퍼런스", "전시", "포상여행", "인센티브", "세미나", "시상식", "포럼", "총회", "행사 기획", "행사 대행", "대행사", "기획사", "부스")),
+    ("conference_system", ("학회", "학술대회", "국제회의", "초록", "심사", "참가자", "체크인", "사무국", "등록 시스템", "등록비", "접수")),
+    ("beok_homepage", ("홈페이지", "웹사이트", "랜딩페이지", "SEO", "Search Console", "SSL", "도메인", "반응형", "구독 서비스")),
+    ("beok_system", ("시스템", "대시보드", "백오피스", "관리자", "자동화", "연동", "API", "알림톡", "챗봇", "예약", "결제", "데이터")),
+)
+
+
+def pillar_of(topic: str, brand_key: str = "") -> str:
+    """주제를 서비스 축으로 분류한다. 시드·생성·발행이 같은 기준을 쓴다."""
+    if brand_key == "notebook_return":
+        return "notebook_return"
+    text = topic or ""
+    for pillar, terms in _PILLAR_TERMS:
+        if pillar.startswith("hong") and brand_key == "beok":
+            continue  # 브랜드가 명시된 경우 상대 브랜드 축으로 새지 않게 한다
+        if any(term in text for term in terms):
+            return pillar
+    if brand_key == "hong":
+        return "hong_mice"
+    return "beok_homepage"
 
 
 def _append_unique(topic: str, content_type: str, brand_key: str, seen: set[str]) -> None:
@@ -298,4 +347,64 @@ def _expand_operational_keywords() -> None:
                 _append_unique(topic, content_type, brand_key, set())
 
 
+def _expand_notebook_return_keywords() -> None:
+    """반품 노트북(쿠팡 파트너스) 소비자 주제 확장.
+
+    정적 20개만으로는 4시간 주기 stock_seed(10건 목표)가 이틀이면 소진돼
+    같은 글이 재생산되거나 시드가 멈춘다. 브랜드×관점, 용도×예산 조합으로
+    풀을 넓히되 앵커당 cap을 걸어 템플릿 양산을 막는다."""
+    seen = {
+        "".join(ch for ch in topic.lower() if ch.isalnum() or "가" <= ch <= "힣")
+        for topic, _ctype, _brand in KEYWORDS
+    }
+    cap = max(1, config.SEED_MAX_PER_ANCHOR)
+    out: list[tuple[str, str, str]] = []
+
+    def add(topic: str, content_type: str) -> bool:
+        key = "".join(ch for ch in topic.lower() if ch.isalnum() or "가" <= ch <= "힣")
+        if not key or key in seen:
+            return False
+        seen.add(key)
+        out.append((topic, content_type, "notebook_return"))
+        return True
+
+    brands = ["삼성", "LG", "HP", "레노버", "델", "에이수스", "MSI", "애플 맥북"]
+    brand_angles = [
+        ("반품 노트북 등급별 상태 확인 포인트", "howto"),
+        ("반품 노트북 정가 대비 할인율 확인하는 법", "howto"),
+        ("반품 노트북과 리퍼 제품 보증 차이", "niche"),
+        ("반품 노트북 인기 모델 시세 흐름", "review"),
+        ("반품 노트북 구매 후 초기 점검 체크리스트", "howto"),
+        ("반품 노트북 재고가 풀리는 시점과 확인 주기", "niche"),
+    ]
+    for brand in brands:
+        angles = list(brand_angles); random.shuffle(angles)
+        made = 0
+        for angle, ctype in angles:
+            if made >= cap:
+                break
+            if add(f"{brand} {angle}", ctype):
+                made += 1
+
+    uses = ["대학생 과제용", "직장인 재택근무용", "영상 편집용", "개발 공부용",
+            "사무용 세컨드", "아이 온라인 수업용", "휴대용 서브", "게이밍 입문용"]
+    use_angles = [
+        ("반품 노트북 고르는 스펙 기준", "howto"),
+        ("반품 노트북 예산별 추천 기준", "review"),
+        ("반품 노트북에서 확인할 필수 옵션", "howto"),
+        ("신품 대신 반품 노트북이 유리한 이유", "niche"),
+    ]
+    for use in uses:
+        angles = list(use_angles); random.shuffle(angles)
+        made = 0
+        for angle, ctype in angles:
+            if made >= cap:
+                break
+            if add(f"{use} {angle}", ctype):
+                made += 1
+
+    KEYWORDS.extend(out)
+
+
 _expand_operational_keywords()
+_expand_notebook_return_keywords()
