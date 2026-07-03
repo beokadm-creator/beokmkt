@@ -37,6 +37,33 @@ BRANDS: dict[str, dict] = {
         "cta": "홍커뮤니케이션 문의",
         "contact": "TEL: 02-6959-3871~3 / info@hongcomm.kr",
     },
+    # 비오케이솔루션이 직접 개발·운영하는 서비스 쇼케이스. 블로그 정체성(개발
+    # 블로그)에 맞춰 '개발 사례/공공데이터 활용' 각도로만 쓴다 — 경마 정보성
+    # 글(출전표 보는 법 등)은 도메인 주제 일관성·사행성 인접 리스크 때문에 금지.
+    "racekra": {
+        "name": "마분",
+        "url": "https://racekra-87ecc.web.app",
+        "service_summary": (
+            "경마·경륜·경정 공공데이터(KRA 오픈 API) 기반 정보·분석 서비스. "
+            "출전표·배당·경주 기록을 실시간 데이터로 정리하고, 설명 가능한 주목지수와 "
+            "현금 베팅 없는 결과 맞히기 미니게임(응원권)을 제공하는 모바일 퍼스트 PWA. "
+            "비오케이솔루션이 직접 개발·운영한다."
+        ),
+        "cta": "마분 서비스 보기",
+        "contact": "",
+    },
+    "ncs": {
+        "name": "NCS Passport",
+        "url": "https://ncspj-ba46a.web.app",
+        "service_summary": (
+            "NCS(국가직무능력표준) 기반 개인 직무 역량 진단과 Work24 공공 API 연동 "
+            "추천 서비스. 적성·프로필 입력, 직무·NCS 목표 선택, 스킬 갭 진단을 거쳐 "
+            "국민내일배움카드 훈련과정, 채용 정보, 자격증, 시장 신호를 추천하고 "
+            "진단 리포트를 저장해 반복 개선을 돕는다. 비오케이솔루션이 직접 개발·운영한다."
+        ),
+        "cta": "NCS Passport 사용해 보기",
+        "contact": "",
+    },
     # 상담 유도가 아니라 실제 상품 구매 결정을 돕는 소비자 콘텐츠(쿠팡 파트너스 제휴).
     # cta/contact는 "문의"가 아니라 "지금 시세 확인" 성격으로 다르게 쓴다.
     "notebook_return": {
@@ -164,6 +191,32 @@ KEYWORDS: list[tuple[str, str, str]] = [
     ("하이브리드 학술대회 운영 방법", "howto", "hong"),
     ("MICE 행사 사후 보고서 작성 방법", "howto", "hong"),
 
+    # ── racekra(마분): 공공데이터·서비스 개발 사례(블로그 정체성 유지 각도) ──
+    # 확장 풀 없음 — 소진되면 멈추는 소량 쇼케이스 축. 전체 발행의 10~20%를 넘기지 않는다.
+    ("경마 공공데이터 API 활용 신청부터 실호출까지 개발 절차 정리", "howto", "racekra"),
+    ("KRA 공공데이터로 만든 정보 서비스 마분: 출전표 데이터 화면 설계", "niche", "racekra"),
+    ("공공데이터 기반 정보 서비스 개발 사례: 기획에서 배포까지", "niche", "racekra"),
+    ("실시간 배당 데이터를 다루는 모바일 PWA 폴링 구조 설계", "howto", "racekra"),
+    ("공공데이터 API 키 갱신과 장애 대응 운영 기준", "howto", "racekra"),
+    ("사행성 없는 게임화 설계: 응원권 보상 모델 개발 사례", "niche", "racekra"),
+    ("Firebase 기반 공공데이터 서비스의 운영 자동화 구조", "howto", "racekra"),
+    ("경주 기록 데이터를 통계 화면으로 정리하는 데이터 모델 설계", "howto", "racekra"),
+    ("AI 오케스트레이션으로 서비스 운영 파이프라인을 자동화한 사례", "niche", "racekra"),
+    ("공공데이터 활용 서비스의 이용약관과 연령 확인 게이트 설계", "howto", "racekra"),
+
+    # ── ncs(NCS Passport): 직무 진단·공공 고용 API 개발 사례 ──
+    # 확장 풀 없음 — 소량 쇼케이스 축. 교육·훈련 도메인이라 기존 정체성과 인접.
+    ("Work24 오픈 API 연동 개발에서 인증과 결과코드 처리 기준", "howto", "ncs"),
+    ("NCS 기반 직무 역량 진단 서비스 개발 사례: NCS Passport", "niche", "ncs"),
+    ("국민내일배움카드 훈련과정 데이터를 추천 화면으로 설계하는 방법", "howto", "ncs"),
+    ("여러 공공 고용 API를 하나의 진단 흐름으로 묶는 백엔드 설계", "howto", "ncs"),
+    ("직무 진단 결과 리포트를 저장하는 데이터 구조 설계", "howto", "ncs"),
+    ("공공 API 장애 시 공식 링크로 폴백하는 서비스 설계", "howto", "ncs"),
+    ("NCS 스킬 갭 진단 로직을 사용자 화면으로 풀어내는 기준", "howto", "ncs"),
+    ("훈련과정 채용정보 자격증 데이터를 한 화면에 정리하는 UX 설계", "howto", "ncs"),
+    ("React와 Firebase Functions로 공공 API 프록시를 구성하는 방법", "howto", "ncs"),
+    ("개인 맞춤 직무 진단 서비스의 반복 개선 데이터 설계", "niche", "ncs"),
+
     # ── notebook_return: 쿠팡 반품 노트북 구매 가이드(소비자 콘텐츠, 상담 유도 아님) ──
     ("반품 노트북 등급(최상/상/중/리퍼) 차이와 고르는 기준", "howto", "notebook_return"),
     ("쿠팡 반품마켓 직링크와 SRP 반품배지 차이 이해하기", "niche", "notebook_return"),
@@ -195,6 +248,8 @@ _BASE_KEYWORD_COUNT = len(KEYWORDS)
 # 순서 중요: 구체적 축(badge_ops)을 일반 축(conference_system)보다 먼저 검사한다.
 PILLARS: tuple[str, ...] = (
     "notebook_return",     # 반품 노트북 구매 가이드(별도 브랜드)
+    "racekra",             # 마분 — 공공데이터·개발 사례 쇼케이스(소량)
+    "ncs",                 # NCS Passport — 직무 진단·공공 API 개발 사례(소량)
     "badge_ops",           # 명찰 출력·재발행 운영
     "hong_mice",           # MICE·행사 기획 운영(홍커뮤니케이션)
     "hong_solution",       # 등록/통역/포털 솔루션(홍커뮤니케이션)
@@ -215,8 +270,8 @@ _PILLAR_TERMS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 def pillar_of(topic: str, brand_key: str = "") -> str:
     """주제를 서비스 축으로 분류한다. 시드·생성·발행이 같은 기준을 쓴다."""
-    if brand_key == "notebook_return":
-        return "notebook_return"
+    if brand_key in {"notebook_return", "racekra", "ncs"}:
+        return brand_key
     text = topic or ""
     for pillar, terms in _PILLAR_TERMS:
         if pillar.startswith("hong") and brand_key == "beok":

@@ -86,6 +86,21 @@ OFFICIAL_SOURCE_URLS = [
     if u.strip()
 ]
 
+# 브랜드(서비스 쇼케이스 축) 전용 근거 출처. 해당 category 글 생성 시
+# 기본 공식 출처(beok/hong)에 앞서 근거팩에 투입해 grounding을 확보한다.
+BRAND_SOURCE_URLS: dict[str, list[str]] = {
+    "racekra": [
+        "https://racekra-87ecc.web.app/",
+        "https://www.data.go.kr/data/15058559/openapi.do",
+        "https://www.data.go.kr/data/15059267/openapi.do",
+    ],
+    "ncs": [
+        "https://ncspj-ba46a.web.app/",
+        "https://www.work24.go.kr/cm/main.do",
+        "https://www.ncs.go.kr/index.do",
+    ],
+}
+
 
 def search_health_status() -> dict:
     """신규 원고 생성에 필요한 검색/근거 수집 준비 상태."""

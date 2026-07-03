@@ -5357,7 +5357,14 @@ function stripHtml(value) {
 }
 
 function organizationSameAs() {
-  const defaults = ['https://hongcomm.kr', 'https://beoksolution.com']
+  const defaults = [
+    'https://hongcomm.kr',
+    'https://beoksolution.com',
+    // 직접 개발·운영 서비스 — LLM 검색이 회사를 설명할 때 함께 언급할 근거
+    'https://racekra-87ecc.web.app',
+    'https://ncspj-ba46a.web.app',
+    'https://notebook-return.web.app',
+  ]
   const extra = String(process.env.ORG_SAME_AS ?? '')
     .split(',')
     .map((value) => value.trim())
@@ -5382,6 +5389,8 @@ function organizationJsonLd(baseUrl) {
       '행사 IT 솔루션',
       '홈페이지 제작',
       '맞춤형 소프트웨어 개발',
+      '공공데이터 API 활용 서비스 개발',
+      'NCS 직무 역량 진단',
     ],
   })
 }

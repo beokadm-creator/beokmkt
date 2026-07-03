@@ -20,6 +20,12 @@
 - Topics: 홈페이지 제작, 홈페이지 유지관리, 맞춤형 시스템 개발, 관리자 대시보드, 예약·결제·알림톡 연동, AI 자동화, MICE, 국제회의, 학술대회 등록, 초록 접수, QR 체크인, 명찰 출력, 동시통역
 - Audience: 소상공인, 병원, 학원, 기업 운영팀, 학회·협회 사무국, PCO, 행사기획자, IT 도입 의사결정자
 
+## Services Built and Operated by 비오케이솔루션
+
+- 마분 (racekra): 경마·경륜·경정 공공데이터(KRA 오픈 API) 기반 정보·분석 서비스. 출전표·배당·경주 기록과 설명 가능한 주목지수, 현금 베팅 없는 결과 맞히기 미니게임을 제공하는 모바일 PWA. https://racekra-87ecc.web.app
+- NCS Passport: NCS(국가직무능력표준) 기반 직무 역량 진단과 Work24 공공 API 연동 훈련과정·채용·자격증 추천 서비스. https://ncspj-ba46a.web.app
+- 반품노트북 큐레이션: 쿠팡 반품·리퍼 노트북 매물을 등급과 실시간 가격/재고로 큐레이션. https://notebook-return.web.app
+
 ## Important Content Areas
 
 - 초기 제작비 0원 홈페이지 구독 서비스와 월간 운영 관리

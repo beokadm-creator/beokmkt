@@ -327,6 +327,8 @@ def _image_brand_key(brand_key: str, topic: str, body_text: str) -> str:
     """운영 글 이미지 풀을 고른다. category가 축 이름이어도 운영 글이면 이미지를 넣는다."""
     if brand_key == "notebook_return":
         return "notebook_return"  # 정적 image_bank 대신 실제 상품 썸네일 사용(호출부에서 분기)
+    if brand_key in {"racekra", "ncs"}:
+        return "beok"  # 서비스 쇼케이스 축 — 비오케이 개발 사례이므로 beok 이미지 풀 사용
     if brand_key in {"hong", "beok"}:
         return brand_key
     key = (brand_key or "").lower()

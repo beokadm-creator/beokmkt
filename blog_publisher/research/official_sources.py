@@ -33,12 +33,12 @@ def _title(html: str, url: str) -> str:
     return host or url
 
 
-def collect_official_sources() -> list[CollectedSource]:
+def collect_official_sources(urls: list[str] | None = None) -> list[CollectedSource]:
     import requests
 
     sources: list[CollectedSource] = []
     seen: set[str] = set()
-    for url in config.OFFICIAL_SOURCE_URLS:
+    for url in (urls if urls is not None else config.OFFICIAL_SOURCE_URLS):
         if not url or url in seen:
             continue
         seen.add(url)

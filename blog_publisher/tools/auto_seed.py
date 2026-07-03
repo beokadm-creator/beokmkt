@@ -46,7 +46,9 @@ _FOCUS_GATED_BRANDS = {"beok", "hong", ""}
 # beok/hong 두 브랜드를 함께 발행해 왔으므로 그대로 유지하고, 새 브랜드 채널은
 # 자기 브랜드 키만 허용한다(다른 브랜드 콘텐츠가 엉뚱한 채널로 새는 것을 막는다).
 _CHANNEL_ALLOWED_BRANDS = {
-    "selfhosted": {"beok", "hong"},
+    # racekra/ncs는 자체 블로그에서만 소량 쇼케이스로 발행한다(외부 채널 금지 —
+    # 네이버/티스토리는 beok/hong 주제 일관성을 유지).
+    "selfhosted": {"beok", "hong", "racekra", "ncs"},
     "naver": {"beok", "hong"},
     "tistory": {"beok", "hong"},
 }

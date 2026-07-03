@@ -76,6 +76,18 @@ def collect(queries: list[str], category: str = "", topic: str = "") -> list[Col
             if len(sources) >= config.MAX_SOURCES:
                 return sources
 
+    # 서비스 쇼케이스 축(racekra/ncs)은 해당 서비스·공공 API 페이지를 먼저
+    # 근거로 투입한다 — beok/hong 공식 출처만으로는 grounding이 안 된다.
+    brand_urls = config.BRAND_SOURCE_URLS.get(category, [])
+    if brand_urls:
+        for source in collect_official_sources(brand_urls):
+            if source.url in seen:
+                continue
+            seen.add(source.url)
+            sources.append(source)
+            if len(sources) >= config.MAX_SOURCES:
+                return sources
+
     for source in collect_official_sources():
         if source.url in seen:
             continue
