@@ -8,7 +8,7 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import config
 from db import db
@@ -62,6 +62,14 @@ def _stage_backlog(now: str) -> dict[str, int]:
     return {key: int(row[key] or 0) for key in row.keys()}
 
 
+def _today_published_count() -> int:
+    """발행 로컬 타임존 기준 오늘 실제 발행 건수(정보용 — 상한 강제에는 쓰지 않음.
+    volume 조절 여부 판단은 사람이 이 숫자를 보고 결정한다)."""
+    tz = timezone(timedelta(hours=config.PUBLISH_TZ_OFFSET))
+    local_midnight = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    return db.count_published_since(local_midnight.astimezone(timezone.utc))
+
+
 def report() -> dict[str, int]:
     counts = {s: db.count_by_status(s) for s in STATUSES}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -90,6 +98,7 @@ def report() -> dict[str, int]:
     print("=== 파이프라인 상태 ===")
     for s in STATUSES:
         print(f"  {s:12} {counts[s]:>5}")
+    print(f"  {'오늘 발행':12} {_today_published_count():>5}  (정보용 — 상한 강제 없음)")
 
     print("\n=== draft 적체 분석 ===")
     print(f"  생성 대기(empty body)      {backlog['empty_draft']:>5}  due={backlog['generate_due']}")
