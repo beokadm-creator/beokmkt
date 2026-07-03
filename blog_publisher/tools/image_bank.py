@@ -169,22 +169,25 @@ _BEOK_BRAND: list[dict] = [
         },
     },
     {
-        "url": "https://beoksolution.com/assets/blog/beok/workflow-card.svg",
+        # og:image는 카카오톡·페이스북 등 소셜 크롤러가 SVG를 렌더링하지 못해
+        # 링크 공유 시 썸네일이 비는 문제가 있었다. 같은 디자인을 rsvg-convert로
+        # 1200x630 PNG로 미리 래스터화해 og:image에도 안전하게 쓴다.
+        "url": "https://beoksolution.com/assets/blog/beok/workflow-card.png",
         "alt": "비오케이솔루션 홈페이지 운영 흐름 카드",
         "keywords": {"운영", "흐름", "제작", "문의", "개선", "관리", "서비스"},
     },
     {
-        "url": "https://beoksolution.com/assets/blog/beok/seo-card.svg",
+        "url": "https://beoksolution.com/assets/blog/beok/seo-card.png",
         "alt": "비오케이솔루션 검색 노출 기본 세팅 카드",
         "keywords": {"SEO", "검색", "노출", "구글", "서치콘솔", "사이트맵", "색인", "메타"},
     },
     {
-        "url": "https://beoksolution.com/assets/blog/beok/automation-card.svg",
+        "url": "https://beoksolution.com/assets/blog/beok/automation-card.png",
         "alt": "비오케이솔루션 예약 결제 알림 자동화 카드",
         "keywords": {"예약", "결제", "알림톡", "AI", "자동화", "문의", "응대", "폼"},
     },
     {
-        "url": "https://beoksolution.com/assets/blog/beok/checklist-card.svg",
+        "url": "https://beoksolution.com/assets/blog/beok/checklist-card.png",
         "alt": "비오케이솔루션 홈페이지 운영 체크리스트 카드",
         "keywords": {"체크리스트", "준비", "주의", "필수", "방법", "단계", "확인", "운영"},
     },
@@ -367,7 +370,7 @@ def inject_images(
         card_pool = (
             _BEOK_CONFERENCE + _HONG_PORTFOLIO
             if conference_context
-            else [img for img in _BEOK_BRAND if img["url"].endswith(".svg")] + _HONG_PORTFOLIO
+            else [img for img in _BEOK_BRAND if "-card." in img["url"]] + _HONG_PORTFOLIO
         )
         max_images = min(5 if conference_context else 4, len(card_pool))
         for index, blk in enumerate(blocks):
