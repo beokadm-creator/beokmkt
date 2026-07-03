@@ -177,7 +177,7 @@ REVIEW_CRITICAL_ISSUES = [
 BANNED_WORDS = [w for w in os.getenv("BANNED_WORDS", "").split(",") if w]
 
 # ---- 발행 스케줄 ----
-DAILY_PUBLISH_TARGET = int(os.getenv("DAILY_PUBLISH_TARGET", "5"))   # 하루 발행 목표
+DAILY_PUBLISH_TARGET = int(os.getenv("DAILY_PUBLISH_TARGET", "5"))   # 발행 큐 깊이 목표(일일 총량 아님 — schedule_publish docstring 참고)
 PUBLISH_SPACING_MIN = int(os.getenv("PUBLISH_SPACING_MIN", "90"))    # 글 간 분산 간격(분)
 STOCK_BUFFER_DAYS = int(os.getenv("STOCK_BUFFER_DAYS", "3"))         # 유지할 재고 일수
 ALLOW_EXTERNAL_AUTO_SEED = os.getenv("ALLOW_EXTERNAL_AUTO_SEED", "false").lower() == "true"

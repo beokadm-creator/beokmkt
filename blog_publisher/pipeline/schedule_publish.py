@@ -5,7 +5,12 @@
   1) 원고 재고 버퍼: reviewed 재고를 항상 일정량 유지(생성이 하루 실패해도 발행은 계속).
   2) 발행 시각 지터 + 허용 시간대: 사람처럼 흩뿌리되 09~21시 같은 윈도우 안에서만.
 
-이 스케줄러는 '하루에 N건'만 큐에 올린다. 실제 발행은 publish 워커가 한다.
+이 스케줄러는 발행 큐 깊이(queued+publishing)를 DAILY_PUBLISH_TARGET까지 채운다.
+일일 총 발행량은 큐 깊이가 아니라 발행 윈도우 × PUBLISH_SPACING_MIN이 결정한다
+(예: 24시간 윈도우 · 45분 간격 ≈ 30~40건/일). 오늘 발행분을 상한에 세지 않는 것은
+버그가 아니라 운영 결정이다(2026-07-04, 주제 다양화 확보 후 볼륨 유지) — '일일 상한'
+으로 되돌리려면 아래 run_once의 already 계산에 오늘 발행분을 더하면 된다.
+실제 발행은 publish 워커가 한다.
 """
 from __future__ import annotations
 
@@ -123,7 +128,8 @@ def _select_diverse(candidates: list, n: int, avoid: set[str]) -> list:
 
 
 def run_once() -> int:
-    """오늘 이미 큐에 올린/발행한 양을 고려해 부족분만 채운다. 큐잉 건수 반환."""
+    """현재 큐 깊이(queued+publishing)가 목표 미만이면 부족분만 채운다. 큐잉 건수 반환.
+    의도적으로 '오늘 발행분'은 세지 않는다(모듈 docstring 참고)."""
     already = db.count_by_status("queued") + db.count_by_status("publishing")
     slots = max(0, config.DAILY_PUBLISH_TARGET - already)
     if slots == 0:
