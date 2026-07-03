@@ -5,11 +5,11 @@
   1) 원고 재고 버퍼: reviewed 재고를 항상 일정량 유지(생성이 하루 실패해도 발행은 계속).
   2) 발행 시각 지터 + 허용 시간대: 사람처럼 흩뿌리되 09~21시 같은 윈도우 안에서만.
 
-이 스케줄러는 발행 큐 깊이(queued+publishing)를 DAILY_PUBLISH_TARGET까지 채운다.
-일일 총 발행량은 큐 깊이가 아니라 발행 윈도우 × PUBLISH_SPACING_MIN이 결정한다
-(예: 24시간 윈도우 · 45분 간격 ≈ 30~40건/일). 오늘 발행분을 상한에 세지 않는 것은
-버그가 아니라 운영 결정이다(2026-07-04, 주제 다양화 확보 후 볼륨 유지) — '일일 상한'
-으로 되돌리려면 아래 run_once의 already 계산에 오늘 발행분을 더하면 된다.
+이 스케줄러는 '하루에 DAILY_PUBLISH_TARGET건'만 큐에 올린다(진짜 일일 상한 —
+오늘 발행분 published_at + 현재 큐 깊이를 함께 집계). 2026-07-04 오전까지는
+큐 깊이만 세는 동작을 운영 결정으로 유지했으나, 과잉 발행(30~40건/일)이 중복
+유사 글 양산·키워드 풀 조기 소진의 원인으로 확인되어 같은 날 일일 상한으로
+전환했다. 발행량을 유지/확대하려면 .env의 DAILY_PUBLISH_TARGET을 올리면 된다.
 실제 발행은 publish 워커가 한다.
 """
 from __future__ import annotations
@@ -127,10 +127,26 @@ def _select_diverse(candidates: list, n: int, avoid: set[str]) -> list:
     return out
 
 
+def _today_start_utc() -> datetime:
+    """발행 로컬 타임존(PUBLISH_TZ_OFFSET) 기준 오늘 0시의 UTC 시각."""
+    tz = timezone(timedelta(hours=config.PUBLISH_TZ_OFFSET))
+    local_midnight = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    return local_midnight.astimezone(timezone.utc)
+
+
 def run_once() -> int:
-    """현재 큐 깊이(queued+publishing)가 목표 미만이면 부족분만 채운다. 큐잉 건수 반환.
-    의도적으로 '오늘 발행분'은 세지 않는다(모듈 docstring 참고)."""
-    already = db.count_by_status("queued") + db.count_by_status("publishing")
+    """오늘 이미 큐에 올린/발행한 양을 고려해 부족분만 채운다. 큐잉 건수 반환.
+
+    큐 깊이만 세면 15분 주기 스케줄러가 큐가 빌 때마다 목표치를 다시 채워
+    일일 상한이 '동시 큐 깊이 상한'으로 변질된다(실측 30~40건/일 과잉 발행 —
+    2026-07-02 중복 유사 글 93건 정리의 원인). 오늘 발행분(published_at)을
+    반드시 함께 집계한다. 발행량을 늘리려면 DAILY_PUBLISH_TARGET을 올린다.
+    """
+    already = (
+        db.count_by_status("queued")
+        + db.count_by_status("publishing")
+        + db.count_published_since(_today_start_utc())
+    )
     slots = max(0, config.DAILY_PUBLISH_TARGET - already)
     if slots == 0:
         return 0

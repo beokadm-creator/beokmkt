@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS posts (
 
     review_issues TEXT,                               -- 검수 실패 사유(JSON)
     published_url TEXT,
+    published_at  TEXT,                               -- 실제 발행 시각(UTC). 일일 상한 집계 기준
     last_error    TEXT,
 
     created_at    TEXT    NOT NULL DEFAULT (datetime('now')),

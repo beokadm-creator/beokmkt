@@ -35,6 +35,7 @@ def connect():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")   # 동시 읽기/쓰기 안정화
     conn.execute("PRAGMA busy_timeout=5000;")
+    _ensure_migrations(conn)
     try:
         yield conn
         conn.commit()
@@ -43,6 +44,24 @@ def connect():
         raise
     finally:
         conn.close()
+
+
+_migrated = False
+
+
+def _ensure_migrations(conn: sqlite3.Connection) -> None:
+    """스키마 추가 컬럼을 기존 운영 DB에 반영한다(프로세스당 1회)."""
+    global _migrated
+    if _migrated:
+        return
+    try:
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(posts)").fetchall()}
+    except sqlite3.Error:
+        return  # posts 미생성(init 이전) — schema.sql이 처리
+    if cols and "published_at" not in cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN published_at TEXT")
+        conn.commit()
+    _migrated = True
 
 
 def init_db() -> None:
@@ -284,12 +303,24 @@ def enqueue(post_id: int, idem_key: str, run_at: datetime | None = None) -> None
 
 def mark_published(post_id: int, url: str, title=None) -> None:
     title = (title or "").strip() or None
+    now = _iso(_utcnow())
     with connect() as conn:
         conn.execute(
             "UPDATE posts SET status = 'published', published_url = ?, "
-            "title = COALESCE(?, title), last_error = NULL, updated_at = ? WHERE id = ?",
-            (url, title, _iso(_utcnow()), post_id),
+            "title = COALESCE(?, title), published_at = ?, "
+            "last_error = NULL, updated_at = ? WHERE id = ?",
+            (url, title, now, now, post_id),
         )
+
+
+def count_published_since(since_utc: datetime) -> int:
+    """since_utc 이후 실제 발행된 글 수. 발행 후 archived로 옮겨져도 집계에 남는다."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM posts WHERE published_at >= ?",
+            (_iso(since_utc),),
+        ).fetchone()
+    return int(row["n"])
 
 
 def requeue(post_id: int, attempts: int, max_attempts: int, error: str,
