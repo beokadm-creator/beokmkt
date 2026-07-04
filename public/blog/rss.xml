@@ -7,6 +7,30 @@
     <description>비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 다루는 공식 실무 블로그입니다.</description>
     <language>ko-KR</language>
     <item>
+      <title>예약제 매장 홈페이지 제작: 엑셀 내보내기 항목 설계 기준</title>
+      <link>https://beoksolution.com/blog/%EC%98%88%EC%95%BD%EC%A0%9C-%EB%A7%A4%EC%9E%A5-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%97%91%EC%85%80-%EB%82%B4%EB%B3%B4%EB%82%B4%EA%B8%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%98%88%EC%95%BD%EC%A0%9C-%EB%A7%A4%EC%9E%A5-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%97%91%EC%85%80-%EB%82%B4%EB%B3%B4%EB%82%B4%EA%B8%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
+      <pubDate>Sat, 04 Jul 2026 03:54:06 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 예약제 매장 홈페이지 제작 시 고객 데이터 엑셀 내보내기 항목을 먼저 설계해야 하는 이유와 설정 기준을 알아봅니다. 정산, 리타겟팅, 고객 관리 목적별 필수 데이터와 개인정보보호법 주의사항까지 확인하세요. 데이터 내보내기 항목을 먼저 설계해야 하는 이유: 운영 중 항목 추가의 함정 항목 설계 3단계:</description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
+      <title>전문 서비스업 홈페이지 제작: 관리자 대시보드 선설계 기준</title>
+      <link>https://beoksolution.com/blog/%EC%A0%84%EB%AC%B8-%EC%84%9C%EB%B9%84%EC%8A%A4%EC%97%85-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B4%80%EB%A6%AC%EC%9E%90-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%EC%84%A0%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%A0%84%EB%AC%B8-%EC%84%9C%EB%B9%84%EC%8A%A4%EC%97%85-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B4%80%EB%A6%AC%EC%9E%90-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%EC%84%A0%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
+      <pubDate>Sat, 04 Jul 2026 02:04:19 GMT</pubDate>
+      <description>핵심 요약 읽기 2분 전문 서비스업 홈페이지 제작 시 운영 효율과 데이터 관리를 극대화하는 관리자 대시보드 선설계 기준을 알아봅니다. 권한 분리와 실시간 통제로 성공적인 사이트 운영을 준비하세요. 1. 왜 화면 디자인 전에 대시보드 항목을 먼저 정해야 할까 2. 업무 프로세스와 관리자 접근 권한을 반영한 메뉴 구조 기획 </description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
+      <title>행사 운영사 홈페이지 제작: 예약 접수부터 변경 요청까지 설계 기준</title>
+      <link>https://beoksolution.com/blog/%ED%96%89%EC%82%AC-%EC%9A%B4%EC%98%81%EC%82%AC-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%98%88%EC%95%BD-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-%EC%9A%94%EC%B2%AD%EA%B9%8C%EC%A7%80-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
+      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%96%89%EC%82%AC-%EC%9A%B4%EC%98%81%EC%82%AC-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%98%88%EC%95%BD-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-%EC%9A%94%EC%B2%AD%EA%B9%8C%EC%A7%80-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
+      <pubDate>Fri, 03 Jul 2026 23:39:05 GMT</pubDate>
+      <description>핵심 요약 읽기 3분 행사 운영사 홈페이지 제작 시 프론트 예약 접수부터 백엔드 취소, 변경 요청 처리까지 시스템 로직과 항목을 설계하는 구체적인 기준과 체크리스트를 확인해 보세요. 예약 접수 폼 설계: 회원 등급·결제·옵션을 하나의 DB로 묶는 기준 취소·변경 요청 처리: 관리자 승인 상태 관리와 예외 상황 설계 판단 </description>
+      <category>홈페이지제작</category>
+    </item>
+    <item>
       <title>커뮤니케이션 워크숍 항목 설계 기준: 클라이언트 평가부터 보안까지</title>
       <link>https://beoksolution.com/blog/%EC%BB%A4%EB%AE%A4%EB%8B%88%EC%BC%80%EC%9D%B4%EC%85%98-%EC%9B%8C%ED%81%AC%EC%88%8D-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%ED%81%B4%EB%9D%BC%EC%9D%B4%EC%96%B8%ED%8A%B8-%ED%8F%89%EA%B0%80%EB%B6%80%ED%84%B0-%EB%B3%B4%EC%95%88%EA%B9%8C%EC%A7%80</link>
       <guid isPermaLink="true">https://beoksolution.com/blog/%EC%BB%A4%EB%AE%A4%EB%8B%88%EC%BC%80%EC%9D%B4%EC%85%98-%EC%9B%8C%ED%81%AC%EC%88%8D-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%ED%81%B4%EB%9D%BC%EC%9D%B4%EC%96%B8%ED%8A%B8-%ED%8F%89%EA%B0%80%EB%B6%80%ED%84%B0-%EB%B3%B4%EC%95%88%EA%B9%8C%EC%A7%80</guid>
@@ -381,30 +405,6 @@
       <pubDate>Thu, 02 Jul 2026 06:54:04 GMT</pubDate>
       <description>핵심 요약 읽기 3분 국제학술대회 준비 위원이 알아야 할 AI 동시통역 솔루션 선정 기준부터 참가자등록 시스템 연동, 당일 접수 데스크 체크리스트까지 성공적인 행사 운영을 위한 구축 절차를 확인해 보세요. 1. AI 동시통역 솔루션 선정 기준과 참가자 등록 시스템 연동 전제조건 2. 사전 등록 연동을 통한 명찰(QR) 발</description>
       <category>동시통역</category>
-    </item>
-    <item>
-      <title>학술대회 홈페이지 구축: 등록·결제·초록접수부터 명찰 출력까지</title>
-      <link>https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EA%B5%AC%EC%B6%95-%EB%93%B1%EB%A1%9D-%EA%B2%B0%EC%A0%9C-%EC%B4%88%EB%A1%9D%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%AA%85%EC%B0%B0-%EC%B6%9C%EB%A0%A5%EA%B9%8C%EC%A7%80</link>
-      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%EC%88%A0%EB%8C%80%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EA%B5%AC%EC%B6%95-%EB%93%B1%EB%A1%9D-%EA%B2%B0%EC%A0%9C-%EC%B4%88%EB%A1%9D%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%AA%85%EC%B0%B0-%EC%B6%9C%EB%A0%A5%EA%B9%8C%EC%A7%80</guid>
-      <pubDate>Thu, 02 Jul 2026 06:29:03 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 학술대회 홈페이지 구축 방법을 한눈에 확인하세요. 참가 등록, 결제 연동, 초록 접수 심사부터 현장 QR 명찰 출력까지 원스톱 시스템 설계 노하우와 필수 체크리스트를 제공합니다. 1. 구축 방식 선택과 참가 규모별 DB 설계 전략 2. 결제 연동부터 초록 접수·심사 배정까지: 통합 워크플로우 설계 판</description>
-      <category>학회운영</category>
-    </item>
-    <item>
-      <title>학회 홈페이지 솔루션: 회원·행사·결제 연동 설계 기준</title>
-      <link>https://beoksolution.com/blog/%ED%95%99%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%86%94%EB%A3%A8%EC%85%98-%ED%9A%8C%EC%9B%90-%ED%96%89%EC%82%AC-%EA%B2%B0%EC%A0%9C-%EC%97%B0%EB%8F%99-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</link>
-      <guid isPermaLink="true">https://beoksolution.com/blog/%ED%95%99%ED%9A%8C-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%86%94%EB%A3%A8%EC%85%98-%ED%9A%8C%EC%9B%90-%ED%96%89%EC%82%AC-%EA%B2%B0%EC%A0%9C-%EC%97%B0%EB%8F%99-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</guid>
-      <pubDate>Thu, 02 Jul 2026 05:24:05 GMT</pubDate>
-      <description>핵심 요약 읽기 3분 학회 홈페이지 솔루션 구축 시 회원, 행사, 자료실, 결제 시스템을 단일 솔루션으로 연동 설계하는 방법과 필수 체크리스트를 확인하세요. 성공적인 통합 구축을 위한 핵심 가이드입니다. 1. 통합 솔루션 선정 전 점검: 회원·행사·결제·자료실 데이터 구조 확정하기 2. 단계별 구축 절차: 온라인 등록 연</description>
-      <category>학회운영</category>
-    </item>
-    <item>
-      <title>전문 서비스업 홈페이지 제작: 견적 전 필수 체크리스트</title>
-      <link>https://beoksolution.com/blog/%EC%A0%84%EB%AC%B8-%EC%84%9C%EB%B9%84%EC%8A%A4%EC%97%85-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%AC%EC%A0%81-%EC%A0%84-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</link>
-      <guid isPermaLink="true">https://beoksolution.com/blog/%EC%A0%84%EB%AC%B8-%EC%84%9C%EB%B9%84%EC%8A%A4%EC%97%85-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B2%AC%EC%A0%81-%EC%A0%84-%ED%95%84%EC%88%98-%EC%B2%B4%ED%81%AC%EB%A6%AC%EC%8A%A4%ED%8A%B8</guid>
-      <pubDate>Thu, 02 Jul 2026 05:04:19 GMT</pubDate>
-      <description>핵심 요약 읽기 2분 전문 서비스업 홈페이지 제작을 계획 중이라면 업체 상담 전 필수 체크리스트를 점검하세요. 핵심 기능 선정부터 콘텐츠, 일정 역산까지 성공적인 제작을 위한 내부 기준을 정리했습니다. 1. 홈페이지 목적과 핵심 기능·페이지 구조 설계 기준 (준비 단계) 2. 외주 업체 미팅 전 챙겨야 할 브랜드 콘텐츠 </description>
-      <category>홈페이지제작</category>
     </item>
   </channel>
 </rss>

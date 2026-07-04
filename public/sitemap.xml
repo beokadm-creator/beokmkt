@@ -2,33 +2,60 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://beoksolution.com</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-07-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://beoksolution.com/references/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-07-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://beoksolution.com/ai-search-summary.html</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-07-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://beoksolution.com/llms.txt</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-07-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://beoksolution.com/blog/</loc>
-    <lastmod>2026-07-03</lastmod>
+    <lastmod>2026-07-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://beoksolution.com/blog/%EC%98%88%EC%95%BD%EC%A0%9C-%EB%A7%A4%EC%9E%A5-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%97%91%EC%85%80-%EB%82%B4%EB%B3%B4%EB%82%B4%EA%B8%B0-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</loc>
+    <lastmod>2026-07-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://beoksolution.com/img/logo.png</image:loc>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://beoksolution.com/blog/%EC%A0%84%EB%AC%B8-%EC%84%9C%EB%B9%84%EC%8A%A4%EC%97%85-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EA%B4%80%EB%A6%AC%EC%9E%90-%EB%8C%80%EC%8B%9C%EB%B3%B4%EB%93%9C-%EC%84%A0%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</loc>
+    <lastmod>2026-07-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://beoksolution.com/img/logo.png</image:loc>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://beoksolution.com/blog/%ED%96%89%EC%82%AC-%EC%9A%B4%EC%98%81%EC%82%AC-%ED%99%88%ED%8E%98%EC%9D%B4%EC%A7%80-%EC%A0%9C%EC%9E%91-%EC%98%88%EC%95%BD-%EC%A0%91%EC%88%98%EB%B6%80%ED%84%B0-%EB%B3%80%EA%B2%BD-%EC%9A%94%EC%B2%AD%EA%B9%8C%EC%A7%80-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80</loc>
+    <lastmod>2026-07-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://beoksolution.com/img/logo.png</image:loc>
+    </image:image>
   </url>
   <url>
     <loc>https://beoksolution.com/blog/%EC%BB%A4%EB%AE%A4%EB%8B%88%EC%BC%80%EC%9D%B4%EC%85%98-%EC%9B%8C%ED%81%AC%EC%88%8D-%ED%95%AD%EB%AA%A9-%EC%84%A4%EA%B3%84-%EA%B8%B0%EC%A4%80-%ED%81%B4%EB%9D%BC%EC%9D%B4%EC%96%B8%ED%8A%B8-%ED%8F%89%EA%B0%80%EB%B6%80%ED%84%B0-%EB%B3%B4%EC%95%88%EA%B9%8C%EC%A7%80</loc>
