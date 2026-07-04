@@ -121,7 +121,10 @@ Register-HealthcheckTask
 Register-DailyKeepalive "Keepalive AM" "10:00"
 Register-DailyKeepalive "Keepalive PM" "22:00"
 Register-MinuteTask "Stock Seed" "stock-seed" 60
-Register-MinuteTask "Stock Seed NotebookReturn" "stock-seed-notebook-return" 240
+# notebook_return은 2026-07-02부터 selfhosted(beoksolution.com)로 통합 발행 —
+# 별도 채널 시드 태스크는 등록하지 않는다. 기존 PC에 남아 있으면 제거:
+#   schtasks /Delete /F /TN "BEOK Blog Stock Seed NotebookReturn"
+schtasks /Delete /F /TN "$TaskPrefix Stock Seed NotebookReturn" 2>$null | Out-Null
 Register-MinuteTask "Generate" "generate" 30
 Register-MinuteTask "Factcheck" "factcheck" 15
 Register-MinuteTask "Review" "review" 30

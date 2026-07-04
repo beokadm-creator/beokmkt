@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -File C:\beokmkt\blog_publisher\ops\windows\i
 - 30분마다 `generate/review/recover/sync_snapshot`
 - 15분마다 `schedule`
 - 60분마다 `stock_seed selfhosted 40`
-- 240분마다 `stock_seed notebook_return 10` (쿠팡 반품 노트북 가이드 콘텐츠 — Firestore `articles` 컬렉션에 발행, 실제 사이트 렌더링은 별도 Mac 세션 담당)
+- ~~240분마다 `stock_seed notebook_return 10`~~ — 2026-07-02부터 반품 노트북 콘텐츠는 selfhosted(beoksolution.com) 채널로 통합 발행한다(`stock_seed selfhosted`가 notebook_return 브랜드 주제를 함께 시드). *.web.app 서브도메인 권위 문제로 별도 채널 발행 중단. 기존 PC에 태스크가 남아 있으면 `schtasks /Delete /F /TN "BEOK Blog Stock Seed NotebookReturn"`으로 제거(install 스크립트 재실행 시 자동 제거).
 - 매일 `backup/verify_public/quality_selftest/image_audit`
 
 각 작업은 실행 전에 `git fetch origin main` + `git merge --ff-only origin/main`을 시도한다. 여러 예약 작업이 동시에 떠도 `.git/beok-update.lock`으로 Git 업데이트를 직렬화하며, GitHub 일시 장애나 잠금 경합이 있어도 현재 checkout으로 본 작업은 계속 실행한다. 운영 PC에 로컬 코드 수정이 있으면 merge가 실패하므로, 운영 PC에서는 코드를 수정하지 않는다. 분 단위 작업은 20분 실행 제한과 `IgnoreNew`로 등록되어, 멈춘 작업이 기본 72시간 동안 다음 실행을 막지 않게 한다.

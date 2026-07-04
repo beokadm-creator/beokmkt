@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-07-02 — 반품 노트북 콘텐츠 발행 채널 통합(notebook_return → selfhosted)
+
+notebook-return.web.app은 Firebase 공용 서브도메인(*.web.app)이라 검색 권위가 0이고, 발행된 가이드 글이 사이트맵·내부 링크 어디에도 없는 고아 페이지여서 색인이 사실상 불가능했다. 사용자 결정에 따라 반품 노트북 콘텐츠를 beoksolution.com 블로그(selfhosted 채널)로 통합 발행한다. 렌더러가 category=notebook_return이면 쿠팡 파트너스 고지·전용 CTA(notebook-return.web.app 유입 퍼널)를 자동 삽입하고, 발행 게이트도 beok/hong 전용 규칙(신뢰 이미지 2장 등)을 건너뛰므로 채널만 바꾸면 나머지 경로(상품 근거 수집·썸네일 주입)는 그대로 동작한다.
+
+| 대상 | 내용 |
+|---|---|
+| `tools/auto_seed.py` | `_CHANNEL_ALLOWED_BRANDS.selfhosted`에 notebook_return 추가, `notebook_return` 채널은 빈 집합으로 시드 중단(두 사이트 중복 발행 방지). `_inventory_count`의 REQUIRED_TERMS 필터가 비게이트 브랜드(notebook_return/racekra/ncs) 재고를 0으로 잘못 세어 과다 시드하던 문제를 category 통과 조건으로 수정 |
+| `tools/category_map.py` | notebook_return → "반품노트북" 전용 세분 카테고리(블로그 목록에서 B2B 글과 분리) |
+| `publishers/selfhosted.py` | image_bank 풀이 없는 브랜드는 본문 첫 이미지(실제 상품 썸네일)를 대표 이미지로 폴백 |
+| `tools/reset_draft_backlog.py` | 기본 리셋 채널에 notebook_return 포함(옛 채널 잔여 draft를 새 규칙으로 흡수), `_parse_channels`에 notebook_return 허용 |
+| `ops/windows/*` | "Stock Seed NotebookReturn" 태스크 등록 중단 + install 재실행 시 기존 태스크 자동 삭제, uninstall 목록·README 갱신 |
+| `quality_selftest.py` | 채널 통합 정책 회귀 가드 추가(selfhosted 허용/옛 채널 차단/naver·tistory 유입 금지), reset 계획에 notebook_return 축 포함 검증으로 반전 |
+
+효과: 노트북 글이 beoksolution.com 도메인 권위로 색인되고, pillar 라운드로빈(9축 중 1축)으로 전체 발행의 ~11%만 차지해 주제 희석을 제한한다. CTA·본문 상품 링크가 notebook-return.web.app으로 트래픽을 넘긴다.
+
+---
+
 ## 2026-07-02 — 공개 근접중복 글 정리(247→154건)
 
 주제 편중 구조 수정(아래 항목)과 별도로, 이미 공개된 selfhosted 글 중 "같은 틀+변형" 조합형 근접중복을 실제로 정리했다. `strategy_audit`의 문자열 완전일치 중복 탐지는 0건이었지만(GLM이 매번 문구를 바꿔 씀), 제목 앞 2단어(앵커) 기준 군집 분석 결과 "명찰재발행"(11건), "학회홈페이지"(11건), "협회/병원/학원 홈페이지"(각 10건) 등 16개 이상 앵커가 3~11건씩 중복 발행돼 있었다.

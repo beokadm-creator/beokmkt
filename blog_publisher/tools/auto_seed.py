@@ -48,9 +48,17 @@ _FOCUS_GATED_BRANDS = {"beok", "hong", ""}
 _CHANNEL_ALLOWED_BRANDS = {
     # racekra/ncs는 자체 블로그에서만 소량 쇼케이스로 발행한다(외부 채널 금지 —
     # 네이버/티스토리는 beok/hong 주제 일관성을 유지).
-    "selfhosted": {"beok", "hong", "racekra", "ncs"},
+    # notebook_return(반품 노트북)은 원래 별도 Firestore 사이트
+    # (notebook-return.web.app) 채널로 발행했지만, *.web.app 서브도메인은 검색
+    # 권위가 0이라 색인이 사실상 안 된다. 2026-07-02부터 beoksolution.com
+    # 블로그(selfhosted)로 통합 발행한다 — 렌더러가 category=notebook_return이면
+    # 쿠팡 파트너스 고지·전용 CTA를 자동 삽입하고, 발행 게이트
+    # (is_operational_post)도 beok/hong 전용 규칙을 건너뛴다.
+    "selfhosted": {"beok", "hong", "racekra", "ncs", "notebook_return"},
     "naver": {"beok", "hong"},
     "tistory": {"beok", "hong"},
+    # 빈 집합 = notebook_return 전용 채널 시드 중단(두 사이트 중복 발행 방지).
+    "notebook_return": set(),
 }
 
 
@@ -84,11 +92,16 @@ def _inventory_count(channel: str) -> int:
     if brand_filter:
         where.append("category = ?")
         params.append(brand_filter)
-    # REQUIRED_TERMS는 beoksolution/hongcomm 원 채널의 주제 일관성 필터다.
-    # 다른 브랜드용 채널(예: notebook_return)의 재고 집계에는 적용하지 않는다
-    # (적용하면 실제 재고를 항상 0으로 잘못 세어 매번 목표치만큼 과다 시드하게 됨).
+    # REQUIRED_TERMS는 beok/hong 브랜드의 주제 일관성 필터다. selfhosted 채널에
+    # 함께 발행하는 비게이트 브랜드(notebook_return/racekra/ncs) 글은 이 용어와
+    # 무관하므로 category로 통과시킨다(안 그러면 해당 재고를 항상 0으로 잘못
+    # 세어 매번 목표치만큼 과다 시드하게 됨).
     if channel in {"selfhosted", "naver", "tistory"} and config.AUTO_SEED_REQUIRED_TERMS:
-        where.append(f"({' OR '.join(['topic LIKE ?' for _ in config.AUTO_SEED_REQUIRED_TERMS])})")
+        like_clause = " OR ".join("topic LIKE ?" for _ in config.AUTO_SEED_REQUIRED_TERMS)
+        where.append(
+            "((category IS NOT NULL AND category NOT IN ('beok', 'hong', '')) "
+            f"OR {like_clause})"
+        )
         params.extend(f"%{term}%" for term in config.AUTO_SEED_REQUIRED_TERMS)
     with db.connect() as conn:
         row = conn.execute(

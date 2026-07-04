@@ -57,6 +57,12 @@ class SelfHostedPublisher:
             avoid=avoid_images,
             salt=str(post.get("id") or post.get("topic") or post.get("title") or ""),
         )
+        # image_bank 풀이 없는 브랜드(예: notebook_return — 본문에 실제 상품
+        # 썸네일이 주입됨)는 본문 첫 이미지를 대표 이미지로 쓴다.
+        if not image.get("url"):
+            content_images = image_urls(content)
+            if content_images:
+                image = {"url": content_images[0]}
 
         payload = {
             "title": post["title"],

@@ -12,6 +12,7 @@ $tasks = @(
   "Review",
   "Schedule",
   "Publish",
+  "Stock Seed NotebookReturn",
   "Recover",
   "Sync Snapshot",
   "Backup",

@@ -18,7 +18,10 @@ from tools.auto_seed import _brand_allowed_for_channel, _select_spread
 from tools.keyword_bank import KEYWORDS, pillar_of
 
 ACTIVE_STATUSES = ("draft", "generating", "factchecking", "reviewing")
-DEFAULT_CHANNELS = ("selfhosted",)
+# notebook_return 채널은 2026-07-02부터 selfhosted(beoksolution.com) 통합 발행으로
+# 전환됐다. 기본 리셋 범위에 포함해, 옛 채널에 남은 draft가 Firestore 사이트로
+# 발행되지 않고 새 규칙(selfhosted 재시드)으로 흡수되게 한다.
+DEFAULT_CHANNELS = ("selfhosted", "notebook_return")
 DEFAULT_SEED_TARGET = 24
 
 
@@ -32,7 +35,7 @@ def _normalize(value: str | None) -> str:
 
 def _parse_channels(value: str) -> tuple[str, ...]:
     channels = tuple(part.strip() for part in value.split(",") if part.strip())
-    unknown = [channel for channel in channels if channel not in {"selfhosted", "tistory", "naver"}]
+    unknown = [channel for channel in channels if channel not in {"selfhosted", "tistory", "naver", "notebook_return"}]
     if not channels or unknown:
         raise argparse.ArgumentTypeError(f"unknown channel: {', '.join(unknown) or value}")
     return channels

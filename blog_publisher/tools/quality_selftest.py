@@ -1165,19 +1165,39 @@ def _test_stock_seed_after_base_keyword_exhaustion() -> list[str]:
         config.ALLOW_EXTERNAL_AUTO_SEED = originals["external_auto_seed"]
 
 
+def _test_notebook_return_channel_policy() -> list[str]:
+    """2026-07-02 채널 통합 정책 회귀 가드.
+
+    반품 노트북 콘텐츠는 selfhosted(beoksolution.com)로만 발행하고,
+    옛 notebook_return 채널(권위 0인 *.web.app Firestore 사이트) 시드는
+    중단 상태를 유지해야 한다(재개되면 두 사이트 중복 발행 발생)."""
+    from tools.auto_seed import _brand_allowed_for_channel
+
+    issues: list[str] = []
+    if not _brand_allowed_for_channel("selfhosted", "notebook_return"):
+        issues.append("channel-policy: selfhosted 채널에서 notebook_return 브랜드 시드 불가")
+    if _brand_allowed_for_channel("notebook_return", "notebook_return"):
+        issues.append("channel-policy: 중단된 notebook_return 채널 시드가 다시 열림(중복 발행 위험)")
+    for channel in ("naver", "tistory"):
+        if _brand_allowed_for_channel(channel, "notebook_return"):
+            issues.append(f"channel-policy: {channel} 채널에 notebook_return 유입(주제 일관성 위반)")
+    return issues
+
+
 def _test_reset_draft_backlog_plan() -> list[str]:
     from tools import reset_draft_backlog
 
     original_protected = reset_draft_backlog._protected_topic_keys
     try:
         reset_draft_backlog._protected_topic_keys = lambda _channels, _archive_ids: set()
-        topics = reset_draft_backlog.replacement_topics(8, "selfhosted", archive_ids=[])
+        # pillar가 9종(7 서비스 축 + racekra/ncs 쇼케이스)이므로 전축 커버 확인용 12건
+        topics = reset_draft_backlog.replacement_topics(12, "selfhosted", archive_ids=[])
         pillars = {axis for _topic, _ctype, _brand, axis in topics}
         issues: list[str] = []
-        # notebook_return은 별도 브랜드(쿠팡 파트너스)이므로 selfhosted 채널
-        # 재시드 계획에 절대 섞이면 안 된다(auto_seed와 동일한 채널 필터 적용 검증).
-        if "notebook_return" in pillars:
-            issues.append("draft-reset: selfhosted 채널에 notebook_return 주제 유입")
+        # 2026-07-02 채널 통합: notebook_return(반품 노트북)은 beoksolution.com
+        # (selfhosted)으로 발행한다. 재시드 계획에 이 축이 포함돼야 한다.
+        if "notebook_return" not in pillars:
+            issues.append("draft-reset: selfhosted 재시드 계획에 notebook_return 축 누락")
         if len(pillars) < 5:
             issues.append(f"draft-reset: replacement plan 주제축 다양성 부족({len(pillars)}종: {sorted(pillars)})")
         if not topics or "초기 제작비" not in topics[0][0]:
@@ -1574,6 +1594,7 @@ def run() -> bool:
         + _test_review_llm_advisory_gate()
         + _test_operational_agenda_defaults()
         + _test_stock_seed_after_base_keyword_exhaustion()
+        + _test_notebook_return_channel_policy()
         + _test_reset_draft_backlog_plan()
         + _test_reset_draft_backlog_avoids_archived_topics()
         + _test_reset_draft_backlog_default_scope()
