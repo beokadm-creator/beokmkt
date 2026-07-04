@@ -265,11 +265,11 @@ TISTORY_HEADLESS = os.getenv("TISTORY_HEADLESS", "false").lower() == "true"
 TISTORY_USER_AGENT = os.getenv("TISTORY_USER_AGENT", NAVER_USER_AGENT)
 
 # ---- notebook-return (쿠팡 반품 노트북 마켓, 별도 Firebase 프로젝트) ----
-# blog_publisher가 새 글을 Firestore articles 컬렉션에 직접 써서 발행한다.
-# 실제 사이트(Next.js, Mac 세션 소유)는 이 컬렉션을 읽기만 한다.
+# 2026-07-05: 발행 자체는 selfhosted(beoksolution.com)로 통합됐고(*.web.app 서브도메인
+# 검색 권위 0 문제), 이 프로젝트는 이제 "근거 수집 전용"으로만 쓴다 — 실제 크롤된
+# 상품 데이터(가격/등급/재고)를 generate 단계의 grounding 근거로 읽어온다
+# (research/product_sources.py -> tools/notebook_return/fetch_products.mjs).
 NOTEBOOK_RETURN_FIREBASE_PROJECT_ID = os.getenv("NOTEBOOK_RETURN_FIREBASE_PROJECT_ID", "notebook-return")
-NOTEBOOK_RETURN_PUBLIC_URL = os.getenv("NOTEBOOK_RETURN_PUBLIC_URL", "https://notebook-return.web.app")
-NOTEBOOK_RETURN_ARTICLES_COLLECTION = os.getenv("NOTEBOOK_RETURN_ARTICLES_COLLECTION", "articles")
 NOTEBOOK_RETURN_PRODUCTS_COLLECTION = os.getenv("NOTEBOOK_RETURN_PRODUCTS_COLLECTION", "products")
 # 서비스계정 키 경로. 없으면 ADC로 폴백(이 PC는 이미 coupang 크롤러가 ADC로
 # notebook-return에 쓰고 있어 별도 키 없이도 동작할 가능성이 높음).
