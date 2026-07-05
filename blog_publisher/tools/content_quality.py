@@ -32,6 +32,12 @@ GENERIC_TITLE_PATTERNS = (
     "성공 방법", "성공 전략", "바꾸는 미래",
 )
 
+# 테스트/검증용 주제 마커 — cleanup_bodies.py와 동일 패턴
+TEST_MARKER_RE = re.compile(
+    r"발행.+검증|검증.+발행|실제\s*발행|\[?\s*테스트\s*\]?|selftest|파이프라인\s*연결\s*검증",
+    re.I,
+)
+
 SERVICE_ANCHORS = (
     "학회", "학술대회", "MICE", "국제회의", "컨퍼런스", "행사", "사무국",
     "홍커뮤니케이션", "홈페이지", "웹사이트", "시스템", "관리자", "대시보드",
@@ -250,6 +256,10 @@ def publish_blockers(post) -> list[str]:
             issues.append("일반론 제목 대비 서비스/운영 앵커 부족")
         if topic_axis(post) in {"conference", "mice"} and not has_composite_service_fit(full_text):
             issues.append("학회/MICE 글이 운영 맥락과 시스템·홈페이지 해법을 함께 다루지 않음")
+
+    title_topic = f"{field(post, 'title')} {field(post, 'topic')}"
+    if TEST_MARKER_RE.search(title_topic):
+        issues.append("테스트/검증용 주제 — 발행 불가")
 
     if post["channel"] == "naver":
         issues.append(
