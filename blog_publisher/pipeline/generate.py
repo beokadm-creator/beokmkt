@@ -417,8 +417,11 @@ def _ensure_summary_table(body_text: str, outline: dict, allow_table: bool = Tru
         "|---|---|",
     ]
     for sec in sections:
-        h2 = _table_cell(sec["h2"], 18)
-        point = _table_cell(sec["point"], 34)
+        # 2026-07-05: 18/34자는 실제 소제목·요점 길이보다 훨씬 짧아 거의 매번
+        # 문장 중간에서 잘렸다(예: "현장 운영 방식과 개발 스펙의 충" 같은
+        # 표 셀). 40/70으로 올려 온전한 문장이 들어가게 한다.
+        h2 = _table_cell(sec["h2"], 45)
+        point = _table_cell(sec["point"], 80)
         rows.append(f"| {h2} | {point} |")
     return body_text + "\n\n## 실행 전 점검표\n\n" + "\n".join(rows)
 
@@ -569,9 +572,14 @@ def _fit_operational_length_band(
     evidence: dict,
     topic: str = "",
     min_chars: int = 940,
-    max_chars: int = 2200,
+    max_chars: int = 1950,
 ) -> str:
-    """운영 글 최종 본문을 발행 게이트 밴드(900~2600) 안에 안정적으로 맞춘다."""
+    """운영 글 최종 본문을 발행 게이트 밴드(900~2600) 안에 안정적으로 맞춘다.
+
+    2026-07-05: 점검표(_ensure_summary_table, 헤더+구분선+4행 약 550~600자)를
+    이 함수 이후에 붙이도록 순서를 바꿨다(표가 근거 검증/길이 보정에 걸려
+    셀이 잘리는 문제 수정). max_chars를 2200->1950으로 낮춰 표가 붙어도
+    2600 상한 안에 여유 있게 남는다."""
     fitted = _trim_to_plain_limit(body_text, max_chars)
     if _plain_len(fitted) >= min_chars:
         return fitted
@@ -702,7 +710,6 @@ def compose_article(
         body = _compact_section_body(_strip_hanzi(body))
         parts.append(f"## {sec['h2']}\n\n{body}")
     body_text = "\n\n".join(parts)
-    body_text = _ensure_summary_table(body_text, outline, allow_table=engine != "naver")
 
     # ⑥ SEO 최적화(엔진별). 실패해도 원고는 살린다.
     try:
@@ -738,6 +745,14 @@ def compose_article(
     # notebook_return은 beok/hong 전용 "상담 전 확인" 문구가 어울리지 않으므로 제외.
     if engine != "naver" and image_brand_key and image_brand_key != "notebook_return":
         body_text = _fit_operational_length_band(body_text, evidence, topic=topic)
+
+    # 2026-07-05: 점검표를 섹션 조립 직후(다른 후처리보다 먼저) 붙였더니, 뒤이은
+    # 근거 검증(_remove_unsupported_specific_claims)·길이 보정(_fit_operational_
+    # length_band)이 표를 일반 문장으로 착각해 셀 내용을 중간에서 잘라먹었다
+    # (예: "| . 현 |"처럼 두 번째 칸이 통째로 사라짐). 표는 이미 검증이 끝난
+    # 섹션 h2/point를 요약한 것이라 재검증이 불필요하므로, 모든 후처리가 끝난
+    # 마지막에 붙여 손대지 않게 한다.
+    body_text = _ensure_summary_table(body_text, outline, allow_table=engine != "naver")
 
     return _validate_generated_article({
         "title": final_title,
