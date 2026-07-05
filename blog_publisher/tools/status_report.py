@@ -15,7 +15,7 @@ from db import db
 
 STATUSES = [
     "draft", "generating", "factchecking", "reviewing", "reviewed",
-    "queued", "publishing", "published", "needs_human", "failed", "archived",
+    "queued", "publishing", "awaiting_manual", "published", "needs_human", "failed", "archived",
 ]
 INVENTORY_STATUSES = ("draft", "generating", "factchecking", "reviewing", "reviewed")
 
@@ -87,7 +87,7 @@ def report() -> dict[str, int]:
             FROM posts
             WHERE status IN (
               'draft', 'generating', 'factchecking', 'reviewing', 'reviewed',
-              'queued', 'publishing', 'published', 'needs_human', 'failed'
+              'queued', 'publishing', 'awaiting_manual', 'published', 'needs_human', 'failed'
             )
             GROUP BY channel, status
             ORDER BY channel, status

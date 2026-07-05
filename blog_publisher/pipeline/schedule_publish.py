@@ -28,6 +28,11 @@ from db import db
 
 
 def _matches_focus(post) -> bool:
+    # 네이버 수기 발행 원고는 봇 발행 큐로 절대 새면 안 된다(기획 14).
+    # generate_daily가 reviewed를 건너뛰고 바로 awaiting_manual로 보내지만,
+    # cron 겹침 등으로 순간 reviewed에 걸려도 스케줄러가 줍지 않게 이중 방어한다.
+    if post["channel"] == config.NAVER_MANUAL_CHANNEL:
+        return False
     brand_filter = (config.AUTO_SEED_BRAND_FILTER or "").strip()
     if brand_filter and post["category"] != brand_filter:
         return False

@@ -77,6 +77,9 @@ def _ensure_migrations(conn: sqlite3.Connection) -> None:
     if cols and "published_at" not in cols:
         conn.execute("ALTER TABLE posts ADD COLUMN published_at TEXT")
         conn.commit()
+    if cols and "manual_artifact" not in cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN manual_artifact TEXT")
+        conn.commit()
     _migrated = True
 
 
@@ -272,6 +275,17 @@ def save_grounding(post_id: int, ratio: float) -> None:
         conn.execute(
             "UPDATE posts SET grounding_ratio = ?, updated_at = ? WHERE id = ?",
             (ratio, _iso(_utcnow()), post_id),
+        )
+
+
+def set_awaiting_manual(post_id: int, paste_path: str) -> None:
+    """네이버 수기 발행 종착 상태. paste.html 경로를 저장한다(기획 14).
+    스케줄러/발행 워커는 이 상태를 조회하지 않으므로 봇 경로로 새지 않는다."""
+    with connect() as conn:
+        conn.execute(
+            "UPDATE posts SET status = 'awaiting_manual', manual_artifact = ?, "
+            "review_issues = NULL, last_error = NULL, updated_at = ? WHERE id = ?",
+            (paste_path, _iso(_utcnow()), post_id),
         )
 
 

@@ -148,6 +148,7 @@ def can_generate_with_evidence() -> bool:
 # 네이버 블로그→네이버 검색, 티스토리·자체→구글 검색.
 CHANNEL_TARGET_ENGINE = {
     "naver": "naver",
+    "naver_manual": "naver",   # 수기 발행 원고도 네이버 SEO/문체 규칙을 따른다(기획 14)
     "tistory": "google",
     "selfhosted": "google",
 }
@@ -285,6 +286,35 @@ SELFHOST_RENDER_HTML = os.getenv("SELFHOST_RENDER_HTML", "true").lower() == "tru
 # Python→Node.js HTTP 사이드카 URL. 워커가 이 포트로 Playwright를 실행한다.
 NAVER_WORKER_URL = os.getenv("NAVER_WORKER_URL", "http://localhost:8788")
 EXTERNAL_PUBLISH_TIMEOUT_SEC = int(os.getenv("EXTERNAL_PUBLISH_TIMEOUT_SEC", "900"))
+
+# ---- 네이버 수기 발행 원고 엔진 (기획 14) ----
+# 봇 발행이 아니라 사람이 복사-붙여넣기로 올리는 고품질 원고를 만든다.
+# 채널 'naver_manual'은 스케줄러/발행 워커가 절대 건드리지 않는다(온디맨드 생성).
+NAVER_MANUAL_CHANNEL = "naver_manual"
+NAVER_MANUAL_STATE = "awaiting_manual"            # 사람 발행 대기 종착 상태
+NAVER_MANUAL_OUT_DIR = os.getenv(
+    "NAVER_MANUAL_OUT_DIR",
+    str(Path(__file__).parent / "out" / "naver"),
+)
+# 본문 길이 밴드(공백 제외 글자 수). 네이버 최적 구간.
+NAVER_MANUAL_MIN_LEN = int(os.getenv("NAVER_MANUAL_MIN_LEN", "1200"))
+NAVER_MANUAL_MAX_LEN = int(os.getenv("NAVER_MANUAL_MAX_LEN", "2200"))
+# 주 키워드 자연 반복 허용 구간(기계적 반복=과최적화 차단).
+NAVER_MANUAL_KW_MIN = int(os.getenv("NAVER_MANUAL_KW_MIN", "3"))
+NAVER_MANUAL_KW_MAX = int(os.getenv("NAVER_MANUAL_KW_MAX", "6"))
+# 사진 슬롯 권장 수(하드 게이트 아님 — 사용자가 사진을 직접 넣으므로 위치 힌트용).
+NAVER_MANUAL_PHOTO_SLOTS = int(os.getenv("NAVER_MANUAL_PHOTO_SLOTS", "4"))
+# humanize→factcheck 재검증 실패 시 재시도 횟수.
+NAVER_MANUAL_MAX_RETRIES = int(os.getenv("NAVER_MANUAL_MAX_RETRIES", "2"))
+# 경험담 원고의 grounding 하한. 1인칭 익명 현장 서사는 웹 근거로 100% 뒷받침될 수
+# 없다(기획 14 §1.1이 오히려 장면 디테일을 D.I.A.+ 신호로 권장). 하드 조작 방지는
+# 결정론적 local_unsupported_claims(수치·고유명사)가 맡고, 이 값은 서사 색채를
+# 허용하는 완화된 기준이다. 데이터 기사용 MIN_GROUNDING_RATIO(0.9)와 별개.
+NAVER_MANUAL_MIN_GROUNDING = float(os.getenv("NAVER_MANUAL_MIN_GROUNDING", "0.6"))
+# 하루 소프트 상한(0=무제한). 온디맨드라 하드락은 없고, 초과 시 경고만 한다.
+NAVER_MANUAL_SOFT_DAILY_CAP = int(os.getenv("NAVER_MANUAL_SOFT_DAILY_CAP", "2"))
+MODEL_HUMANIZE = os.getenv("MODEL_HUMANIZE", MODEL_SECTION)
+MAX_TOKENS_HUMANIZE = int(os.getenv("MAX_TOKENS_HUMANIZE", "3200"))
 
 # ---- 네이버 ----
 NAVER_BLOG_ID = os.getenv("NAVER_BLOG_ID", "")

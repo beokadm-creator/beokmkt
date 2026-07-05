@@ -368,9 +368,12 @@ def _inject_notebook_return_images(body_text: str, topic: str) -> str:
     return f"{body_text}\n\n{figures}"
 
 
-def _build_outline(llm: LLMClient, post: dict, evidence: dict) -> dict:
+def _build_outline(llm: LLMClient, post: dict, evidence: dict,
+                   outline_system: str | None = None) -> dict:
     content_type = post.get("content_type", "howto")
-    system = prompts.OUTLINE_TEMPLATES.get(content_type, prompts.OUTLINE_TEMPLATES["howto"])
+    system = outline_system or prompts.OUTLINE_TEMPLATES.get(
+        content_type, prompts.OUTLINE_TEMPLATES["howto"]
+    )
     _log_stage(post["topic"], "outline")
     outline = chat_json(
         llm,
@@ -602,10 +605,11 @@ def _fit_operational_length_band(
 
 def generate_article(
     llm: LLMClient, topic: str, content_type: str, channel: str = "selfhosted",
-    brand_key: str = "",
+    brand_key: str = "", outline_system: str | None = None,
 ) -> dict:
     """
     DB와 무관하게 근거기반 + 검색노출 최적화 원고를 만든다(워커/측정 도구 공유).
+    outline_system을 주면 개요 프롬프트를 교체한다(네이버 수기 경험담용).
     반환: {title, meta_description, body, tags, target_engine, evidence, seo}
     """
     engine = config.target_engine(channel)   # 기획 07: 채널별 타깃 엔진
@@ -628,7 +632,8 @@ def generate_article(
     evidence = ev.build_evidence_pack(llm, public_topic, content_type, plan, sources, serp=serp)
 
     # ④~⑥ 개요·섹션·SEO 합성(재작성 파이프라인과 공유)
-    return compose_article(llm, public_topic, content_type, engine, evidence, serp, brand_key=brand_key)
+    return compose_article(llm, public_topic, content_type, engine, evidence, serp,
+                           brand_key=brand_key, outline_system=outline_system)
 
 
 def compose_article(
@@ -639,12 +644,17 @@ def compose_article(
     evidence: dict,
     serp: list[dict] | None = None,
     brand_key: str = "",
+    outline_system: str | None = None,
 ) -> dict:
-    """근거팩이 준비된 뒤의 합성 단계(개요→섹션→SEO). generate/rewrite 공용."""
+    """근거팩이 준비된 뒤의 합성 단계(개요→섹션→SEO). generate/rewrite/naver 공용.
+
+    outline_system을 주면 유형 템플릿 대신 그 개요 프롬프트를 쓴다(네이버 경험담용).
+    """
     topic = _content_topic(topic)
     # ④ 근거기반 개요
     outline = _build_outline(
-        llm, {"topic": topic, "content_type": content_type, "brand_key": brand_key}, evidence
+        llm, {"topic": topic, "content_type": content_type, "brand_key": brand_key}, evidence,
+        outline_system=outline_system,
     )
     title = outline["title"]
 

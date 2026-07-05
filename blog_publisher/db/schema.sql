@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS posts (
     review_issues TEXT,                               -- 검수 실패 사유(JSON)
     published_url TEXT,
     published_at  TEXT,                               -- 실제 발행 시각(UTC). 일일 상한 집계 기준
+    manual_artifact TEXT,                             -- 수기 발행용 paste.html 경로(naver_manual, 기획 14)
     last_error    TEXT,
 
     created_at    TEXT    NOT NULL DEFAULT (datetime('now')),

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "naver-paste",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8799", "--directory", "blog_publisher/out/naver"],
+      "port": 8799
+    }
+  ]
+}

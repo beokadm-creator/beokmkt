@@ -218,6 +218,49 @@ def main() -> None:
         from tools import archive_local_posts
         raise SystemExit(0 if archive_local_posts.run(sys.argv[2:]) else 1)
 
+    elif cmd == "naver_themes":
+        # python run.py naver_themes  — 선택 가능한 테마 목록
+        from tools import naver_keyword_bank as nkb
+        print("네이버 수기 발행 테마:")
+        for t in nkb.list_themes():
+            print(f"  {t.key:20} {t.label}  (주 키워드: {t.primary})")
+
+    elif cmd == "naver_draft":
+        # python run.py naver_draft <theme_key>  — 테마 1개로 원고 생성 + paste.html
+        from pipeline import naver_manual
+        if len(sys.argv) < 3:
+            from tools import naver_keyword_bank as nkb
+            print("사용법: python run.py naver_draft <theme>")
+            print("테마:", ", ".join(nkb.theme_keys()))
+            raise SystemExit(2)
+        result = naver_manual.generate_one(sys.argv[2])
+        if not result.get("ok"):
+            print("생성 실패:", "; ".join(result.get("issues", ["unknown"])))
+            raise SystemExit(1)
+        print(f"\n✅ 발행 대기: id={result['post_id']}  «{result['title']}»")
+        print(f"   브라우저로 열기: {result['paste_path']}")
+
+    elif cmd == "naver_mark":
+        # python run.py naver_mark <post_id> <published_url>
+        from pipeline import naver_manual
+        if len(sys.argv) < 4:
+            print("사용법: python run.py naver_mark <post_id> <발행URL>")
+            raise SystemExit(2)
+        ok = naver_manual.mark(int(sys.argv[2]), sys.argv[3])
+        raise SystemExit(0 if ok else 1)
+
+    elif cmd == "naver_queue":
+        # python run.py naver_queue  — 발행 대기함(awaiting_manual) 목록
+        from pipeline import naver_manual
+        items = naver_manual.queue()
+        if not items:
+            print("발행 대기 원고 없음. `python run.py naver_draft <theme>`로 생성하세요.")
+        else:
+            print(f"발행 대기 {len(items)}건:")
+            for it in items:
+                print(f"  id={it['id']:>4}  {it['title']}")
+                print(f"        {it['paste_path']}")
+
     else:
         print(__doc__)
         raise SystemExit(2)             # 알 수 없는 명령 → 오류코드(감사 B2)

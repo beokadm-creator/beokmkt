@@ -82,3 +82,6 @@ logs/
 
 status/
 .omo/
+
+# 네이버 수기 발행 생성물(로컬 전용)
+blog_publisher/out/

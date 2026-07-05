@@ -1574,9 +1574,46 @@ process.exit(issues.length ? 1 : 0)
     return [f"rewriter: tistory rewrite-required selftest failed\n{output}"]
 
 
+def _test_naver_paste_contract() -> list[str]:
+    """네이버 수기 발행 paste.html 허용 태그 계약 (기획 14 §2.2).
+
+    SmartEditor 보존율을 위해 복사 본문에는 표준 태그만 나와야 한다:
+    <img>·<h1~6>·style·class(콘텐츠 태그)·마크다운/HTML 잔재 금지. 사진 마커는
+    문단에 붙어 있거나 이미지 문법(!)이어도 독립 슬롯으로 분리돼야 한다."""
+    from render import naver_paste
+
+    body_md = (
+        "## 개막 30분 전, 줄이 늘어선 순간\n\n"
+        "행사장 문이 열리자 사람들이 쏟아졌어요.![사진: 접수대 전경 — 붐비는 로비]\n\n"
+        "저는 **동선 분리**부터 합니다.\n\n"
+        "- 사전 등록은 QR로 1초 통과\n"
+        "- 당일 등록은 별도 데스크\n\n"
+        "[사진: 명찰 출력기 클로즈업]\n\n"
+        "> 병목은 기계가 아니라 동선입니다.\n"
+    )
+    html, subheads = naver_paste.markdown_to_paste_html(body_md)
+    issues: list[str] = []
+    if "<img" in html:
+        issues.append("naver paste: 복사 본문에 <img> 포함(금지)")
+    if re.search(r"<h[1-6]", html):
+        issues.append("naver paste: 복사 본문에 <h1~6> 포함(굵은 문단으로 대체해야 함)")
+    if re.search(r"!?\[사진:[^\]]*\]", html):
+        issues.append("naver paste: 사진 마커가 슬롯으로 분리되지 않고 텍스트로 노출")
+    if html.count("photo-slot") != 2:
+        issues.append(f"naver paste: 사진 슬롯 {html.count('photo-slot')}개(2개 기대)")
+    if "<strong>" not in html:
+        issues.append("naver paste: **굵게**가 <strong>으로 변환되지 않음")
+    if "<ul>" not in html or "<li>" not in html:
+        issues.append("naver paste: 목록이 <ul>/<li>로 변환되지 않음")
+    if len(subheads) != 1:
+        issues.append(f"naver paste: 소제목 {len(subheads)}개(1개 기대)")
+    return issues
+
+
 def run() -> bool:
     issues = (
         _test_phase_a_generation_contract()
+        + _test_naver_paste_contract()
         + _test_generate_rejects_empty_article()
         + _test_generate_hard_compacts_long_section()
         + _test_generate_all_failures_stop_runbook()
@@ -1614,6 +1651,7 @@ def run() -> bool:
         print(f"\n결과: FAIL ({len(issues)}건)")
         return False
     print("[OK] phase-a generation: 200~260자 프롬프트·토큰 캡·섹션 thinking·한자 재시도/제거 유지")
+    print("[OK] naver paste: 허용 태그 계약(img/h*/마커 잔재 차단·슬롯 분리·strong/ul 변환) 유지")
     print("[OK] generate gate: 빈 본문/불완전 생성 결과 저장 차단")
     print("[OK] ops flow: 운영 글 생성 길이와 발행 게이트 길이 상한 정합, queued 전환 유지")
     print("[OK] image bank: 섹션별 이미지 다양성 유지")
