@@ -102,20 +102,41 @@ BRAND_SOURCE_URLS: dict[str, list[str]] = {
 }
 
 
+# 2026-06-15 결정("Tavily 비용 의존 제거")은 official_ok만으로 생성을 계속하게
+# 했다 — 그 결과 beok/hong 글 전수가 자사 페이지 2개만 근거로 재사용해 왔다
+# (reports/content-quality-audit-20260705.md §2-증상5 실측: sources=2,
+# facts=7, grounding_ratio=1.0). REQUIRE_EXTERNAL_EVIDENCE=true로 켜면
+# 독립 출처(Tavily 또는 네이버 검색 API) 없이는 생성 자체를 멈춘다.
+# 기본값은 false — 켜기 전에 아래 중 하나를 먼저 준비해야 재고 고갈 없이 전환된다:
+#   SEARCH_PROVIDER=tavily + TAVILY_API_KEY, 또는 NAVER_CLIENT_ID/SECRET(무료 발급 가능).
+REQUIRE_EXTERNAL_EVIDENCE = os.getenv("REQUIRE_EXTERNAL_EVIDENCE", "false").lower() == "true"
+
+
 def search_health_status() -> dict:
     """신규 원고 생성에 필요한 검색/근거 수집 준비 상태."""
     provider = (SEARCH_PROVIDER or "").strip().lower()
     paid_search_ok = provider == "tavily" and bool(TAVILY_API_KEY)
     official_ok = bool(OFFICIAL_SOURCE_URLS)
     naver_serp_ok = bool(NAVER_CLIENT_ID and NAVER_CLIENT_SECRET)
+    # "독립 출처"= 브랜드 자사 페이지가 아닌 실제 검색으로 얻는 근거.
+    # official_ok는 beoksolution.com/hongcomm.kr 자사 페이지 존재 여부일 뿐,
+    # 다른 브랜드/주제와 구분되는 사실을 전혀 보장하지 않는다.
+    diversity_ok = paid_search_ok or naver_serp_ok
+    ok = (official_ok or paid_search_ok) if not REQUIRE_EXTERNAL_EVIDENCE else diversity_ok
     return {
         "provider": provider or None,
         "official_sources_ok": official_ok,
         "official_source_count": len(OFFICIAL_SOURCE_URLS),
         "general_search_ok": paid_search_ok,
         "naver_serp_ok": naver_serp_ok,
-        "ok": official_ok or paid_search_ok,
-        "reason": None if (official_ok or paid_search_ok) else "공식 출처 또는 검색 공급자 미설정: 신규 원고 근거 수집 불가",
+        "evidence_diversity_ok": diversity_ok,
+        "require_external_evidence": REQUIRE_EXTERNAL_EVIDENCE,
+        "ok": ok,
+        "reason": None if ok else (
+            "REQUIRE_EXTERNAL_EVIDENCE=true인데 독립 검색 공급자 미설정: 신규 원고 생성 중단"
+            if REQUIRE_EXTERNAL_EVIDENCE
+            else "공식 출처 또는 검색 공급자 미설정: 신규 원고 근거 수집 불가"
+        ),
     }
 
 
@@ -181,11 +202,26 @@ MAX_DUP_RATIO = float(os.getenv("MAX_DUP_RATIO", "0.18"))
 MIN_HEADINGS = int(os.getenv("MIN_HEADINGS", "3"))
 MIN_REVIEW_SCORE = int(os.getenv("MIN_REVIEW_SCORE", "80"))
 REVIEW_HARD_FAIL_SCORE = int(os.getenv("REVIEW_HARD_FAIL_SCORE", "50"))
+# filler 밀도 상한(utils/text.py::filler_density, 문장 수 대비 비율이 아니라
+# 1,000자당 매칭 건수 — 실측 발행분 10건은 60~180문장짜리 장문이라 문장 비율로는
+# 절대 8%를 못 넘겨 게이트가 이론상으로만 존재하는 문제가 있었다. 실측 exhibit
+# post id=51/56/55/99/94의 밀도가 0.70~1.28/1000자였으므로 그 아래인 0.6을
+# 1차 임계값으로 둔다. reports/content-quality-audit-20260705.md §2-증상5 참고.
+MAX_FILLER_DENSITY = float(os.getenv("MAX_FILLER_DENSITY", "0.6"))
+# LLM 검수(review.py evaluate())가 매기는 generic/repetitive/thin_for_intent는
+# 주관적 판단이라 기본은 advisory로 둔다(quality_selftest.py가 이 기본 동작을
+# 회귀 테스트로 고정하고 있다 — 재고를 0%로 만드는 사고를 이미 겪었음).
+# true로 켜면 위 세 이슈도 hard fail 대상이 된다. 켜기 전에
+# tools/measure_passrate.py 등으로 통과율 하락폭을 먼저 관찰할 것
+# (reports/content-quality-audit-20260705.md §6 — 2단계 롤아웃 권장).
+STRICT_SUBJECTIVE_ISSUES = os.getenv("STRICT_SUBJECTIVE_ISSUES", "false").lower() == "true"
+_REVIEW_CRITICAL_BASE = "factual_doubt,off_topic,banned_words,unsafe,hallucination,privacy_risk"
+_REVIEW_CRITICAL_STRICT_EXTRA = "generic,repetitive,thin_for_intent"
 REVIEW_CRITICAL_ISSUES = [
     issue.strip()
     for issue in os.getenv(
         "REVIEW_CRITICAL_ISSUES",
-        "factual_doubt,off_topic,banned_words,unsafe,hallucination,privacy_risk",
+        _REVIEW_CRITICAL_BASE + ("," + _REVIEW_CRITICAL_STRICT_EXTRA if STRICT_SUBJECTIVE_ISSUES else ""),
     ).split(",")
     if issue.strip()
 ]

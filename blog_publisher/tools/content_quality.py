@@ -13,6 +13,7 @@ import re
 from urllib.parse import urlparse
 
 from db import db
+from utils import markdown_guard
 
 OPERATIONAL_TERMS = (
     "비오케이솔루션", "홍커뮤니케이션", "hongcomm", "학회", "학술대회",
@@ -32,11 +33,10 @@ GENERIC_TITLE_PATTERNS = (
     "성공 방법", "성공 전략", "바꾸는 미래",
 )
 
-# 테스트/검증용 주제 마커 — cleanup_bodies.py와 동일 패턴
-TEST_MARKER_RE = re.compile(
-    r"발행.+검증|검증.+발행|실제\s*발행|\[?\s*테스트\s*\]?|selftest|파이프라인\s*연결\s*검증",
-    re.I,
-)
+# 테스트/검증용 주제 마커 — db.insert_draft()가 삽입 시점에 이미 차단하는 것과
+# 동일한 단일 소스(db/db.py::TEST_MARKER_RE). 여기서는 그 이전에 삽입된 레거시
+# 글에 대한 방어선(defense-in-depth)으로만 재사용한다.
+from db.db import TEST_MARKER_RE  # noqa: E402
 
 SERVICE_ANCHORS = (
     "학회", "학술대회", "MICE", "국제회의", "컨퍼런스", "행사", "사무국",
@@ -156,15 +156,20 @@ def title_signature(value: str | None) -> set[str]:
     return {word.lower() for word in words if word not in stopwords}
 
 
-def similar_today_published(post, threshold: float = 0.82) -> tuple[bool, dict | None, float]:
+def similar_published(post, threshold: float = 0.82) -> tuple[bool, dict | None, float]:
     """
-    같은 KST 날짜에 이미 공개된 글과 본문이 지나치게 유사하면 True.
-    채널이 달라도 같은 날 같은 내용이면 검색 품질 리스크이므로 막는다.
+    이미 공개된 글과 본문이 지나치게 유사하면 True.
+
+    이전에는 같은 KST 날짜에 발행된 글끼리만 비교했다 — 채널별 발행 시각이
+    지터링되어 같은 축의 글이 며칠 간격으로 나가면 검사 자체가 발동하지
+    않는 사각지대가 있었다(reports/content-quality-audit-20260705.md §2-증상3).
+    이제 같은 브랜드(category) 전체 발행 이력을 비교 대상으로 삼는다.
     """
     current = normalized_text(post["body"])
     if len(current) < 400:
         return False, None, 0.0
 
+    category = post["category"] or ""
     with db.connect() as conn:
         rows = conn.execute(
             """
@@ -172,11 +177,11 @@ def similar_today_published(post, threshold: float = 0.82) -> tuple[bool, dict |
             FROM posts
             WHERE status = 'published'
               AND id != ?
-              AND date(updated_at, '+9 hours') = date(?, '+9 hours')
+              AND category IS ?
             ORDER BY updated_at DESC
-            LIMIT 80
+            LIMIT 200
             """,
-            (post["id"], post["updated_at"]),
+            (post["id"], category or None),
         ).fetchall()
 
     best_row = None
@@ -192,7 +197,8 @@ def similar_today_published(post, threshold: float = 0.82) -> tuple[bool, dict |
     return best_ratio >= threshold, best_row, best_ratio
 
 
-def similar_topic_today_published(post, threshold: float = 0.58) -> tuple[bool, dict | None, float]:
+def similar_topic_published(post, threshold: float = 0.58) -> tuple[bool, dict | None, float]:
+    """같은 축(topic_axis) 전체 발행 이력 대비 제목 시그니처 유사도(전 기간)."""
     axis = topic_axis(post)
     current_terms = title_signature(post["title"] or post["topic"])
     if not axis or len(current_terms) < 3:
@@ -205,11 +211,10 @@ def similar_topic_today_published(post, threshold: float = 0.58) -> tuple[bool, 
             FROM posts
             WHERE status = 'published'
               AND id != ?
-              AND date(updated_at, '+9 hours') = date(?, '+9 hours')
             ORDER BY updated_at DESC
-            LIMIT 80
+            LIMIT 200
             """,
-            (post["id"], post["updated_at"]),
+            (post["id"],),
         ).fetchall()
 
     best_row = None
@@ -266,19 +271,21 @@ def publish_blockers(post) -> list[str]:
             "네이버 자동 발행은 이미지 업로드 보존이 아직 검증되지 않아 수동 확인 필요"
         )
 
-    if re.search(r"<(?:span|div|font|p|section|article)\b", body, flags=re.I):
-        issues.append("본문에 LLM 생성 HTML 래퍼 태그 잔류")
+    if markdown_guard.has_html_tags(body):
+        issues.append(
+            f"본문에 HTML 태그 잔류: {markdown_guard.find_html_tags(body)[:3]}"
+        )
 
-    is_dup, matched, ratio = similar_today_published(post)
+    is_dup, matched, ratio = similar_published(post)
     if is_dup and matched:
         issues.append(
-            f"당일 공개 글과 본문 중복 위험({ratio:.2f}) "
+            f"기존 공개 글과 본문 중복 위험({ratio:.2f}) "
             f"matched=#{matched['id']} {matched['channel']}"
         )
-    is_topic_dup, topic_matched, topic_ratio = similar_topic_today_published(post)
+    is_topic_dup, topic_matched, topic_ratio = similar_topic_published(post)
     if is_topic_dup and topic_matched:
         issues.append(
-            f"당일 같은 콘텐츠 축 제목 중복 위험({topic_ratio:.2f}) "
+            f"기존 공개 글과 같은 콘텐츠 축 제목 중복 위험({topic_ratio:.2f}) "
             f"matched=#{topic_matched['id']} {topic_matched['channel']}"
         )
     return issues

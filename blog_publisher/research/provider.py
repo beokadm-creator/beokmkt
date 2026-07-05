@@ -140,7 +140,13 @@ def get_provider(engine: str = "google") -> SearchProvider:
     """
     엔진별 공급자(기획 07). engine: 'naver' | 'google'.
     - naver  → 네이버 검색 API (SERP 분석용)
-    - google → 일반 웹 검색(Tavily 등, 사실 수집·구글 SERP)
+    - google → 일반 웹 검색(Tavily 우선, 없으면 네이버 검색 API로 폴백, 그마저 없으면 NullProvider)
+
+    Tavily 없이도(2026-06-15 결정, planning/CHANGELOG.md) 최소한의 독립 출처를
+    확보하기 위한 무료 폴백이다. 네이버 검색 API는 본문(fetch)이 아니라 스니펫
+    수준이지만, beok/hong 자사 페이지 2개만 반복 재사용되던 상태(evidence
+    monoculture, reports/content-quality-audit-20260705.md §2-증상5)보다는
+    출처 다양성이 확실히 높다.
     """
     if engine == "naver":
         return NaverSearchProvider(config.NAVER_CLIENT_ID, config.NAVER_CLIENT_SECRET)
@@ -148,5 +154,7 @@ def get_provider(engine: str = "google") -> SearchProvider:
     name = (config.SEARCH_PROVIDER or "").lower()
     if name == "tavily":
         return TavilyProvider(config.TAVILY_API_KEY)
+    if config.NAVER_CLIENT_ID and config.NAVER_CLIENT_SECRET:
+        return NaverSearchProvider(config.NAVER_CLIENT_ID, config.NAVER_CLIENT_SECRET)
     # TODO: serpapi / bing / google_cse 분기 추가
     return NullProvider()

@@ -12,12 +12,28 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 DB_PATH = Path(__file__).with_name("blog.db")
+
+# 디버깅/수동 검증 산출물이 프로덕션 발행 경로로 들어오는 것을 원천 차단한다
+# (reports/content-quality-audit-20260705.md §2-증상2: 사후 정규식 필터는
+# "검증"이라는 단어가 없는 디버깅 산출물을 놓쳤다 — 예 "명찰 출력 준비
+# 체크리스트", "실무 점검", "0614-2152" 같은 타임스탬프 태그).
+# 이 정규식은 tools/content_quality.py, tools/cleanup_bodies.py와
+# 공유하는 단일 소스다 — insert_draft()가 유일한 쓰기 경로이므로 여기서
+# 막으면 발행 게이트/정리 스크립트의 사후 필터는 방어선(defense-in-depth)만
+# 담당하면 된다.
+TEST_MARKER_RE = re.compile(
+    r"발행.+검증|검증.+발행|실제\s*발행|\[?\s*테스트\s*\]?|selftest|"
+    r"파이프라인\s*연결\s*검증|\d{4}[-_]\d{4}\s*(?:운영|점검|검증)?|"
+    r"(?:단건|실전|현장)\s*(?:점검|검증)|(?:selfhosted|tistory|naver)\s*(?:점검|검증)",
+    re.I,
+)
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 
@@ -78,7 +94,15 @@ def insert_draft(
     content_type: str = "howto",
     category: str = "",
     blog_profile: str = "",
+    allow_test_marker: bool = False,
 ) -> int:
+    """유일한 draft 삽입 경로. 여기서 막으면 모든 호출자(auto_seed, reset 스크립트,
+    수동 디버깅 실행)가 동일하게 보호된다 — 발행 단계 사후 필터에만 의존하지 않는다."""
+    if not allow_test_marker and TEST_MARKER_RE.search(topic or ""):
+        raise ValueError(
+            f"디버깅/검증용으로 보이는 topic은 프로덕션 draft로 삽입할 수 없음: {topic!r} "
+            "(의도된 테스트라면 allow_test_marker=True로 명시)"
+        )
     with connect() as conn:
         cur = conn.execute(
             "INSERT INTO posts(channel, topic, content_type, category, blog_profile, status) "

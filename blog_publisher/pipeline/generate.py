@@ -20,6 +20,7 @@ from llm.client import LLMClient
 from llm.parse import chat_json
 from pipeline import seo
 from research import collect, evidence as ev
+from utils import markdown_guard
 from utils.notify import notify
 
 if os.name == "nt":
@@ -443,20 +444,15 @@ def _validate_generated_article(result: dict) -> dict:
     return result
 
 
-_LLM_WRAPPER_TAG_RE = _re.compile(
-    r"</?(?:span|div|font|p|section|article)\b[^>]*>", _re.I,
-)
-
-
-def _strip_llm_html_tags(body_text: str) -> str:
-    """LLM이 섞어 보낸 <span style=...> 등 래퍼 HTML 태그를 제거. 내부 텍스트와
-    <img>/마크다운 이미지는 보존."""
-    return _LLM_WRAPPER_TAG_RE.sub("", body_text)
-
-
 def _remove_unsupported_specific_claims(body_text: str, evidence: dict) -> str:
     """근거팩 밖 가격·기간·규모 수치 문장은 최종 본문에서 제거한다."""
-    body_text = _strip_llm_html_tags(body_text)
+    # 섹션 단계(위 재시도 루프)에서 HTML 태그는 이미 하드 실패로 걸러졌어야 한다.
+    # 여기까지 남아 있다면 재시도 로직 자체의 결함이므로 조용히 지우지 않고
+    # 전체 생성을 실패시켜 재생성 대상으로 되돌린다(발행 대신 통계에 남긴다).
+    if markdown_guard.has_html_tags(body_text):
+        raise ValueError(
+            f"조립된 본문에 HTML 태그 잔류: {markdown_guard.find_html_tags(body_text)[:5]}"
+        )
     try:
         from pipeline.factcheck import local_unsupported_claims
     except Exception:  # noqa: BLE001
@@ -676,10 +672,22 @@ def compose_article(
             too_short = len(body.strip()) < config.SECTION_MIN_LEN
             # glm 계열이 한국어에 한자(信信, 几次 등)를 섞는 경우 → 재생성
             has_hanzi = _count_hanzi(body) > 0
-            if not too_short and not has_hanzi:
+            has_html = markdown_guard.has_html_tags(body)
+            if not too_short and not has_hanzi and not has_html:
                 break
-            reason = "너무 짧음" if too_short else f"한자 {_count_hanzi(body)}자 혼입"
+            if too_short:
+                reason = "너무 짧음"
+            elif has_html:
+                reason = f"HTML 태그 혼입 {markdown_guard.find_html_tags(body)[:3]}"
+            else:
+                reason = f"한자 {_count_hanzi(body)}자 혼입"
             print(f"[generate] 섹션 '{sec['h2']}' {reason}({len(body)}자), 재시도", flush=True)
+        # 재시도 소진 후에도 HTML 태그가 남으면 조용히 지우지 않고 하드 실패시킨다 —
+        # 그래야 발행 대신 재생성 대상이 되고, 태그 혼입 빈도가 통계에 남는다.
+        if markdown_guard.has_html_tags(body):
+            raise ValueError(
+                f"섹션 '{sec['h2']}' HTML 태그 혼입 지속: {markdown_guard.find_html_tags(body)[:5]}"
+            )
         # 최종 시도에도 한자가 남으면 제거(최후의 안전망)
         body = _compact_section_body(_strip_hanzi(body))
         parts.append(f"## {sec['h2']}\n\n{body}")
@@ -824,6 +832,15 @@ def run_once(batch: int | None = None) -> int:
             health = config.search_health_status()
             print(f"[generate] 공식 출처/근거 수집 미설정으로 이번 주기 건너뜀: {health['reason']}", flush=True)
             return processed
+        health = config.search_health_status()
+        if not health["evidence_diversity_ok"]:
+            print(
+                "[generate] 경고: 독립 검색 공급자 없음 — 이번 배치는 자사 페이지"
+                f"({health['official_source_count']}개 URL)만 근거로 생성됨. "
+                "REQUIRE_EXTERNAL_EVIDENCE=true + Tavily/네이버 검색 API 설정 전까지 "
+                "동일 근거 재활용에 따른 filler/중복 위험이 남아 있음.",
+                flush=True,
+            )
 
         ready = _order_by_pillar_diversity(db.fetch_generate_ready(limit=max(batch * 8, 16)))
         for post in ready:

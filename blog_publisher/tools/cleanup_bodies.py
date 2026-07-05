@@ -20,26 +20,13 @@ from pathlib import Path
 # tools/ 하위 스크립트가 blog_publisher/ 패키지 경로에서 임포트되게 함
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# generate.py의 _LLM_WRAPPER_TAG_RE와 정확히 동일한 패턴
-_LLM_WRAPPER_TAG_RE = re.compile(
-    r"</?(?:span|div|font|p|section|article)\b[^>]*>", re.I,
-)
-
-# 테스트/검증용 주제 마커 — cleanup과 content_quality 게이트에서 공유
-TEST_MARKER_RE = re.compile(
-    r"발행.+검증|검증.+발행|실제\s*발행|\[?\s*테스트\s*\]?|selftest|파이프라인\s*연결\s*검증",
-    re.I,
-)
+from db.db import TEST_MARKER_RE  # noqa: E402  (sys.path 조정 이후 임포트, 단일 소스)
+from utils import markdown_guard  # noqa: E402
 
 _ARCHIVEABLE_STATUSES = (
     "published", "queued", "reviewed", "reviewing",
     "factchecking", "draft", "generating",
 )
-
-
-def _strip_llm_html_tags(body_text: str) -> str:
-    """generate.py _strip_llm_html_tags와 동일. 내부 텍스트와 <img>는 보존."""
-    return _LLM_WRAPPER_TAG_RE.sub("", body_text)
 
 
 def _normalize_topic(topic: str) -> str:
@@ -57,7 +44,7 @@ def _scan_posts(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def _find_span_dirty(rows: list[sqlite3.Row]) -> list[sqlite3.Row]:
-    return [r for r in rows if r["body"] and _LLM_WRAPPER_TAG_RE.search(r["body"])]
+    return [r for r in rows if r["body"] and markdown_guard.has_html_tags(r["body"])]
 
 
 def _find_test_posts(rows: list[sqlite3.Row]) -> list[sqlite3.Row]:
@@ -104,7 +91,7 @@ def run(apply: bool = False) -> None:
         # 1) 본문 HTML 래퍼 태그 제거
         bodies_changed = 0
         for r in span_dirty:
-            new_body = _strip_llm_html_tags(r["body"])
+            new_body = markdown_guard.strip_html_tags(r["body"])
             if apply:
                 conn.execute(
                     "UPDATE posts SET body = ?, updated_at = ? WHERE id = ?",

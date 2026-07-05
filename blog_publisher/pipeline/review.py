@@ -32,6 +32,9 @@ def rule_gate(body: str) -> list[str]:
         issues.append("banned_words")
     if T.count_headings(body) < config.MIN_HEADINGS:
         issues.append("thin_structure")
+    filler = T.filler_density(body)
+    if filler > config.MAX_FILLER_DENSITY:
+        issues.append(f"filler_heavy:{filler:.2f}/1000자")
     return issues
 
 
@@ -70,12 +73,14 @@ def _issue_key(issue: str) -> str:
 
 def review_blockers(data: dict) -> list[str]:
     """
-    LLM 평가는 hard gate가 아니라 2차 안전망이다.
+    LLM 평가는 규칙 게이트(rule_gate)를 통과한 글에 대한 2차 검증이다.
 
-    규칙 게이트/발행 게이트가 이미 길이, 구조, 이미지, 중복, 서비스 축을 차단하므로
-    LLM의 generic/repetitive 같은 주관적 개선 의견만으로는 재고를 모두 폐기하지 않는다.
-    다만 매우 낮은 점수와 사실성·주제이탈·위험·환각 같은 치명 이슈는 계속 차단한다.
-    unnatural_ko/generic/repetitive는 규칙 게이트와 발행 게이트를 통과한 글에서는 advisory로 둔다.
+    차단 대상은 config.REVIEW_CRITICAL_ISSUES에서 결정한다. 기본값은 사실성·주제이탈·
+    위험·환각뿐 아니라 generic/repetitive/thin_for_intent도 포함한다 — 정보밀도가
+    낮거나(§증상5, reports/content-quality-audit-20260705.md) 브랜드 간 서술이
+    반복되는 글은 "주관적 개선 의견"이 아니라 발행 차단 대상으로 취급한다.
+    unnatural_ko는 여전히 advisory다(REVIEW_SYSTEM 프롬프트 규칙: 의미가 심하게
+    꼬일 때만 표시하도록 이미 제한돼 있어 오탐 위험이 다르다).
     """
     if config.MIN_REVIEW_SCORE <= 0:
         return []   # 검수 점수 임계 0 = LLM 게이트 비활성
