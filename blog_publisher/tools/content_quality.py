@@ -256,6 +256,9 @@ def publish_blockers(post) -> list[str]:
             "네이버 자동 발행은 이미지 업로드 보존이 아직 검증되지 않아 수동 확인 필요"
         )
 
+    if re.search(r"<(?:span|div|font|p|section|article)\b", body, flags=re.I):
+        issues.append("본문에 LLM 생성 HTML 래퍼 태그 잔류")
+
     is_dup, matched, ratio = similar_today_published(post)
     if is_dup and matched:
         issues.append(

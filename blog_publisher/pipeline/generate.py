@@ -443,8 +443,20 @@ def _validate_generated_article(result: dict) -> dict:
     return result
 
 
+_LLM_WRAPPER_TAG_RE = _re.compile(
+    r"</?(?:span|div|font|p|section|article)\b[^>]*>", _re.I,
+)
+
+
+def _strip_llm_html_tags(body_text: str) -> str:
+    """LLM이 섞어 보낸 <span style=...> 등 래퍼 HTML 태그를 제거. 내부 텍스트와
+    <img>/마크다운 이미지는 보존."""
+    return _LLM_WRAPPER_TAG_RE.sub("", body_text)
+
+
 def _remove_unsupported_specific_claims(body_text: str, evidence: dict) -> str:
     """근거팩 밖 가격·기간·규모 수치 문장은 최종 본문에서 제거한다."""
+    body_text = _strip_llm_html_tags(body_text)
     try:
         from pipeline.factcheck import local_unsupported_claims
     except Exception:  # noqa: BLE001
