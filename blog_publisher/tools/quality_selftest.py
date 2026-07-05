@@ -81,11 +81,14 @@ def _test_phase_a_generation_contract() -> list[str]:
     issues: list[str] = []
     if generate._section_max_tokens() > 1500:
         issues.append(f"phase-a: 섹션 유효 토큰 상한 > 1500 ({generate._section_max_tokens()})")
-    if config.SECTION_MAX_LEN > 260:
-        issues.append(f"phase-a: SECTION_MAX_LEN > 260 ({config.SECTION_MAX_LEN})")
-    if config.SECTION_MIN_LEN < 120:
-        issues.append(f"phase-a: SECTION_MIN_LEN < 120 ({config.SECTION_MIN_LEN})")
-    for token in ["200~260자", "운영 장면 1개", "판단 기준 1개", "독자 행동 1개", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
+    # 2026-07-05: 260/120은 실제 발행글이 900~1300자(발행 밴드 하단)에 몰려
+    # "본문 짧음" 감사에 전수 걸렸던 구값. 400/180으로 상향(SECTION_MAX도
+    # 4->5, prompts.SECTION_SYSTEM 목표 문구도 300~400자로 동시 변경).
+    if config.SECTION_MAX_LEN > 450:
+        issues.append(f"phase-a: SECTION_MAX_LEN > 450 ({config.SECTION_MAX_LEN})")
+    if config.SECTION_MIN_LEN < 150:
+        issues.append(f"phase-a: SECTION_MIN_LEN < 150 ({config.SECTION_MIN_LEN})")
+    for token in ["300~400자", "운영 장면 1개", "판단 기준 1개", "독자 행동 1개", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
         if token not in prompts.SECTION_SYSTEM:
             issues.append(f"phase-a: SECTION_SYSTEM 품질 지시 누락: {token}")
 
@@ -249,12 +252,12 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
     from tools.content_quality import external_image_count, image_count, plain_text, publish_blockers
 
     issues: list[str] = []
-    if config.SECTION_MAX_LEN > 260:
-        issues.append(f"ops-length: SECTION_MAX_LEN이 260을 초과함({config.SECTION_MAX_LEN})")
-    if config.SECTION_MIN_LEN < 120:
-        issues.append(f"ops-length: SECTION_MIN_LEN이 120 미만임({config.SECTION_MIN_LEN})")
-    if generate.SECTION_MAX > 4:
-        issues.append(f"ops-length: 운영 글 섹션 상한이 4를 초과함({generate.SECTION_MAX})")
+    if config.SECTION_MAX_LEN > 450:
+        issues.append(f"ops-length: SECTION_MAX_LEN이 450을 초과함({config.SECTION_MAX_LEN})")
+    if config.SECTION_MIN_LEN < 150:
+        issues.append(f"ops-length: SECTION_MIN_LEN이 150 미만임({config.SECTION_MIN_LEN})")
+    if generate.SECTION_MAX > 5:
+        issues.append(f"ops-length: 운영 글 섹션 상한이 5를 초과함({generate.SECTION_MAX})")
 
     class MockLLM:
         section_calls = 0

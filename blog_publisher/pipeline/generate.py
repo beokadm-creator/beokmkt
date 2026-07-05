@@ -764,7 +764,10 @@ def _generate_one(llm: LLMClient, post: dict) -> None:
 
 
 SECTION_MIN = 2   # 하한(이하면 실패)
-SECTION_MAX = 4   # 상한(초과분은 잘라서 보정). 운영 글은 이미지/표 주입 후 2600자 이하여야 한다.
+SECTION_MAX = 5   # 상한(초과분은 잘라서 보정). 운영 글은 이미지/표 주입 후 2600자 이하여야 한다.
+# 2026-07-05: 4였을 때 SECTION_MAX_LEN(260)과 곱하면 최대 1040자로 사실상
+# 상한처럼 작동해 실제 발행글이 전부 900~1300자대 "짧은 글"에 몰렸다. 5로
+# 늘려 SECTION_MAX_LEN(400) 상향과 함께 2600자 밴드를 더 채우게 한다.
 
 
 def _validate_outline(outline: dict) -> dict:

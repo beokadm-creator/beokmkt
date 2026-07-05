@@ -40,8 +40,13 @@ GENERATE_MAX_ATTEMPTS = int(os.getenv("GENERATE_MAX_ATTEMPTS", "5"))    # 생성
 GENERATE_POST_TIMEOUT_SEC = int(os.getenv("GENERATE_POST_TIMEOUT_SEC", "900"))  # 글 1건 생성 하드 상한
 GENERATE_PROCESS_ISOLATION = os.getenv("GENERATE_PROCESS_ISOLATION", "true").lower() == "true"
 GENERATE_BATCH = int(os.getenv("GENERATE_BATCH", "1"))  # 원격 제어 명령 lease 안에서 안전하게 1건씩 생성
-SECTION_MIN_LEN       = max(int(os.getenv("SECTION_MIN_LEN",   "120")), 120)  # 섹션 최소 글자. 짧은 운영 글이 900자 하한 밑으로 빠지는 것을 방지.
-SECTION_MAX_LEN       = min(int(os.getenv("SECTION_MAX_LEN",   "260")), 260)  # 섹션 최대 글자. 오래된 .env가 300이어도 운영 글 2600자 상한을 우선한다.
+SECTION_MIN_LEN       = max(int(os.getenv("SECTION_MIN_LEN",   "180")), 120)  # 섹션 최소 글자. 짧은 운영 글이 900자 하한 밑으로 빠지는 것을 방지.
+# 2026-07-05: 260자×4섹션=최대 1040자로 사실상 상한처럼 작동해, 실제 발행글
+# 9건 전수가 984~1349자(발행 게이트 900~2600 밴드의 하단)에 몰려 "본문 짧음"
+# 감사에 전부 걸렸다(내용도 문장 2~3개 수준으로 실제로 부실했음). 섹션당
+# 상한을 늘려 400자×5섹션(SECTION_MAX)까지 여유를 주고 2600 상한 안에서
+# 더 채워지게 한다.
+SECTION_MAX_LEN       = min(int(os.getenv("SECTION_MAX_LEN",   "400")), 450)  # 섹션 최대 글자. 오래된 .env가 300이어도 운영 글 2600자 상한을 우선한다.
 STUCK_THRESHOLD_MIN   = int(os.getenv("STUCK_THRESHOLD_MIN",   "35"))   # stuck 판단 기준(분)
 
 # 번역(기획 11)

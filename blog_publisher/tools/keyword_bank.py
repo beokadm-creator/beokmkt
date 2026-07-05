@@ -423,7 +423,12 @@ def _expand_notebook_return_keywords() -> None:
         out.append((topic, content_type, "notebook_return"))
         return True
 
-    brands = ["삼성", "LG", "HP", "레노버", "델", "에이수스", "MSI", "애플 맥북"]
+    # 2026-07-05: 크롤러(coupang_targets.prod.yaml rocket_seeds)가 실제로
+    # 추적하는 브랜드만 남긴다. MSI/에이수스/애플 맥북은 크롤 데이터에 전혀
+    # 없어 근거를 못 찾고 매번 factcheck/review에서 탈락하거나(재시도 낭비),
+    # 드물게는 근거 없이 통과해 부실한 글이 그대로 발행됐다(#741/#749/#751
+    # 실측 확인 후 draft 상태에서 archived 처리).
+    brands = ["삼성", "LG", "HP", "레노버", "델"]
     brand_angles = [
         ("반품 노트북 등급별 상태 확인 포인트", "howto"),
         ("반품 노트북 정가 대비 할인율 확인하는 법", "howto"),
