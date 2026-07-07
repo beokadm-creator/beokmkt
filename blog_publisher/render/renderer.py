@@ -979,6 +979,30 @@ def _source_footer_html(post: dict) -> str:
     )
 
 
+def _notebook_return_callout(post: dict) -> str:
+    """반품 노트북 글 상단에만 눈에 띄는 전용 콜아웃을 렌더한다."""
+    if _post_context(post) != "notebook_return":
+        return ""
+    return (
+        '<aside class="notebook-return-cta" style="display:flex;gap:14px;'
+        'align-items:center;justify-content:space-between;flex-wrap:wrap;'
+        'padding:16px 20px;margin:22px 0;border-radius:12px;'
+        'background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;'
+        'border-left:5px solid #22d3ee;">'
+        '<div style="min-width:0;">'
+        '<strong style="display:block;font-size:1.08rem;margin-bottom:6px;">'
+        '반품 노트북 실제 매물 · 실시간 시세/재고</strong>'
+        '<span style="font-size:0.92rem;opacity:0.92;">'
+        '삼성·LG·HP·레노버 반품·리퍼 매물을 등급·가격·재고로 지금 비교해 보세요.</span>'
+        '</div>'
+        '<a href="https://notebook-return.web.app" target="_blank" rel="noopener" '
+        'style="flex-shrink:0;padding:11px 20px;background:#22d3ee;color:#0f172a;'
+        'font-weight:700;font-size:0.98rem;border-radius:9px;text-decoration:none;'
+        'white-space:nowrap;">매물 보기 →</a>'
+        '</aside>'
+    )
+
+
 def _hero_html(post: dict) -> str:
     """글마다 고유한 대표 이미지(og_image/hero_image)를 본문 상단 히어로로 노출."""
     src = _safe_attr_url(str(post.get("hero_image") or post.get("og_image") or ""), image=True)
@@ -998,6 +1022,7 @@ def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]
     )
     return (
         f'{_hero_html(post)}\n'
+        f'{_notebook_return_callout(post)}\n'
         f'{_disclosure_html(post)}\n'
         f'{_summary_card(post, toc, source_md)}\n'
         f'{_service_proof_html(post)}\n'
