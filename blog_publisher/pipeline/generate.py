@@ -44,9 +44,14 @@ _RUN_META_INLINE_RE = _re.compile(
     r"(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?:[-_][0-9A-Za-z가-힣]+)?",
     _re.IGNORECASE,
 )
+# 주의: 접두 그룹을 모두 optional로 두면 맨 단어 '검증'까지 매칭돼, 본문의
+# 정상어(교차검증·품질 검증·데이터 검증 등)를 통째로 삭제한다(2026-07 깊이 원고에서
+# '교차검증'→'교차 ', 'DB 매핑·검증'→'DB 매핑· ' 같은 단어 구멍 다발 확인). 운영 run
+# 메타는 항상 '발행'을 동반하므로('[채널] [실제/신규] 발행 [품질] 검증 [날짜]'),
+# '발행'을 필수로 요구해 정상어를 보존한다. 날짜 동반형은 _RUN_META_INLINE_RE가 담당.
 _RUN_META_PHRASE_RE = _re.compile(
-    r"(?:네이버|티스토리|자체|selfhosted|naver|tistory)?\s*"
-    r"(?:(?:실제|신규)\s*)?(?:발행\s*)?(?:품질\s*)?검증",
+    r"(?:네이버|티스토리|자체|selfhosted|naver|tistory|실제|신규)?\s*"
+    r"발행\s*(?:품질\s*)?검증",
     _re.IGNORECASE,
 )
 
@@ -230,6 +235,68 @@ def _sanitize_naver_body(body: str) -> str:
     return text
 
 
+_TERMINAL_RE = _re.compile(r'[.!?…][”"\'’」』)\]]*')
+
+
+def _fix_bold_markers(text: str) -> str:
+    """볼드 안쪽 공백 정리·빈 볼드 제거. glm-5.1이 '**단어 **'처럼 한자 제거/절단으로
+    남긴 잘린 볼드를 정돈한다(예: '**회원증번호 **입니다' → '**회원증번호**입니다')."""
+    def repl(m: "_re.Match") -> str:
+        inner = m.group(1).strip()
+        return f"**{inner}**" if inner else ""
+    return _re.sub(r"\*\*([^*\n]*?)\*\*", repl, text)
+
+
+def _clean_section_artifacts(text: str) -> str:
+    """생성·후처리 과정에서 남는 표면 결함을 결정론적으로 정리한다.
+
+    - 잘린 볼드(**단어 **) 정돈.
+    - 문단의 마지막 종결부호 뒤에 남은 '미완결 꼬리 문장'(토큰 소진/트림으로 잘린
+      '…시스템을 도입한다'류)을 버린다. 목록·표·헤더·이미지 라인은 건드리지 않는다.
+    실측(gen_body): 잘린 볼드·미완결 문장을 제거해 발행 본문의 표면 품질을 높였다."""
+    if not text:
+        return text
+
+    def _line_kind(line: str) -> str:
+        s = line.strip()
+        if not s:
+            return "empty"
+        if s.startswith("#"):
+            return "heading"
+        if s.startswith("![") or s.startswith("<img"):
+            return "image"
+        if _re.match(r"^([-*]\s+|\d+\.\s+|\|)", s):
+            return "structural"
+        return "para"
+
+    def _drop_incomplete(line: str) -> str:
+        matches = list(_TERMINAL_RE.finditer(line))
+        if not matches:
+            return line  # 종결부호 자체가 없으면 보수적으로 유지
+        end = matches[-1].end()
+        tail = line[end:].strip()
+        if len(tail) >= 8 and not tail.endswith((":", "：")):
+            return line[:end].rstrip()
+        return line
+
+    out = _fix_bold_markers(text)
+    blocks = _re.split(r"(\n{2,})", out)
+    for i, block in enumerate(blocks):
+        if not block.strip() or block.startswith("\n"):
+            continue
+        lines = block.split("\n")
+        for j in range(len(lines) - 1, -1, -1):
+            if not lines[j].strip():
+                continue
+            if _line_kind(lines[j]) == "para":
+                lines[j] = _drop_incomplete(lines[j])
+            break
+        blocks[i] = "\n".join(lines)
+    out = "".join(blocks)
+    out = _re.sub(r"[ \t]{2,}", " ", out)
+    return _re.sub(r"\n{3,}", "\n\n", out).strip()
+
+
 def _compact_section_body(body: str) -> str:
     """모델이 과하게 길게 쓴 섹션을 문단 단위로 줄인다."""
     max_len = int(getattr(config, "SECTION_MAX_LEN", 0) or 0)
@@ -375,21 +442,35 @@ def _build_outline(llm: LLMClient, post: dict, evidence: dict,
         content_type, prompts.OUTLINE_TEMPLATES["howto"]
     )
     _log_stage(post["topic"], "outline")
-    outline = chat_json(
-        llm,
-        system,
-        prompts.OUTLINE_USER.format(
-            topic=post["topic"],
-            content_type=content_type,
-            intent=evidence.get("intent", ""),
-            coverage="\n".join(f"- {c}" for c in evidence.get("coverage_targets", [])),
-            facts=_facts_summary(evidence),
-            brand_hint=_brand_hint(post.get("category") or post.get("brand_key", "")),
-        ),
-        model=config.MODEL_OUTLINE,
-        max_tokens=config.MAX_TOKENS_OUTLINE_JSON,
-        thinking=False,
+    user = prompts.OUTLINE_USER.format(
+        topic=post["topic"],
+        content_type=content_type,
+        intent=evidence.get("intent", ""),
+        coverage="\n".join(f"- {c}" for c in evidence.get("coverage_targets", [])),
+        facts=_facts_summary(evidence),
+        brand_hint=_brand_hint(post.get("category") or post.get("brand_key", "")),
     )
+    # glm-5.1은 한국어 소제목/제목에 한자(檢證·認證 등)를 섞곤 한다. 소제목·제목은
+    # 본문과 달리 재생성 없이 그대로 쓰이므로, _strip_hanzi가 나중에 이를 지우면
+    # '이관 후 ·롤백'처럼 단어 구멍이 남는다(실측). 개요 단계에서 한자가 있으면
+    # 재생성해 애초에 순한글 제목/소제목을 확보한다.
+    outline = None
+    for _try in range(3):
+        outline = chat_json(
+            llm, system, user,
+            model=config.MODEL_OUTLINE,
+            max_tokens=config.MAX_TOKENS_OUTLINE_JSON,
+            thinking=False,
+        )
+        joined = " ".join([
+            str(outline.get("title", "")),
+            str(outline.get("meta_description", "")),
+            " ".join(f"{s.get('h2', '')} {s.get('point', '')}"
+                     for s in outline.get("sections", []) if isinstance(s, dict)),
+        ])
+        if _count_hanzi(joined) == 0:
+            break
+        print(f"[generate] 개요에 한자 {_count_hanzi(joined)}자 혼입, 재생성", flush=True)
     return _validate_outline(outline)
 
 
@@ -552,7 +633,16 @@ def _trim_to_plain_limit(body_text: str, max_chars: int) -> str:
             break
         if not changed:
             break
-    return _re.sub(r"\n{3,}", "\n\n", "\n\n".join(block for block in blocks if block.strip())).strip()
+    kept = [block for block in blocks if block.strip()]
+    # 후행 절단으로 남은 '고아 헤더'(본문이 트림돼 소제목만 덩그러니 남은 경우)를 제거한다.
+    # 예: 마지막 블록이 `### 소제목`인데 그 아래 설명 문단이 트림돼 사라진 상태.
+    def _is_heading_only(block: str) -> bool:
+        lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
+        return bool(lines) and all(_re.match(r"^#{2,4}\s", ln) for ln in lines)
+
+    while kept and _is_heading_only(kept[-1]):
+        kept.pop()
+    return _re.sub(r"\n{3,}", "\n\n", "\n\n".join(kept)).strip()
 
 
 def _evidence_service_summary(evidence: dict) -> str:
@@ -571,15 +661,17 @@ def _fit_operational_length_band(
     body_text: str,
     evidence: dict,
     topic: str = "",
-    min_chars: int = 940,
-    max_chars: int = 1950,
+    min_chars: int = 1600,
+    max_chars: int = 3300,
 ) -> str:
-    """운영 글 최종 본문을 발행 게이트 밴드(900~2600) 안에 안정적으로 맞춘다.
+    """운영 글 최종 본문을 발행 게이트 밴드 안에 안정적으로 맞춘다.
 
     2026-07-05: 점검표(_ensure_summary_table, 헤더+구분선+4행 약 550~600자)를
     이 함수 이후에 붙이도록 순서를 바꿨다(표가 근거 검증/길이 보정에 걸려
-    셀이 잘리는 문제 수정). max_chars를 2200->1950으로 낮춰 표가 붙어도
-    2600 상한 안에 여유 있게 남는다."""
+    셀이 잘리는 문제 수정).
+    2026-07 깊이 피벗: 게이트 상한을 2600→4000으로 올렸으므로(OPERATIONAL_BODY_MAX_LEN)
+    max_chars도 1950→3300으로 올려 심층 원고가 여기서 잘리지 않게 한다. 표(약 600자)를
+    더해도 4000 안에 남는다. min도 940→1600으로 올려 '얇은 글' 패딩 트리거를 높인다."""
     fitted = _trim_to_plain_limit(body_text, max_chars)
     if _plain_len(fitted) >= min_chars:
         return fitted
@@ -746,6 +838,10 @@ def compose_article(
     if engine != "naver" and image_brand_key and image_brand_key != "notebook_return":
         body_text = _fit_operational_length_band(body_text, evidence, topic=topic)
 
+    # 표면 결함 정리(잘린 볼드·미완결 꼬리 문장). 길이 보정 '뒤', 점검표 '앞'에 둔다:
+    # 트림이 남긴 잘린 문장까지 정돈하고, 이미 검증된 결정론적 점검표는 건드리지 않는다.
+    body_text = _clean_section_artifacts(body_text)
+
     # 2026-07-05: 점검표를 섹션 조립 직후(다른 후처리보다 먼저) 붙였더니, 뒤이은
     # 근거 검증(_remove_unsupported_specific_claims)·길이 보정(_fit_operational_
     # length_band)이 표를 일반 문장으로 착각해 셀 내용을 중간에서 잘라먹었다
@@ -779,10 +875,13 @@ def _generate_one(llm: LLMClient, post: dict) -> None:
 
 
 SECTION_MIN = 2   # 하한(이하면 실패)
-SECTION_MAX = 5   # 상한(초과분은 잘라서 보정). 운영 글은 이미지/표 주입 후 2600자 이하여야 한다.
+SECTION_MAX = 5   # 상한(초과분은 잘라서 보정). 깊이 피벗: 게이트 상한 4000자 예산에 맞춰 5.
 # 2026-07-05: 4였을 때 SECTION_MAX_LEN(260)과 곱하면 최대 1040자로 사실상
-# 상한처럼 작동해 실제 발행글이 전부 900~1300자대 "짧은 글"에 몰렸다. 5로
-# 늘려 SECTION_MAX_LEN(400) 상향과 함께 2600자 밴드를 더 채우게 한다.
+# 상한처럼 작동해 실제 발행글이 전부 900~1300자대 "짧은 글"에 몰렸다.
+# 2026-07 깊이 피벗: 실측(6섹션×700자≈4000+표600)이 트림 밴드(3300)를 크게 넘겨
+# 마지막 섹션이 중간에서 잘리고 고아 헤더가 남았다. 깊이는 '섹션 개수'가 아니라
+# '섹션당 밀도(500~800자)'로 낸다 → 5섹션으로 되돌려 표(600자)까지 4000 게이트에
+# 온전히 담기게 한다. 트림도 고아 헤더를 정리하도록 보강했다.
 
 
 def _validate_outline(outline: dict) -> dict:
@@ -808,6 +907,14 @@ def _validate_outline(outline: dict) -> dict:
         print(f"[generate] 섹션 {len(valid)}개 → {SECTION_MAX}개로 보정")
         valid = valid[:SECTION_MAX]
 
+    # 재생성으로도 못 걸러진 한자는 최후로 제거(본문 _strip_hanzi와 동일 정책).
+    # 제목/소제목은 재생성 없이 그대로 쓰이므로 raw 한자가 새지 않게 여기서 정리한다.
+    outline["title"] = _strip_hanzi(outline["title"])
+    if outline.get("meta_description"):
+        outline["meta_description"] = _strip_hanzi(str(outline["meta_description"]))
+    for s in valid:
+        s["h2"] = _strip_hanzi(str(s["h2"]))
+        s["point"] = _strip_hanzi(str(s["point"]))
     outline["sections"] = valid
     return outline
 

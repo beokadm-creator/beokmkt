@@ -12,6 +12,7 @@ import difflib
 import re
 from urllib.parse import urlparse
 
+import config
 from db import db
 from utils import markdown_guard
 
@@ -241,10 +242,12 @@ def publish_blockers(post) -> list[str]:
     trusted_images = external_image_count(body)
 
     if is_operational_post(post):
-        if chars < 900:
-            issues.append(f"운영 글 본문 부족({chars}/900자)")
-        if chars > 2600:
-            issues.append(f"운영 글 본문 과다({chars}/2600자)")
+        _op_min = getattr(config, "OPERATIONAL_BODY_MIN_LEN", 900)
+        _op_max = getattr(config, "OPERATIONAL_BODY_MAX_LEN", 4000)
+        if chars < _op_min:
+            issues.append(f"운영 글 본문 부족({chars}/{_op_min}자)")
+        if chars > _op_max:
+            issues.append(f"운영 글 본문 과다({chars}/{_op_max}자)")
         if images < 2:
             issues.append(f"운영 글 이미지 부족({images}/2장)")
         if unique_images < images:

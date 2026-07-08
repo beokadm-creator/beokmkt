@@ -29,24 +29,33 @@ MODEL_REVIEW = os.getenv("MODEL_REVIEW", "glm-4.5")     # 검수: 저온, 짧게
 MAX_TOKENS_OUTLINE = int(os.getenv("MAX_TOKENS_OUTLINE", "600"))
 MAX_TOKENS_INTENT = int(os.getenv("MAX_TOKENS_INTENT", "800"))      # 의도/키워드 JSON은 짧고 빠르게
 MAX_TOKENS_OUTLINE_JSON = int(os.getenv("MAX_TOKENS_OUTLINE_JSON", "2200"))  # 개요 JSON 상한
-MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "1500"))  # thinking=True 시 thinking+출력 합산 예산(1000은 thinking만 소진돼 빈 응답 반복)
-SECTION_TOKEN_CAP = min(int(os.getenv("SECTION_TOKEN_CAP", "1500")), 1500)  # 오래된 .env의 과도한 token 상한 방어
+# 깊이 피벗(2026-07): glm-5.1로 '소량·고밀도' 원고 생성. thinking=True는 thinking+출력
+# 합산 예산이므로, 500~800자 밀도 섹션을 온전히 쓰려면 예산이 넉넉해야 한다.
+MAX_TOKENS_SECTION = int(os.getenv("MAX_TOKENS_SECTION", "4000"))  # thinking+출력 합산 예산
+# 이전 1500 하드캡은 '얇은 글 대량' 전략용 방어였는데, .env가 이미 4000을 세팅한
+# 깊이 전략과 충돌해 섹션 출력을 잘라먹었다. 상한을 4000으로 올려 예산 의도를 존중한다.
+SECTION_TOKEN_CAP = min(int(os.getenv("SECTION_TOKEN_CAP", "4000")), 4000)
 MAX_TOKENS_SEO    = int(os.getenv("MAX_TOKENS_SEO",     "300"))
 MAX_TOKENS_REVIEW = int(os.getenv("MAX_TOKENS_REVIEW",  "300"))
 
 # ---- 재시도 / 타임아웃 ----
 LLM_TIMEOUT_SEC       = int(os.getenv("LLM_TIMEOUT_SEC",       "120"))  # API 1회 호출 최대 대기
 GENERATE_MAX_ATTEMPTS = int(os.getenv("GENERATE_MAX_ATTEMPTS", "5"))    # 생성 최대 시도
-GENERATE_POST_TIMEOUT_SEC = int(os.getenv("GENERATE_POST_TIMEOUT_SEC", "900"))  # 글 1건 생성 하드 상한
+# 깊이 피벗(2026-07): 5섹션×(4000토큰+thinking)+한자 재시도로 글 1건이 실측 ~12분까지
+# 걸린다. 900초(15분)는 재시도가 겹치면 초과해 하드 실패한다. 다만 Windows 발행 PC의
+# 스케줄 작업 런타임 제한이 20분이라, Python 타임아웃(1080초=18분)이 Windows 강제
+# 종료보다 먼저 걸리게 해 부분 산출물이 아니라 깔끔한 타임아웃으로 정리되게 한다.
+GENERATE_POST_TIMEOUT_SEC = int(os.getenv("GENERATE_POST_TIMEOUT_SEC", "1080"))  # 글 1건 생성 하드 상한
 GENERATE_PROCESS_ISOLATION = os.getenv("GENERATE_PROCESS_ISOLATION", "true").lower() == "true"
 GENERATE_BATCH = int(os.getenv("GENERATE_BATCH", "1"))  # 원격 제어 명령 lease 안에서 안전하게 1건씩 생성
 SECTION_MIN_LEN       = max(int(os.getenv("SECTION_MIN_LEN",   "180")), 120)  # 섹션 최소 글자. 짧은 운영 글이 900자 하한 밑으로 빠지는 것을 방지.
 # 2026-07-05: 260자×4섹션=최대 1040자로 사실상 상한처럼 작동해, 실제 발행글
 # 9건 전수가 984~1349자(발행 게이트 900~2600 밴드의 하단)에 몰려 "본문 짧음"
-# 감사에 전부 걸렸다(내용도 문장 2~3개 수준으로 실제로 부실했음). 섹션당
-# 상한을 늘려 400자×5섹션(SECTION_MAX)까지 여유를 주고 2600 상한 안에서
-# 더 채워지게 한다.
-SECTION_MAX_LEN       = min(int(os.getenv("SECTION_MAX_LEN",   "400")), 450)  # 섹션 최대 글자. 오래된 .env가 300이어도 운영 글 2600자 상한을 우선한다.
+# 감사에 전부 걸렸다. 섹션당 상한을 늘려 더 채워지게 했다.
+# 2026-07 깊이 피벗: 400자×5섹션(≈2000자)도 여전히 얇다는 피드백 → 섹션당 상한을
+# 700자(캡 900)로 올려 500~800자 밀도 섹션 5~6개로 3000자대 심층 원고를 낸다.
+# 실제 밀도·근거 유지 여부는 생성 후 육안 검증으로 확인한다(북극성 §0).
+SECTION_MAX_LEN       = min(int(os.getenv("SECTION_MAX_LEN",   "700")), 900)  # 섹션 최대 글자(깊이 피벗)
 STUCK_THRESHOLD_MIN   = int(os.getenv("STUCK_THRESHOLD_MIN",   "35"))   # stuck 판단 기준(분)
 
 # 번역(기획 11)
@@ -204,6 +213,11 @@ REWRITE_EXTRA_RESEARCH = os.getenv("REWRITE_EXTRA_RESEARCH", "true").lower() == 
 
 # ---- 검수 게이트 임계값 ----
 MIN_BODY_LEN = int(os.getenv("MIN_BODY_LEN", "800"))    # 가시 본문 최소 길이
+# 운영 글 본문 길이 밴드(공백 제외). 깊이 피벗(2026-07): 상한 2600→4000으로 올려
+# 500~800자 밀도 섹션 5~6개(3000자대) 심층 원고가 발행 게이트에서 거부되지 않게 한다.
+# 하한은 얇은 글 차단용으로 유지. 실제 밀도/근거 품질은 생성 후 육안 검증으로 본다.
+OPERATIONAL_BODY_MIN_LEN = int(os.getenv("OPERATIONAL_BODY_MIN_LEN", "900"))
+OPERATIONAL_BODY_MAX_LEN = int(os.getenv("OPERATIONAL_BODY_MAX_LEN", "4000"))
 MAX_DUP_RATIO = float(os.getenv("MAX_DUP_RATIO", "0.18"))
 MIN_HEADINGS = int(os.getenv("MIN_HEADINGS", "3"))
 MIN_REVIEW_SCORE = int(os.getenv("MIN_REVIEW_SCORE", "80"))
@@ -234,8 +248,10 @@ REVIEW_CRITICAL_ISSUES = [
 BANNED_WORDS = [w for w in os.getenv("BANNED_WORDS", "").split(",") if w]
 
 # ---- 발행 스케줄 ----
-DAILY_PUBLISH_TARGET = int(os.getenv("DAILY_PUBLISH_TARGET", "5"))   # 발행 큐 깊이 목표(일일 총량 아님 — schedule_publish docstring 참고)
-PUBLISH_SPACING_MIN = int(os.getenv("PUBLISH_SPACING_MIN", "90"))    # 글 간 분산 간격(분)
+# 깊이 피벗(2026-07): '소량·고밀도' 전략 — 얇은 글을 많이 찍던 방식에서, 심층 원고를
+# 적게 내는 방식으로. 큐 깊이 목표를 5→3으로, 글 간 간격을 90→150분으로 넓힌다.
+DAILY_PUBLISH_TARGET = int(os.getenv("DAILY_PUBLISH_TARGET", "3"))   # 발행 큐 깊이 목표(일일 총량 아님 — schedule_publish docstring 참고)
+PUBLISH_SPACING_MIN = int(os.getenv("PUBLISH_SPACING_MIN", "150"))   # 글 간 분산 간격(분)
 STOCK_BUFFER_DAYS = int(os.getenv("STOCK_BUFFER_DAYS", "3"))         # 유지할 재고 일수
 ALLOW_EXTERNAL_AUTO_SEED = os.getenv("ALLOW_EXTERNAL_AUTO_SEED", "false").lower() == "true"
 # 주제 다양성: 조합 생성 시 하나의 '앵커'(예: 교육기관 홈페이지, 명찰 재발행)별로
