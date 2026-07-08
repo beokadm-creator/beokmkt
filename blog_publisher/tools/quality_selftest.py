@@ -1302,46 +1302,68 @@ def _test_selfhosted_renderer() -> list[str]:
         "locale": "ko",
     })
     issues: list[str] = []
+    # SAMPLE_MD는 표·체크리스트·4개 섹션을 가진 '풍부한' 본문 → 렌더러는 브랜드
+    # 공용 붙박이(서비스범위·운영흐름·비교표)를 붙이지 않고 본문 구조를 그대로 쓴다.
     issues += _assert_contains(
         "selfhosted",
         html,
         [
             "summary-card",
             "summary-decision",
-            "service-proof",
-            "비오케이솔루션 실무 점검 범위",
-            "operation-flow",
-            "사무국 운영 흐름",
-            "ops-comparison",
-            "현장 혼잡을 줄이는 운영 기준 비교",
-            'class="toc"',
             "soft-cta",
             "table-wrap",
             "<img ",
             "content-callout",
         ],
     )
+    # 풍부한 본문에는 반복 붙박이가 억제돼야 한다(자동생성 티의 핵심 제거).
+    for token in ("service-proof", "operation-flow", "ops-comparison"):
+        if token in html:
+            issues.append(f"selfhosted: 풍부한 본문에 붙박이 {token} 중복 노출")
     if "<article" in html or "<h1" in html:
         issues.append("selfhosted: 저장 fragment에 article/h1 포함")
     if "[이미지:" in html:
         issues.append("selfhosted: 이미지 텍스트 마커 노출")
+    # 자체 블로그 CMS는 사이드바에 자체 목차·읽기시간을 렌더한다. 본문에도
+    # 목차·읽기시간을 넣으면 화면에 두 번 나오므로 selfhosted fragment에서는
+    # 억제돼야 한다(host_has_chrome=True).
+    if 'class="toc"' in html:
+        issues.append("selfhosted: CMS가 목차를 제공하는데 본문 목차가 중복 노출됨")
+    if "읽기" in html and "분" in html and 'class="summary-time"' in html:
+        issues.append("selfhosted: CMS ARTICLE MAP과 중복되는 읽기시간 배지 노출")
+    # 컴포넌트가 클래스만이 아니라 인라인 스타일로 실제 스타일링되는지 확인 —
+    # CMS가 클래스 CSS를 렌더하지 않으므로 인라인 style이 없으면 평문으로 발행된다.
+    for token in ('<section class="summary-card"', '<table', '<h2'):
+        idx = html.find(token)
+        if idx == -1:
+            continue
+        tag_end = html.find(">", idx)
+        if "style=" not in html[idx:tag_end]:
+            issues.append(f"selfhosted: {token} 에 인라인 style 누락(평문 발행 위험)")
     return issues
 
 
 def _test_renderer_brand_variants() -> list[str]:
     """브랜드/주제축별 렌더 컴포넌트 분기 — 명찰 전용 블록 하드코딩 회귀 방지.
 
-    beok(홈페이지 개발)·hong(MICE)·notebook_return(반품 노트북) 글에도 각자의
-    점검 범위/운영 흐름/비교표/CTA가 붙어야 하고, 서로의 문구가 섞이면 안 된다.
-    notebook_return은 쿠팡 파트너스 고지와 스타일 내장(embed)까지 검증한다.
+    붙박이 컴포넌트(점검 범위/운영 흐름/비교표)는 '얇은 글'의 스캐폴딩으로만 붙는다
+    (풍부한 본문은 억제 — _is_rich_body). 따라서 이 테스트는 표·체크리스트가 없는
+    짧은 본문(THIN_MD)으로 폴백 붙박이를 발동시켜, 브랜드별 문구가 각자 맞게 나오고
+    서로 섞이지 않는지 검증한다. notebook_return은 쿠팡 파트너스 고지·embed까지 본다.
     """
     from render.renderer import render_body, render_body_embed
 
+    # 표·체크리스트 없이 2개 섹션 — _is_rich_body=False → 붙박이 폴백 발동
+    thin_md = (
+        "짧은 운영 안내입니다. 표나 체크리스트 없이 핵심만 적습니다.\n\n"
+        "## 개요\n\n한 문단 설명입니다. 구조 요소는 넣지 않습니다.\n\n"
+        "## 정리\n\n마무리 문단입니다.\n"
+    )
     issues: list[str] = []
 
     beok_html = render_body({
         "title": "학원 홈페이지 제작에서 예약 시스템 설계 기준",
-        "body": SAMPLE_MD,
+        "body": thin_md,
         "meta_desc": "홈페이지 개발 렌더 테스트",
         "category": "beok",
         "topic": "학원 홈페이지 제작 예약 결제 관리자",
@@ -1356,7 +1378,7 @@ def _test_renderer_brand_variants() -> list[str]:
 
     hong_html = render_body({
         "title": "국제학술대회 AI 동시통역 준비 방법",
-        "body": SAMPLE_MD,
+        "body": thin_md,
         "meta_desc": "MICE 렌더 테스트",
         "category": "hong",
         "topic": "홍커뮤니케이션 MICE 동시통역",
@@ -1369,7 +1391,7 @@ def _test_renderer_brand_variants() -> list[str]:
 
     nb_html = render_body_embed({
         "title": "반품 노트북 등급 차이와 고르는 기준",
-        "body": SAMPLE_MD,
+        "body": thin_md,
         "meta_desc": "반품 노트북 렌더 테스트",
         "category": "notebook_return",
         "topic": "반품 노트북 등급 비교",
@@ -1382,6 +1404,18 @@ def _test_renderer_brand_variants() -> list[str]:
     ])
     if "상담 문의하기" in nb_html:
         issues.append("renderer-notebook: 소비자 콘텐츠에 상담 CTA 노출")
+
+    # 풍부한 본문(SAMPLE_MD)에서는 붙박이가 억제되는지 확인
+    rich_html = render_body({
+        "title": "풍부한 본문 붙박이 억제 확인",
+        "body": SAMPLE_MD,
+        "meta_desc": "억제 테스트",
+        "category": "beok",
+        "topic": "홈페이지 시스템",
+    })
+    for token in ("service-proof", "operation-flow", "ops-comparison"):
+        if token in rich_html:
+            issues.append(f"renderer-suppress: 풍부한 본문에 붙박이 {token} 노출")
     return issues
 
 
@@ -1415,7 +1449,7 @@ def _test_renderer_security_and_normalization() -> list[str]:
         issues.append("renderer-normalize: 마크다운 이미지 원문 노출")
     if any("<img" in h2 for h2 in re.findall(r"<h2\b[^>]*>.*?</h2>", html, flags=re.I | re.DOTALL)):
         issues.append("renderer-normalize: 이미지가 h2 내부에 남음")
-    if "<figure>" not in html or "홍커뮤니케이션 등록 시스템" not in html:
+    if "<figure" not in html or "홍커뮤니케이션 등록 시스템" not in html:
         issues.append("renderer-normalize: 안전 이미지 figure/caption 승격 실패")
     if 'href="https://hongcomm.kr/"' not in html:
         issues.append("renderer-security: 안전 링크 제거됨")

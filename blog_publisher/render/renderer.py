@@ -18,6 +18,51 @@ _DIR = Path(__file__).parent
 _TEMPLATE = (_DIR / "template.html").read_text(encoding="utf-8")
 _CSS = (_DIR / "style.css").read_text(encoding="utf-8")
 
+# ---------------------------------------------------------------------------
+# 인라인 스타일 디자인 토큰 (다크 테마 + 골드 액센트)
+#
+# WHY 인라인: 자체 블로그 CMS(beoksolution.com == beokmkt.web.app)는 발행 본문에서
+# <style> 블록과 CSS 클래스 규칙을 렌더하지 않는다(sanitizer가 class는 남기되
+# 스타일 정의는 버림). 실제 발행 페이지에서 .summary-card/.content-callout/.table-wrap
+# 등의 CSS 규칙이 0개로 확인됐고, 그 결과 모든 컴포넌트가 '까만 배경 위 평문'으로
+# 렌더됐다. 반면 인라인 style=" "는 저장·공개 렌더 양쪽에서 그대로 살아남는다
+# (notebook-return CTA로 실증). 따라서 자체 블로그로 나가는 fragment의 모든 시각
+# 요소는 인라인 스타일로 그린다. 팔레트는 CMS 크롬(골드-온-블랙)과 조화되게 맞춘다.
+# ---------------------------------------------------------------------------
+_INK = "#e9ebef"          # 본문 기본 텍스트
+_MUTED = "#9aa1ad"        # 보조 텍스트
+_HEAD = "#ffffff"         # 제목
+_PANEL = "#15171d"        # 컴포넌트 표면
+_PANEL_2 = "#1c1f28"      # 표 헤더·중첩 표면
+_BORDER = "#2b303b"       # 경계선
+_GOLD = "#f4c752"         # 액센트(CMS 크롬과 동일 계열)
+_GOLD_DEEP = "#e0ad2e"    # 진한 액센트
+_GOLD_SOFT = "rgba(244,199,82,0.12)"
+_TIP = "#4ade80"
+_TIP_SOFT = "rgba(74,222,128,0.10)"
+_WARN = "#fbbf24"
+_WARN_SOFT = "rgba(251,191,36,0.10)"
+_RADIUS = "14px"
+_FONT = ("-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo',"
+         "'Noto Sans KR',Roboto,'Malgun Gothic',sans-serif")
+
+
+def _sty(css: str) -> str:
+    """인라인 style 속성 문자열. 공백 정리해 한 줄로."""
+    return ' style="' + re.sub(r"\s+", " ", css).strip().rstrip(";") + ';"'
+
+
+# 컴포넌트 공용 스타일 조각
+_S_SECTION = (
+    f"background:{_PANEL};border:1px solid {_BORDER};border-radius:{_RADIUS};"
+    f"padding:22px 24px;margin:26px 0;color:{_INK};font-family:{_FONT};"
+    "line-height:1.72;word-break:keep-all;overflow-wrap:anywhere"
+)
+_S_KICKER = (
+    f"display:inline-block;font-size:0.78rem;font-weight:800;letter-spacing:0.04em;"
+    f"color:{_GOLD};text-transform:uppercase;margin:0 0 12px"
+)
+
 
 def _clean_heading_text(text: str) -> str:
     """제목/목차 표시·슬러그용: 마크다운 이미지·링크·강조 문법을 평문으로 정리."""
@@ -169,6 +214,96 @@ def _postprocess_content_html(body: str) -> str:
     return out
 
 
+_S_TABLE_WRAP = f"overflow-x:auto;margin:1.6em 0;border:1px solid {_BORDER};border-radius:12px"
+_S_TABLE = f"width:100%;border-collapse:collapse;font-size:0.95rem;background:{_PANEL}"
+_S_TH = (f"background:{_PANEL_2};color:{_GOLD};font-weight:700;text-align:left;"
+         f"padding:12px 15px;border-bottom:1px solid {_BORDER};white-space:nowrap")
+_S_TD = f"padding:11px 15px;border-bottom:1px solid {_BORDER};color:{_INK};vertical-align:top"
+_S_H2 = (f"color:{_HEAD};font-size:1.46rem;font-weight:800;line-height:1.36;"
+         f"margin:2.1em 0 0.7em;padding-left:14px;border-left:4px solid {_GOLD}")
+_S_H3 = f"color:{_HEAD};font-size:1.17rem;font-weight:700;margin:1.8em 0 0.5em"
+_S_P = f"margin:0 0 1.1em;color:{_INK};font-size:1.02rem;line-height:1.85"
+_S_UL = "margin:0 0 1.3em;padding-left:1.35em"
+_S_LI = f"margin:0.4em 0;line-height:1.7;color:{_INK}"
+_S_A = f"color:{_GOLD};text-decoration:underline;text-underline-offset:2px"
+_S_STRONG = f"color:{_HEAD};font-weight:700"
+_S_FIG = "margin:1.7em 0;text-align:center"
+_S_IMG = f"max-width:100%;height:auto;border-radius:12px;border:1px solid {_BORDER}"
+_S_FIGCAP = f"margin-top:9px;font-size:0.85rem;color:{_MUTED}"
+_S_CODE = (f"background:{_PANEL_2};color:{_GOLD};padding:2px 6px;border-radius:5px;"
+           "font-size:0.9em")
+_CALLOUT_TONE = {
+    "is-warn": (_WARN, _WARN_SOFT),
+    "is-tip": (_TIP, _TIP_SOFT),
+}
+
+
+def _style_content_html(body: str) -> str:
+    """본문(마크다운 변환 결과)에 인라인 스타일을 주입한다.
+
+    자체 블로그 CMS가 클래스 CSS를 렌더하지 않으므로, 자유 흐름 본문의 제목·문단·
+    목록·표·콜아웃·체크리스트·이미지를 인라인 스타일로 직접 그린다. 컴포넌트
+    섹션(_summary_card 등)은 각 함수가 이미 인라인 스타일을 붙여 내보내므로 여기서
+    다루지 않는다(이 함수는 .content 안의 마크다운 본문에만 적용된다)."""
+    # 콜아웃(변형별 액센트)
+    def _callout(m: "re.Match[str]") -> str:
+        cls = m.group(1)
+        inner = m.group(2)
+        accent, soft = next(
+            (v for k, v in _CALLOUT_TONE.items() if k in cls), (_GOLD, _GOLD_SOFT)
+        )
+        css = (f"margin:1.5em 0;padding:14px 18px;background:{soft};"
+               f"border-left:4px solid {accent};border-radius:10px;color:{_INK};"
+               "font-size:0.98rem;line-height:1.7")
+        return f'<aside class="{cls}"{_sty(css)}>{inner}</aside>'
+
+    body = re.sub(r'<aside class="(content-callout[^"]*)">(.*?)</aside>',
+                  _callout, body, flags=re.DOTALL)
+
+    # 체크리스트
+    body = body.replace('<ul class="check-list">',
+                        f'<ul class="check-list"{_sty("margin:1.3em 0;padding:0;list-style:none")}>')
+    body = re.sub(
+        r'<li class="check-item([^"]*)">',
+        lambda m: (
+            f'<li class="check-item{m.group(1)}"'
+            + _sty("display:flex;gap:10px;align-items:flex-start;margin:0.5em 0;"
+                   f"line-height:1.65;color:{_INK}") + '>'
+        ),
+        body,
+    )
+    body = body.replace(
+        '<span class="check-box">',
+        f'<span class="check-box"{_sty("flex-shrink:0;width:20px;height:20px;border-radius:6px;"+f"border:1.5px solid {_GOLD};color:{_GOLD};display:inline-flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:800;margin-top:1px")}>')
+
+    # 표
+    body = body.replace('<div class="table-wrap">', f'<div class="table-wrap"{_sty(_S_TABLE_WRAP)}>')
+    body = body.replace('<table>', f'<table{_sty(_S_TABLE)}>')
+    body = body.replace('<th>', f'<th{_sty(_S_TH)}>')
+    body = body.replace('<td>', f'<td{_sty(_S_TD)}>')
+
+    # 이미지/figure
+    body = body.replace('<figure>', f'<figure{_sty(_S_FIG)}>')
+    body = body.replace('<figcaption>', f'<figcaption{_sty(_S_FIGCAP)}>')
+    body = re.sub(r'<img\b(?![^>]*\bstyle=)', f'<img{_sty(_S_IMG)}', body)
+
+    # 제목
+    body = re.sub(r'<h2( id="[^"]*")?>',
+                  lambda m: f'<h2{m.group(1) or ""}{_sty(_S_H2)}>', body)
+    body = body.replace('<h3>', f'<h3{_sty(_S_H3)}>')
+
+    # 문단·목록·인라인 (클래스 없는 순수 태그만 — 체크리스트/콜아웃은 위에서 처리됨)
+    body = body.replace('<p>', f'<p{_sty(_S_P)}>')
+    body = body.replace('<ul>', f'<ul{_sty(_S_UL)}>')
+    body = body.replace('<ol>', f'<ol{_sty(_S_UL)}>')
+    body = body.replace('<li>', f'<li{_sty(_S_LI)}>')
+    body = body.replace('<strong>', f'<strong{_sty(_S_STRONG)}>')
+    body = body.replace('<code>', f'<code{_sty(_S_CODE)}>')
+    body = re.sub(r'<a\b(?![^>]*\bstyle=)([^>]*)>',
+                  lambda m: f'<a{m.group(1)}{_sty(_S_A)}>', body)
+    return body
+
+
 def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
     """경량 변환. (html, toc[(id,title)]) 반환. H2만 목차에 넣는다."""
     md = _normalize_block_images(md)
@@ -188,7 +323,7 @@ def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
             return f'<h2 id="{hid}">{m.group(1)}</h2>' if hid else m.group(0)
 
         body = re.sub(r"<h2>(.*?)</h2>", _assign_id, body, flags=re.DOTALL)
-        return _postprocess_content_html(body), headings
+        return _style_content_html(_postprocess_content_html(body)), headings
     except ImportError:
         pass
 
@@ -263,14 +398,25 @@ def _markdown_to_html(md: str) -> tuple[str, list[tuple[str, str]]]:
         else:
             close_list(); para.append(s.strip())
     flush_para(); close_list(); flush_table()
-    return _postprocess_content_html("\n".join(out)), toc
+    return _style_content_html(_postprocess_content_html("\n".join(out))), toc
 
 
 def _toc_html(toc: list[tuple[str, str]]) -> str:
     if len(toc) < 2:
         return ""
-    items = "".join(f'<li><a href="#{hid}">{html.escape(t)}</a></li>' for hid, t in toc)
-    return f'<nav class="toc"><strong>목차</strong><ol>{items}</ol></nav>'
+    li = (f"margin:0.35em 0;line-height:1.55")
+    items = "".join(
+        f'<li{_sty(li)}><a href="#{hid}"{_sty(_S_A)}>{html.escape(t)}</a></li>'
+        for hid, t in toc
+    )
+    box = (f"background:{_PANEL};border:1px solid {_BORDER};border-radius:{_RADIUS};"
+           f"padding:18px 22px;margin:24px 0;font-family:{_FONT}")
+    ol = "margin:0;padding-left:1.2em;color:" + _INK
+    return (
+        f'<nav class="toc"{_sty(box)}>'
+        f'<div{_sty(_S_KICKER)}>목차</div>'
+        f'<ol{_sty(ol)}>{items}</ol></nav>'
+    )
 
 
 def _post_context(post: dict) -> str:
@@ -479,17 +625,24 @@ def _service_proof_html(post: dict) -> str:
     if not proof:
         return ""
     kicker, items = proof
+    li_s = (f"background:{_PANEL_2};border:1px solid {_BORDER};border-radius:11px;"
+            "padding:14px 16px")
+    title_s = (f"display:block;color:{_GOLD};font-weight:700;font-size:0.98rem;"
+               "margin-bottom:5px")
+    desc_s = f"color:{_MUTED};font-size:0.92rem;line-height:1.6"
     item_html = "".join(
-        '<li>'
-        f'<strong>{html.escape(title)}</strong>'
-        f'<span>{html.escape(desc)}</span>'
+        f'<li{_sty(li_s)}>'
+        f'<strong{_sty(title_s)}>{html.escape(title)}</strong>'
+        f'<span{_sty(desc_s)}>{html.escape(desc)}</span>'
         '</li>'
         for title, desc in items
     )
+    grid = ("list-style:none;margin:0;padding:0;display:grid;gap:12px;"
+            "grid-template-columns:repeat(auto-fit,minmax(210px,1fr))")
     return (
-        f'<section class="service-proof" aria-label="{html.escape(kicker)}">'
-        f'<div class="proof-kicker">{html.escape(kicker)}</div>'
-        f'<ul>{item_html}</ul>'
+        f'<section class="service-proof" aria-label="{html.escape(kicker)}"{_sty(_S_SECTION)}>'
+        f'<div class="proof-kicker"{_sty(_S_KICKER)}>{html.escape(kicker)}</div>'
+        f'<ul{_sty(grid)}>{item_html}</ul>'
         '</section>'
     )
 
@@ -650,21 +803,28 @@ def _operation_flow_html(post: dict) -> str:
     if not flow:
         return ""
     kicker, heading, steps = flow
+    li_s = "display:flex;gap:14px;align-items:flex-start;padding:12px 0"
+    num_s = (f"flex-shrink:0;width:30px;height:30px;border-radius:50%;background:{_GOLD};"
+             f"color:#1a1205;font-weight:800;font-size:0.95rem;display:inline-flex;"
+             "align-items:center;justify-content:center")
+    title_s = f"display:block;color:{_HEAD};font-weight:700;font-size:1.02rem;margin-bottom:3px"
+    desc_s = f"margin:0;color:{_MUTED};font-size:0.94rem;line-height:1.6"
     items = "".join(
-        '<li>'
-        f'<span class="flow-num">{i}</span>'
+        f'<li{_sty(li_s + ("" if i == len(steps) else f";border-bottom:1px solid {_BORDER}"))}>'
+        f'<span class="flow-num"{_sty(num_s)}>{i}</span>'
         '<div>'
-        f'<strong>{html.escape(title)}</strong>'
-        f'<p>{html.escape(desc)}</p>'
+        f'<strong{_sty(title_s)}>{html.escape(title)}</strong>'
+        f'<p{_sty(desc_s)}>{html.escape(desc)}</p>'
         '</div>'
         '</li>'
         for i, (title, desc) in enumerate(steps, start=1)
     )
+    heading_s = f"color:{_HEAD};font-size:1.2rem;font-weight:800;margin:2px 0 8px"
     return (
-        f'<section class="operation-flow" aria-label="{html.escape(kicker)}">'
-        f'<div class="flow-kicker">{html.escape(kicker)}</div>'
-        f'<h2>{html.escape(heading)}</h2>'
-        f'<ol>{items}</ol>'
+        f'<section class="operation-flow" aria-label="{html.escape(kicker)}"{_sty(_S_SECTION)}>'
+        f'<div class="flow-kicker"{_sty(_S_KICKER)}>{html.escape(kicker)}</div>'
+        f'<h2{_sty(heading_s)}>{html.escape(heading)}</h2>'
+        f'<ol{_sty("list-style:none;margin:0;padding:0")}>{items}</ol>'
         '</section>'
     )
 
@@ -825,19 +985,21 @@ def _ops_comparison_html(post: dict) -> str:
     if not comp:
         return ""
     heading, headers, rows = comp
-    head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
+    head = "".join(f'<th{_sty(_S_TH)}>{html.escape(h)}</th>' for h in headers)
+    td_label = _S_TD + f";color:{_HEAD};font-weight:600"
     body = "".join(
         '<tr>'
-        f'<td>{html.escape(label)}</td>'
-        f'<td>{html.escape(risk)}</td>'
-        f'<td>{html.escape(standard)}</td>'
+        f'<td{_sty(td_label)}>{html.escape(label)}</td>'
+        f'<td{_sty(_S_TD + f";color:{_MUTED}")}>{html.escape(risk)}</td>'
+        f'<td{_sty(_S_TD)}>{html.escape(standard)}</td>'
         '</tr>'
         for label, risk, standard in rows
     )
+    heading_s = f"color:{_HEAD};font-size:1.2rem;font-weight:800;margin:0 0 14px"
     return (
-        f'<section class="ops-comparison" aria-label="{html.escape(heading)}">'
-        f'<h2>{html.escape(heading)}</h2>'
-        '<div class="table-wrap"><table>'
+        f'<section class="ops-comparison" aria-label="{html.escape(heading)}"{_sty(_S_SECTION)}>'
+        f'<h2{_sty(heading_s)}>{html.escape(heading)}</h2>'
+        f'<div class="table-wrap"{_sty(_S_TABLE_WRAP)}><table{_sty(_S_TABLE)}>'
         f'<thead><tr>{head}</tr></thead>'
         f'<tbody>{body}</tbody>'
         '</table></div>'
@@ -865,15 +1027,23 @@ def _tags(post: dict) -> list[str]:
     return [str(t).strip() for t in tags if str(t).strip()]
 
 
-def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str:
+def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str,
+                  *, show_time: bool = True) -> str:
     desc = (post.get("meta_desc") or "").strip()
     bullets = [title for _hid, title in toc[:2]]
     if not desc and not bullets:
         return ""
-    bullet_html = "".join(f"<li>{html.escape(item)}</li>" for item in bullets)
-    desc_html = f"<p>{html.escape(desc)}</p>" if desc else ""
+    li_s = f"margin:0.4em 0;padding-left:2px;line-height:1.6;color:{_INK}"
+    bullet_html = "".join(f'<li{_sty(li_s)}>{html.escape(item)}</li>' for item in bullets)
+    desc_html = (
+        f'<p{_sty(f"margin:0 0 12px;color:{_INK};font-size:1.03rem;line-height:1.75")}>'
+        f'{html.escape(desc)}</p>' if desc else ""
+    )
     minutes = _reading_minutes(source_md)
-    list_html = f"<ul>{bullet_html}</ul>" if bullet_html else ""
+    list_html = (
+        f'<ul{_sty("margin:0 0 4px;padding-left:1.2em")}>{bullet_html}</ul>'
+        if bullet_html else ""
+    )
     decision = {
         "badge": "명단 기준과 현장 재발행 기준을 먼저 확인하세요.",
         "conference": "등록·결제·체크인 데이터가 한 흐름으로 이어지는지 먼저 확인하세요.",
@@ -883,15 +1053,36 @@ def _summary_card(post: dict, toc: list[tuple[str, str]], source_md: str) -> str
         "racekra": "공공데이터 활용 신청 조건과 데이터 갱신 주기를 먼저 확인하세요.",
         "ncs": "목표 직무의 NCS 기준과 활용할 공공 API 범위를 먼저 정리하세요.",
     }.get(_post_context(post), "본문의 기준과 체크리스트를 실제 운영 상황에 맞춰 확인하세요.")
+    card = (f"background:linear-gradient(135deg,{_PANEL},{_PANEL_2});"
+            f"border:1px solid {_BORDER};border-left:4px solid {_GOLD};"
+            f"border-radius:{_RADIUS};padding:22px 24px;margin:22px 0;"
+            f"color:{_INK};font-family:{_FONT}")
+    head = "display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px"
+    time_s = (f"flex-shrink:0;font-size:0.8rem;font-weight:700;color:{_GOLD};"
+              f"background:{_GOLD_SOFT};padding:4px 11px;border-radius:999px")
+    dec = (f"display:flex;gap:10px;align-items:baseline;margin-top:14px;padding-top:14px;"
+           f"border-top:1px solid {_BORDER}")
+    dec_label = (f"flex-shrink:0;font-size:0.82rem;font-weight:800;color:{_GOLD}")
+    dec_text = f"font-size:0.96rem;color:{_INK};line-height:1.6"
+    # 읽기 시간 배지는 호스트 CMS가 ARTICLE MAP(읽기 N분/이미지/표)로 이미
+    # 노출할 때 중복되므로 show_time=False로 억제한다(selfhosted 라이브 경로).
+    if show_time:
+        head_html = (
+            f'<div class="summary-head"{_sty(head)}>'
+            f'<div class="summary-kicker"{_sty(_S_KICKER + ";margin:0")}>핵심 요약</div>'
+            f'<div class="summary-time"{_sty(time_s)}>읽기 {minutes}분</div>'
+            '</div>'
+        )
+    else:
+        head_html = f'<div class="summary-kicker"{_sty(_S_KICKER)}>핵심 요약</div>'
     return (
-        '<section class="summary-card" aria-label="글 요약">'
-        '<div class="summary-head">'
-        '<div class="summary-kicker">핵심 요약</div>'
-        f'<div class="summary-time">읽기 {minutes}분</div>'
-        '</div>'
+        f'<section class="summary-card" aria-label="글 요약"{_sty(card)}>'
+        f'{head_html}'
         f"{desc_html}"
         f"{list_html}"
-        f'<div class="summary-decision"><strong>판단 포인트</strong><span>{html.escape(decision)}</span></div>'
+        f'<div class="summary-decision"{_sty(dec)}>'
+        f'<strong{_sty(dec_label)}>판단 포인트</strong>'
+        f'<span{_sty(dec_text)}>{html.escape(decision)}</span></div>'
         '</section>'
     )
 
@@ -947,11 +1138,18 @@ def _cta_html(post: dict) -> str:
         else:
             return ""
     heading, desc, url, label = _CTA[ctx]
+    box = (f"background:linear-gradient(135deg,#161922,{_PANEL_2});"
+           f"border:1px solid {_BORDER};border-top:3px solid {_GOLD};"
+           f"border-radius:{_RADIUS};padding:24px;margin:30px 0;font-family:{_FONT}")
+    head_s = f"display:block;color:{_HEAD};font-size:1.12rem;font-weight:800;margin-bottom:8px"
+    desc_s = f"margin:0 0 16px;color:{_MUTED};font-size:0.97rem;line-height:1.7"
+    btn_s = (f"display:inline-block;padding:11px 22px;background:{_GOLD};color:#1a1205;"
+             "font-weight:700;font-size:0.98rem;border-radius:9px;text-decoration:none")
     return (
-        '<aside class="soft-cta">'
-        f'<strong>{html.escape(heading)}</strong>'
-        f'<p>{html.escape(desc)}</p>'
-        f'<a href="{html.escape(url)}" target="_blank" rel="noopener">{html.escape(label)}</a>'
+        f'<aside class="soft-cta"{_sty(box)}>'
+        f'<strong{_sty(head_s)}>{html.escape(heading)}</strong>'
+        f'<p{_sty(desc_s)}>{html.escape(desc)}</p>'
+        f'<a href="{html.escape(url)}" target="_blank" rel="noopener"{_sty(btn_s)}>{html.escape(label)}</a>'
         '</aside>'
     )
 
@@ -961,8 +1159,11 @@ def _disclosure_html(post: dict) -> str:
     if _post_context(post) != "notebook_return":
         return ""
     from tools.keyword_bank import NOTEBOOK_RETURN_DISCLOSURE
+    css = (f"margin:16px 0;padding:12px 16px;background:{_WARN_SOFT};"
+           f"border-left:4px solid {_WARN};border-radius:9px;color:{_MUTED};"
+           f"font-size:0.88rem;line-height:1.6;font-family:{_FONT}")
     return (
-        '<aside class="content-callout is-warn partner-disclosure">'
+        f'<aside class="content-callout is-warn partner-disclosure"{_sty(css)}>'
         f'{html.escape(NOTEBOOK_RETURN_DISCLOSURE)}'
         '</aside>'
     )
@@ -973,9 +1174,11 @@ def _source_footer_html(post: dict) -> str:
     if not source_url:
         return ""
     u = html.escape(source_url)
+    css = (f"margin:24px 0 0;padding-top:16px;border-top:1px solid {_BORDER};"
+           f"color:{_MUTED};font-size:0.85rem;font-family:{_FONT}")
     return (
-        f'<footer class="src">참고 출처: '
-        f'<a href="{u}" rel="nofollow noopener" target="_blank">{u}</a></footer>'
+        f'<footer class="src"{_sty(css)}>참고 출처: '
+        f'<a href="{u}" rel="nofollow noopener" target="_blank"{_sty(_S_A)}>{u}</a></footer>'
     )
 
 
@@ -1009,29 +1212,68 @@ def _hero_html(post: dict) -> str:
     if not src:
         return ""
     alt = html.escape(post.get("title", ""))
+    img_s = f"width:100%;height:auto;border-radius:{_RADIUS};border:1px solid {_BORDER}"
     return (
-        f'<div class="post-hero">'
-        f'<img src="{html.escape(src)}" alt="{alt}" loading="eager"></div>'
+        f'<div class="post-hero"{_sty("margin:0 0 24px")}>'
+        f'<img src="{html.escape(src)}" alt="{alt}" loading="eager"{_sty(img_s)}></div>'
     )
 
 
-def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]], source_md: str) -> str:
+def _is_rich_body(md: str) -> bool:
+    """본문 자체가 구조적으로 풍부한가(표/체크리스트/충분한 섹션).
+
+    풍부하면 렌더러가 브랜드 공용 붙박이 컴포넌트(서비스 범위·운영 흐름·비교표)를
+    덧붙이지 않는다. 이 붙박이들은 post_id로 순환하는 몇 벌짜리 고정 문구라, 같은
+    브랜드 글 여러 개를 보면 똑같은 카드가 반복되는 '자동생성 티'의 핵심이었다
+    (근접중복 감사 §2). 깊이 피벗 이후 본문이 글마다 고유한 표·체크리스트·깊은
+    섹션을 담으므로, 붙박이는 예외적으로 얇은 글의 스캐폴딩으로만 남긴다."""
+    text = md or ""
+    has_table = "|---" in text or "| ---" in text
+    has_checklist = bool(re.search(r"(?m)^\s*[-*]\s*\[[ xX]\]\s+", text))
+    section_count = len(re.findall(r"(?m)^##\s+", text))
+    return has_table or has_checklist or section_count >= 4
+
+
+def _body_fragment_html(post: dict, content_html: str, toc: list[tuple[str, str]],
+                        source_md: str, *, host_has_chrome: bool = False) -> str:
+    """본문 fragment 조립.
+
+    host_has_chrome=True(자체 블로그 CMS 발행 경로)일 때는 호스트가 자체 목차·
+    읽기시간·통계 타일을 사이드바 크롬으로 이미 렌더하므로, 본문 안 목차(_toc_html)와
+    요약카드 읽기시간 배지를 억제해 화면 중복을 없앤다. 독립 페이지(render())는
+    크롬이 없으므로 기본값(False)에서 목차·읽기시간을 그대로 노출한다.
+
+    본문이 이미 풍부하면(_is_rich_body) 브랜드 공용 붙박이 컴포넌트를 억제해
+    글마다 같은 카드가 반복되는 문제를 없앤다.
+    """
     tags = _tags(post)
+    tag_s = (f"display:inline-block;padding:5px 12px;margin:0 8px 8px 0;background:{_PANEL_2};"
+             f"border:1px solid {_BORDER};border-radius:999px;color:{_MUTED};"
+             "font-size:0.85rem;text-decoration:none")
     tags_html = "".join(
-        f'<a href="/tag/{html.escape(t)}">#{html.escape(t)}</a>' for t in tags
+        f'<a href="/tag/{html.escape(t)}"{_sty(tag_s)}>#{html.escape(t)}</a>' for t in tags
     )
+    tags_wrap = "margin:26px 0 0" if tags_html else ""
+    toc_html = "" if host_has_chrome else _toc_html(toc)
+    rich = _is_rich_body(source_md)
+    # 붙박이는 얇은 글에만 스캐폴딩으로 붙인다. 풍부한 글은 본문 자체 구조를 쓴다.
+    service_proof = "" if rich else _service_proof_html(post)
+    operation_flow = "" if rich else _operation_flow_html(post)
+    # 비교표는 본문에 표가 있으면 무조건 억제(표 중복 방지). 표가 없고 얇은 글이면 붙인다.
+    has_body_table = "|---" in (source_md or "") or "| ---" in (source_md or "")
+    ops_comparison = "" if has_body_table else _ops_comparison_html(post)
     return (
         f'{_hero_html(post)}\n'
         f'{_notebook_return_callout(post)}\n'
         f'{_disclosure_html(post)}\n'
-        f'{_summary_card(post, toc, source_md)}\n'
-        f'{_service_proof_html(post)}\n'
-        f'{_operation_flow_html(post)}\n'
-        f'{_ops_comparison_html(post)}\n'
-        f'{_toc_html(toc)}\n'
+        f'{_summary_card(post, toc, source_md, show_time=not host_has_chrome)}\n'
+        f'{service_proof}\n'
+        f'{operation_flow}\n'
+        f'{ops_comparison}\n'
+        f'{toc_html}\n'
         f'<div class="content">\n{content_html}\n</div>\n'
         f'{_cta_html(post)}\n'
-        f'<div class="tags">{tags_html}</div>\n'
+        f'<div class="tags"{_sty(tags_wrap) if tags_wrap else ""}>{tags_html}</div>\n'
         f'{_source_footer_html(post)}'
     )
 
@@ -1075,10 +1317,14 @@ def _build_article_html(post: dict) -> tuple[str, str, str]:
 
 
 def render_body(post: dict) -> str:
-    """Firebase처럼 외부 페이지가 제목/메타를 렌더링하는 시스템용 본문 fragment 반환."""
+    """Firebase처럼 외부 페이지가 제목/메타를 렌더링하는 시스템용 본문 fragment 반환.
+
+    자체 블로그 CMS(beoksolution.com)는 사이드바에 자체 목차·읽기시간·통계 타일을
+    렌더하므로 host_has_chrome=True로 본문 내 중복 목차·읽기시간을 억제한다.
+    """
     body_md = post.get("body", "")
     content_html, toc = _markdown_to_html(body_md)
-    return _body_fragment_html(post, content_html, toc, body_md)
+    return _body_fragment_html(post, content_html, toc, body_md, host_has_chrome=True)
 
 
 def render_body_embed(post: dict, extra_footer_html: str = "") -> str:
@@ -1091,9 +1337,14 @@ def render_body_embed(post: dict, extra_footer_html: str = "") -> str:
     """
     embed_css = (_DIR / "embed_style.css").read_text(encoding="utf-8")
     footer = f"\n{extra_footer_html}" if extra_footer_html else ""
+    # 외부 임베드 대상은 자체 크롬(사이드바 목차·통계)이 없으므로 본문 목차·읽기시간을
+    # 그대로 노출한다(host_has_chrome=False).
+    body_md = post.get("body", "")
+    content_html, toc = _markdown_to_html(body_md)
+    fragment = _body_fragment_html(post, content_html, toc, body_md, host_has_chrome=False)
     return (
         f'<style>\n{embed_css}\n</style>\n'
-        f'<div class="bp-article">\n{render_body(post)}{footer}\n</div>'
+        f'<div class="bp-article">\n{fragment}{footer}\n</div>'
     )
 
 
