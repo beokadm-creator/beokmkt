@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-07-14 — 시드 공급 복구 + 브랜드 비율 강제(발행 정지·노트북 편중 사고 수정)
+
+2026-07-14 발행이 0건으로 멈췄다. 원인은 검수 게이트가 아니라 **키워드 풀 소진**: `_existing_topics()`가 archived 글의 topic까지 영구 차단해, 품질 리부트로 723건을 archive한 뒤 시드 후보가 0이 됐다(stock-seed가 시간당 목표 40으로 돌아도 "새 키워드 없음"). 또 브랜드별 쿼터가 없어 "잔여 풀 크기 = 발행 비율"이 되는 구조라, beok/hong 풀이 먼저 소진되자 7/2에 추가된 notebook_return 82개가 최근 발행을 독점했다(직전 10건 중 9건이 노트북). 테마 캡("반품" 20%)은 다른 후보가 없으면 전량 시드하는 fallback 때문에 무력화돼 있었다.
+
+| 대상 | 내용 |
+|---|---|
+| `config.py` | `ARCHIVED_TOPIC_RESEED_COOLDOWN_DAYS`(기본 30, 음수=영구 차단) — archived topic은 냉각기간 후 재시드 허용. `SEED_BRAND_RATIOS`(기본 beok:0.5,hong:0.25,notebook_return:0.25) — stock_seed 브랜드 배분 비율. `AUTO_SEED_THEME_FALLBACK_MAX`(기본 1) — 포화 마커 외 후보가 없을 때 배치당 최대 시드 수 |
+| `tools/auto_seed.py` | `_existing_topics()`가 archived(냉각기간 경과)를 차단에서 제외. `run()`에 `brand_key` 필터 추가. 테마 캡 fallback이 전량 시드 대신 FALLBACK_MAX건으로 제한. `run_stock()`이 SEED_BRAND_RATIOS로 목표 재고를 브랜드별 배분(비율 미설정 시 과거 동작 유지). `_inventory_count()`에 brand_key 파라미터 |
+| `run.py` | `auto_seed [channel] [max_seeds] [brand]` — 수동 브랜드 지정 시드 지원 |
+
+효과: 키워드 풀이 소진돼도 냉각기간이 지난 archived 주제가 재작성 후보로 살아나 시드가 0으로 떨어지지 않는다(시뮬레이션: 전 풀 소진 상태에서 40 목표 → beok 20/hong 10 시드). 발행 비율은 잔여 풀이 아니라 SEED_BRAND_RATIOS가 결정한다. idem_key는 post id를 포함하므로 재시드 글의 중복 발행 충돌은 없다.
+
+---
+
 ## 2026-07-02 — 반품 노트북 콘텐츠 발행 채널 통합(notebook_return → selfhosted)
 
 notebook-return.web.app은 Firebase 공용 서브도메인(*.web.app)이라 검색 권위가 0이고, 발행된 가이드 글이 사이트맵·내부 링크 어디에도 없는 고아 페이지여서 색인이 사실상 불가능했다. 사용자 결정에 따라 반품 노트북 콘텐츠를 beoksolution.com 블로그(selfhosted 채널)로 통합 발행한다. 렌더러가 category=notebook_return이면 쿠팡 파트너스 고지·전용 CTA(notebook-return.web.app 유입 퍼널)를 자동 삽입하고, 발행 게이트도 beok/hong 전용 규칙(신뢰 이미지 2장 등)을 건너뛰므로 채널만 바꾸면 나머지 경로(상품 근거 수집·썸네일 주입)는 그대로 동작한다.

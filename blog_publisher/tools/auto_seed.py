@@ -31,9 +31,25 @@ def _normalize(text: str) -> str:
 
 
 def _existing_topics() -> set[str]:
-    """DB에 있는 모든 topic의 정규화 집합."""
+    """시드 중복 차단용 topic 정규화 집합.
+
+    published/진행 중 상태는 항상 차단한다. archived는 냉각기간
+    (ARCHIVED_TOPIC_RESEED_COOLDOWN_DAYS)이 지나면 차단에서 제외해 재작성
+    시드를 허용한다 — archived까지 영구 차단하면 품질 리부트 한 번에
+    키워드 풀이 통째로 소진돼 시드가 0이 되고 발행이 멈춘다.
+    """
+    cooldown = config.ARCHIVED_TOPIC_RESEED_COOLDOWN_DAYS
     with db.connect() as conn:
-        rows = conn.execute("SELECT topic FROM posts WHERE topic IS NOT NULL").fetchall()
+        if cooldown < 0:
+            rows = conn.execute(
+                "SELECT topic FROM posts WHERE topic IS NOT NULL"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT topic FROM posts WHERE topic IS NOT NULL "
+                "AND (status != 'archived' OR updated_at >= datetime('now', ?))",
+                (f"-{cooldown} days",),
+            ).fetchall()
     return {_normalize(r["topic"]) for r in rows}
 
 
@@ -81,13 +97,23 @@ def _matches_focus(topic: str = "", brand_key: str = "") -> bool:
     return any(term in (topic or "") for term in terms)
 
 
-def _inventory_count(channel: str) -> int:
+def _inventory_count(channel: str, brand_key: str = "") -> int:
+    """channel의 발행 전 재고 수. brand_key를 주면 해당 브랜드(category)만 센다."""
     placeholders = ",".join("?" for _ in INVENTORY_STATUSES)
     where = [
         "channel = ?",
         f"status IN ({placeholders})",
     ]
     params: list = [channel, *INVENTORY_STATUSES]
+    if brand_key:
+        where.append("category = ?")
+        params.append(brand_key)
+        with db.connect() as conn:
+            row = conn.execute(
+                f"SELECT COUNT(*) AS n FROM posts WHERE {' AND '.join(where)}",
+                params,
+            ).fetchone()
+        return int(row["n"])
     brand_filter = (config.AUTO_SEED_BRAND_FILTER or "").strip()
     if brand_filter:
         where.append("category = ?")
@@ -186,10 +212,11 @@ def _select_spread(candidates: list, max_seeds: int) -> list:
     return out
 
 
-def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
+def run(channel: str = "selfhosted", max_seeds: int = 3, brand_key: str = "") -> int:
     """
     아직 다루지 않은 키워드에서 최대 max_seeds개의 draft를 생성.
     매 실행마다 후보를 섞고, 같은 틀(앵커) 주제가 한 배치에 몰리지 않게 분산한다.
+    brand_key를 주면 해당 브랜드 키워드만 시드한다(run_stock의 비율 배분용).
     반환: 생성된 시드 수.
     """
     if channel in {"naver", "tistory"} and not config.ALLOW_EXTERNAL_AUTO_SEED:
@@ -198,10 +225,11 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
 
     existing = _existing_topics()
     candidates = [
-        (topic, content_type, brand_key)
-        for topic, content_type, brand_key in KEYWORDS
-        if _brand_allowed_for_channel(channel, brand_key)
-        and _matches_focus(topic, brand_key)
+        (topic, content_type, kw_brand)
+        for topic, content_type, kw_brand in KEYWORDS
+        if (not brand_key or kw_brand == brand_key)
+        and _brand_allowed_for_channel(channel, kw_brand)
+        and _matches_focus(topic, kw_brand)
         and _normalize(topic) not in existing
     ]
 
@@ -215,26 +243,32 @@ def run(channel: str = "selfhosted", max_seeds: int = 3) -> int:
         ]
         if filtered:
             candidates = filtered
-        else:
-            # 모든 후보가 포화 마커를 포함하면 전면 허용(과거 동작) 대신
-            # 포화 마커 포함 개수가 적은 후보부터 쓴다 — 편중이 가장 덜한 쪽 우선.
-            print(f"  테마 편중 경고: {saturated} 외 후보 없음 — 편중 마커가 적은 후보 우선 사용")
+        elif candidates:
+            # 모든 후보가 포화 마커를 포함하면, 마커가 적은 후보 순으로
+            # AUTO_SEED_THEME_FALLBACK_MAX개까지만 시드한다. 전량 시드하면
+            # 캡이 무력화돼 편중이 오히려 강화된다(반품 노트북 독점 사고).
+            fallback_max = max(0, config.AUTO_SEED_THEME_FALLBACK_MAX)
+            print(
+                f"  테마 편중 경고: {saturated} 외 후보 없음 — "
+                f"이번 배치는 최대 {fallback_max}건만 시드(캡 우회 방지)"
+            )
             candidates = sorted(
                 candidates,
                 key=lambda c: sum(1 for marker in saturated if marker in c[0]),
             )
+            max_seeds = min(max_seeds, fallback_max)
 
     chosen = _select_spread(candidates, max_seeds)
 
     created = 0
-    for topic, content_type, brand_key in chosen:
+    for topic, content_type, kw_brand in chosen:
         pid = db.insert_draft(
             channel=channel,
             topic=topic,
             content_type=content_type,
-            category=brand_key,   # 브랜드 구분자로 사용
+            category=kw_brand,   # 브랜드 구분자로 사용
         )
-        print(f"  시드 생성: id={pid} [{brand_key}] ({content_type}) {topic!r}")
+        print(f"  시드 생성: id={pid} [{kw_brand}] ({content_type}) {topic!r}")
         created += 1
 
     if created == 0:
@@ -246,12 +280,43 @@ def run_stock(channel: str = "selfhosted", target: int | None = None) -> int:
     """
     발행 전 재고(draft~reviewed)가 목표 미만이면 부족분만 시드한다.
     queued는 이미 발행 예약으로 빠져나간 물량이므로 새 재고 계산에서 제외한다.
+
+    SEED_BRAND_RATIOS가 있으면 목표 재고를 브랜드별로 배분해 각각 채운다 —
+    채널 총량만 맞추면 잔여 키워드 풀이 큰 브랜드가 발행을 독점한다
+    (beok/hong 소진 후 notebook_return이 90%를 차지했던 사고).
     """
     target = target or (config.DAILY_PUBLISH_TARGET * config.STOCK_BUFFER_DAYS)
-    current = _inventory_count(channel)
-    missing = max(0, target - current)
-    if missing == 0:
-        print(f"  허용 콘텐츠 축 재고 충분: channel={channel} inventory={current} / target={target}")
-        return 0
-    print(f"  허용 콘텐츠 축 재고 보충 필요: channel={channel} inventory={current} / target={target}, seed={missing}")
-    return run(channel=channel, max_seeds=missing)
+
+    ratios = {
+        brand: ratio
+        for brand, ratio in config.SEED_BRAND_RATIOS.items()
+        if _brand_allowed_for_channel(channel, brand)
+    }
+    if not ratios:
+        # 비율 미설정: 과거 동작(채널 총량만 맞춤)
+        current = _inventory_count(channel)
+        missing = max(0, target - current)
+        if missing == 0:
+            print(f"  허용 콘텐츠 축 재고 충분: channel={channel} inventory={current} / target={target}")
+            return 0
+        print(f"  허용 콘텐츠 축 재고 보충 필요: channel={channel} inventory={current} / target={target}, seed={missing}")
+        return run(channel=channel, max_seeds=missing)
+
+    ratio_sum = sum(ratios.values())
+    created_total = 0
+    for brand, ratio in ratios.items():
+        brand_target = max(1, round(target * ratio / ratio_sum))
+        current = _inventory_count(channel, brand_key=brand)
+        missing = max(0, brand_target - current)
+        if missing == 0:
+            print(
+                f"  브랜드 재고 충분: channel={channel} brand={brand} "
+                f"inventory={current} / target={brand_target}"
+            )
+            continue
+        print(
+            f"  브랜드 재고 보충: channel={channel} brand={brand} "
+            f"inventory={current} / target={brand_target}, seed={missing}"
+        )
+        created_total += run(channel=channel, max_seeds=missing, brand_key=brand)
+    return created_total

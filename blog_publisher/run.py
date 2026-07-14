@@ -124,11 +124,12 @@ def main() -> None:
         translate.run_post(int(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
 
     elif cmd == "auto_seed":
-        # python run.py auto_seed [channel] [max_seeds]
+        # python run.py auto_seed [channel] [max_seeds] [brand]
         channel = sys.argv[2] if len(sys.argv) > 2 else "selfhosted"
         max_seeds = int(sys.argv[3]) if len(sys.argv) > 3 else 3
+        brand = sys.argv[4] if len(sys.argv) > 4 else ""
         from tools import auto_seed
-        n = auto_seed.run(channel=channel, max_seeds=max_seeds)
+        n = auto_seed.run(channel=channel, max_seeds=max_seeds, brand_key=brand)
         print(f"auto_seed 완료: {n}건 생성")
 
     elif cmd == "stock_seed":

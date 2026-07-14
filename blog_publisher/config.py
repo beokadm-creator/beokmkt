@@ -272,6 +272,45 @@ AUTO_SEED_THEME_MARKERS = [
 ]
 AUTO_SEED_THEME_CAP_RATIO = float(os.getenv("AUTO_SEED_THEME_CAP_RATIO", "0.2"))
 AUTO_SEED_THEME_LOOKBACK = int(os.getenv("AUTO_SEED_THEME_LOOKBACK", "40"))
+# 모든 후보가 포화 마커를 포함할 때 한 배치에서 허용할 최대 시드 수.
+# 과거에는 이 경우 전량 시드해 캡이 사실상 무력화됐다(반품 노트북 편중 사고).
+# 소량만 흘려보내 공급은 유지하되 편중 강화를 막는다.
+AUTO_SEED_THEME_FALLBACK_MAX = int(os.getenv("AUTO_SEED_THEME_FALLBACK_MAX", "1"))
+
+# archived 글의 topic을 재시드 허용하기까지의 냉각기간(일).
+# 과거에는 archived도 영구 차단해, 품질 리부트로 700+건을 archive하자
+# 키워드 풀이 통째로 소진돼 시드가 0이 되고 발행이 멈췄다(2026-07-14).
+# 냉각기간이 지난 archived topic은 새 글로 재작성해 발행할 수 있다.
+# 음수면 영구 차단(과거 동작), 0이면 즉시 재시드 허용.
+ARCHIVED_TOPIC_RESEED_COOLDOWN_DAYS = int(
+    os.getenv("ARCHIVED_TOPIC_RESEED_COOLDOWN_DAYS", "30")
+)
+
+
+def _parse_brand_ratios(raw: str) -> dict[str, float]:
+    """"brand:비율,brand:비율" 문자열을 dict로. 잘못된 항목은 조용히 건너뛰지 않고 무시 사유가 명확하도록 값>0만 채택."""
+    out: dict[str, float] = {}
+    for part in raw.split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        key, _, value = part.partition(":")
+        try:
+            ratio = float(value)
+        except ValueError:
+            continue
+        if key.strip() and ratio > 0:
+            out[key.strip()] = ratio
+    return out
+
+
+# 브랜드별 시드 배분 비율. stock_seed가 재고 보충분을 이 비율로 나눠 브랜드별로
+# 시드한다. 과거에는 채널 총량만 맞춰 "잔여 키워드 풀 크기 = 발행 비율"이 됐고,
+# beok/hong 풀이 먼저 소진되자 notebook_return이 발행을 독점했다.
+# 여기 없는 브랜드(racekra/ncs 등)는 자동 시드에서 제외 — 필요 시 env로 추가.
+SEED_BRAND_RATIOS = _parse_brand_ratios(
+    os.getenv("SEED_BRAND_RATIOS", "beok:0.5,hong:0.25,notebook_return:0.25")
+)
 
 # ---- 운영 주제 축 ----
 # 블로그는 단일 명찰 키워드가 아니라 홈페이지 제작, 시스템 개발, 학회 운영,
