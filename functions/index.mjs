@@ -5752,11 +5752,33 @@ function blogPostBodyHtml(post, extras = {}) {
 </style>`
 }
 
-function blogListBodyHtml(posts, baseUrl) {
+const BLOG_LIST_PER_PAGE = 24
+
+function blogListPaginationHtml(baseUrl, page, totalPages) {
+  // 크롤러 발견 경로(2026-07-19 색인 진단): sitemap 외에 순수 <a href>로도
+  // 전체 발행 글에 도달 가능해야 한다. JS 없이 동작하는 링크만 쓴다.
+  if (totalPages <= 1) return ''
+  const pageHref = (p) => (p <= 1 ? `${baseUrl}/blog/` : `${baseUrl}/blog/?page=${p}`)
+  const linkStyle = 'display:inline-block;min-width:38px;text-align:center;padding:8px 10px;border:1px solid #27272a;border-radius:8px;color:#a1a1aa;text-decoration:none;'
+  const currentStyle = 'display:inline-block;min-width:38px;text-align:center;padding:8px 10px;border:1px solid #fde047;border-radius:8px;color:#fde047;font-weight:700;'
+  const parts = []
+  if (page > 1) parts.push(`<a href="${escapeHtml(pageHref(page - 1))}" rel="prev" style="${linkStyle}">← 이전</a>`)
+  for (let p = 1; p <= totalPages; p += 1) {
+    parts.push(p === page
+      ? `<span aria-current="page" style="${currentStyle}">${p}</span>`
+      : `<a href="${escapeHtml(pageHref(p))}" style="${linkStyle}">${p}</a>`)
+  }
+  if (page < totalPages) parts.push(`<a href="${escapeHtml(pageHref(page + 1))}" rel="next" style="${linkStyle}">다음 →</a>`)
+  return `<nav aria-label="블로그 페이지" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:36px;">${parts.join('\n')}</nav>`
+}
+
+function blogListBodyHtml(posts, baseUrl, page = 1) {
   const visiblePosts = publicVisibleBlogPosts(posts)
+  const totalPages = Math.max(1, Math.ceil(visiblePosts.length / BLOG_LIST_PER_PAGE))
+  const currentPage = Math.min(Math.max(1, page), totalPages)
+  const pagePosts = visiblePosts.slice((currentPage - 1) * BLOG_LIST_PER_PAGE, currentPage * BLOG_LIST_PER_PAGE)
   const leadImage = publicDisplayImage(visiblePosts[0] || {})
-  const items = visiblePosts
-    .slice(0, 12)
+  const items = pagePosts
     .map((post) => {
       const slug = post.slug || post.id
       const title = escapeHtml(post.title || 'Untitled')
@@ -5799,6 +5821,7 @@ function blogListBodyHtml(posts, baseUrl) {
     `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">최신 발행 글</h2>`,
     `<p style="font-size:0.95rem;color:#a1a1aa;line-height:1.6;margin:0 0 24px;">비오케이솔루션과 홍커뮤니케이션의 서비스 맥락에서 홈페이지 제작, 시스템 개발, 학회·MICE 운영에 필요한 실무 글을 모았습니다.</p>`,
     `<ul style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">${items || '<li style="color:#71717a;">발행된 글이 없습니다.</li>'}</ul>`,
+    blogListPaginationHtml(baseUrl, currentPage, totalPages),
     `</section>`,
     `<section id="services" style="margin-top:56px;border-top:1px solid #27272a;padding-top:40px;">`,
     `<h2 style="font-size:1.7rem;color:#fff;margin:0 0 10px;">서비스 분야</h2>`,
@@ -5967,7 +5990,9 @@ function serviceOfferJsonLd(baseUrl) {
 
 app.get('/blog', (req, res, next) => {
   if (req.path === '/blog/') return next()
-  res.redirect(301, '/blog/')
+  // ?page 등 쿼리를 보존해 페이지네이션 URL이 /blog?page=2 형태로 와도 유지
+  const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : ''
+  res.redirect(301, `/blog/${qs}`)
 })
 
 app.get('/blog/', async (req, res) => {
@@ -5987,6 +6012,11 @@ app.get('/blog/', async (req, res) => {
         return db2.localeCompare(da)
       })
 
+    const totalPages = Math.max(1, Math.ceil(publicVisibleBlogPosts(posts).length / BLOG_LIST_PER_PAGE))
+    const requestedPage = Number.parseInt(String(req.query.page ?? '1'), 10)
+    const page = Math.min(Math.max(Number.isNaN(requestedPage) ? 1 : requestedPage, 1), totalPages)
+    const canonicalUrl = page <= 1 ? `${baseUrl}/blog/` : `${baseUrl}/blog/?page=${page}`
+
     const jsonLd = [
       organizationJsonLd(baseUrl),
       webSiteJsonLd(baseUrl),
@@ -5999,13 +6029,15 @@ app.get('/blog/', async (req, res) => {
     ].map((s) => `<script type="application/ld+json">${s}</script>`).join('\n')
 
     const html = buildSsrHtml({
-      title: '비오케이솔루션 · 홍커뮤니케이션 블로그',
+      title: page <= 1
+        ? '비오케이솔루션 · 홍커뮤니케이션 블로그'
+        : `비오케이솔루션 · 홍커뮤니케이션 블로그 — ${page}페이지`,
       description: '비오케이솔루션의 홈페이지·맞춤형 시스템 개발과 홍커뮤니케이션의 MICE·학술대회 운영 레퍼런스를 다루는 공식 실무 블로그입니다.',
-      canonicalUrl: `${baseUrl}/blog/`,
+      canonicalUrl,
       ogType: 'website',
       ogImage: '',
       jsonLd,
-      bodyHtml: blogListBodyHtml(posts, baseUrl),
+      bodyHtml: blogListBodyHtml(posts, baseUrl, page),
     })
 
     res.set('Content-Type', 'text/html; charset=utf-8')
