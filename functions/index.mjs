@@ -544,6 +544,73 @@ async function rssHandler(req, res) {
 app.get('/rss.xml', rssHandler)
 app.get('/blog/rss.xml', rssHandler)
 
+// ─── 동적 sitemap ───────────────────────────────────────────────────────────
+// 과거 정적 public/sitemap.xml은 수동 deploy 시점에 멈춘 스냅샷이라
+// 발행/삭제가 반영되지 않아 죽은 URL(404)로 채워졌다(2026-07-19 실측 87%).
+// Firestore published 기준으로 요청 시점에 생성해 항상 현재 상태만 노출한다.
+
+function buildSitemapXml(baseUrl, posts) {
+  const today = new Date().toISOString().slice(0, 10)
+  const normalizeDate = (value) => {
+    const raw = typeof value === 'string' ? value : ''
+    return raw.split('T')[0] || today
+  }
+  const urls = [
+    { loc: baseUrl, lastmod: today, priority: '1.0', changefreq: 'weekly' },
+    { loc: `${baseUrl}/references/`, lastmod: today, priority: '0.9', changefreq: 'monthly' },
+    { loc: `${baseUrl}/ai-search-summary.html`, lastmod: today, priority: '0.8', changefreq: 'monthly' },
+    { loc: `${baseUrl}/llms.txt`, lastmod: today, priority: '0.6', changefreq: 'weekly' },
+    { loc: `${baseUrl}/blog/`, lastmod: today, priority: '0.9', changefreq: 'daily' },
+    ...posts.map((post) => ({
+      loc: `${baseUrl}${publicBlogPath(post)}`,
+      lastmod: normalizeDate(post.updated_at || post.published_at || post.created_at),
+      priority: '0.8',
+      changefreq: 'weekly',
+      image: typeof post.featured_image === 'string' ? canonicalPublicUrl(post.featured_image, baseUrl) : '',
+    })),
+  ]
+
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
+  ]
+  for (const entry of urls) {
+    lines.push('  <url>')
+    lines.push(`    <loc>${escapeXml(entry.loc)}</loc>`)
+    lines.push(`    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`)
+    lines.push(`    <changefreq>${entry.changefreq}</changefreq>`)
+    lines.push(`    <priority>${entry.priority}</priority>`)
+    if (entry.image) {
+      lines.push('    <image:image>')
+      lines.push(`      <image:loc>${escapeXml(entry.image)}</image:loc>`)
+      lines.push('    </image:image>')
+    }
+    lines.push('  </url>')
+  }
+  lines.push('</urlset>')
+  return lines.join('\n')
+}
+
+async function sitemapHandler(req, res) {
+  const baseUrl = spaBaseUrl(req)
+  const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
+  const posts = snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((post) => !post.deleted_at)
+    .sort((a, b) => {
+      const da = a.published_at || a.created_at || ''
+      const db2 = b.published_at || b.created_at || ''
+      return db2.localeCompare(da)
+    })
+  const visiblePosts = publicVisibleBlogPosts(posts)
+
+  res.set('Content-Type', 'application/xml; charset=utf-8')
+  res.set('Cache-Control', 'public, max-age=600, s-maxage=3600')
+  res.send(buildSitemapXml(baseUrl, visiblePosts))
+}
+
+app.get('/sitemap.xml', sitemapHandler)
+
 // ─── IndexNow (발행 즉시 색인 요청: Bing/네이버 등 IndexNow 참여 엔진) ────────
 
 const SITE_BASE_URL = (process.env.SPA_BASE_URL || 'https://beoksolution.com').replace(/\/+$/, '')
@@ -5980,15 +6047,21 @@ app.get('/blog/:slug', async (req, res) => {
     const post = { id: doc.id, ...doc.data() }
 
     if (post.status !== 'published' || post.deleted_at) {
+      // 삭제/보관된 글은 410 Gone — 대량 archive 이력(723건) 때문에 크롤러가
+      // "곧 사라질 URL"로 학습한 상태라, 404(일시적일 수 있음) 대신 410으로
+      // 색인에서 빨리 내리고 재크롤 낭비를 줄인다(2026-07-19 색인 진단).
+      // 아직 발행된 적 없는 draft 등은 기존대로 404.
+      const gone = Boolean(post.deleted_at) || post.status === 'archived'
+      const statusCode = gone ? 410 : 404
       res.set('Content-Type', 'text/html; charset=utf-8')
-      res.status(404).send(buildSsrHtml({
+      res.status(statusCode).send(buildSsrHtml({
         title: '포스트를 찾을 수 없습니다 | 비오케이솔루션 · 홍커뮤니케이션 블로그',
-        description: '요청하신 블로그 포스트를 찾을 수 없습니다.',
+        description: gone ? '이 블로그 포스트는 삭제되었습니다.' : '요청하신 블로그 포스트를 찾을 수 없습니다.',
         canonicalUrl: `${baseUrl}/blog/${slug}`,
         ogType: 'website',
         ogImage: '',
         jsonLd: '',
-        bodyHtml: '<div style="max-width:720px;margin:0 auto;padding:48px 16px;text-align:center;font-family:system-ui,sans-serif;color:#a1a1aa;"><h1 style="font-size:1.5rem;color:#fafafa;">404</h1><p>포스트를 찾을 수 없습니다.</p></div>',
+        bodyHtml: `<div style="max-width:720px;margin:0 auto;padding:48px 16px;text-align:center;font-family:system-ui,sans-serif;color:#a1a1aa;"><h1 style="font-size:1.5rem;color:#fafafa;">${statusCode}</h1><p>${gone ? '이 포스트는 삭제되었습니다.' : '포스트를 찾을 수 없습니다.'}</p></div>`,
       }))
       return
     }

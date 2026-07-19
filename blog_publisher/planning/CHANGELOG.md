@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-07-19 — 색인 실패 구조 수정: 동적 sitemap + 발행 흐름 간격 + 410 + 네이버 근거 폴백 실전화
+
+서치콘솔/네이버 서치어드바이저 색인 실패를 라이브 실측으로 진단했다. 기술 SEO(글 SSR/canonical/JSON-LD)는 정상이었고, 원인은 ①정적 sitemap이 7/4 배포본에 멈춰 87%가 404(무작위 30개 중 26개), ②대량 archive→404 반복(723 archived vs 232 published), ③일 13~26건 발행의 scaled-content 패턴, ④네이버는 외부 도메인 웹문서를 거의 노출하지 않는 구조 한계. 상세는 [`AUDIT-2026-07-19-색인실패-진단.md`](./AUDIT-2026-07-19-색인실패-진단.md).
+
+| 대상 | 내용 |
+|---|---|
+| `functions/index.mjs` | 동적 `/sitemap.xml` 핸들러(Firestore published 실시간). 삭제/archived 글 SSR 404→410 Gone(미발행 draft는 404 유지) |
+| `firebase.json`, `package.json`, `public/`, `scripts/` | `/sitemap.xml`·`/rss.xml` function rewrite 추가, 정적 sitemap/rss 산출물과 generate-static-sitemaps.mjs 제거(정적 파일이 동적 RSS 라우트를 가리던 shadow 해소) |
+| `pipeline/schedule_publish.py` | 흐름 간격 보장(사용자 승인): offset 기산점 now→큐 마지막 run_at. SPACING=150분이 실제 간격이 되어 일 총량 ≈ 4~5건. 2026-07-04 "물량 유지" 결정을 색인 진단으로 대체 |
+| `pipeline/publish.py` | 소비 시점 발행 윈도우(09~21 KST) 가드 — 워커 지연 시 심야 발행(실측 08:14 KST) 방지 |
+| `research/provider.py` | NaverSearchProvider 실전화: webkr 우선+blog 보충, 비(非)네이버 URL 본문 fetch. 종전엔 스니펫만 반환해 MIN_SOURCE_TEXT_LEN 필터에서 전멸(키 넣어도 근거 0) |
+| `tools/quality_selftest.py` | depth pivot(7/9)이 누락한 계약 6건 수리(토큰 4000/섹션 900/500~800자/밴드 1600~3300/게이트 4000) — main quality_selftest가 10일째 FAIL이었다. 네이버 provider 회귀테스트 추가 |
+
+검증:
+- `python run.py quality_selftest` PASS / `python run.py selftest` PASS / `python -m compileall -q blog_publisher` PASS
+- `node --check functions/index.mjs` PASS + sitemap 빌더 하네스 8 어서션 PASS
+- 배포·서치콘솔 재제출·네이버 API 키 설정은 AUDIT 문서 "운영 반영 절차" 참고
+
+---
+
 ## 2026-07-14 — 시드 공급 복구 + 브랜드 비율 강제(발행 정지·노트북 편중 사고 수정)
 
 2026-07-14 발행이 0건으로 멈췄다. 원인은 검수 게이트가 아니라 **키워드 풀 소진**: `_existing_topics()`가 archived 글의 topic까지 영구 차단해, 품질 리부트로 723건을 archive한 뒤 시드 후보가 0이 됐다(stock-seed가 시간당 목표 40으로 돌아도 "새 키워드 없음"). 또 브랜드별 쿼터가 없어 "잔여 풀 크기 = 발행 비율"이 되는 구조라, beok/hong 풀이 먼저 소진되자 7/2에 추가된 notebook_return 82개가 최근 발행을 독점했다(직전 10건 중 9건이 노트북). 테마 캡("반품" 20%)은 다른 후보가 없으면 전량 시드하는 fallback 때문에 무력화돼 있었다.

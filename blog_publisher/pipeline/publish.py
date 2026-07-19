@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import config
@@ -180,8 +181,22 @@ def publish_one(post_id: int) -> dict:
         return stats
 
 
+def _within_publish_window(now: datetime | None = None) -> bool:
+    """소비 시점 발행 윈도우 가드(2026-07-19). 스케줄러가 run_at을 윈도우 안에
+    잡아도, 워커가 밀려 다음날 새벽에 몰아서 소비하면 심야 발행이 된다
+    (실측: 08:14 KST 발행). due 글이라도 윈도우 밖에서는 건드리지 않는다."""
+    tz = timezone(timedelta(hours=config.PUBLISH_TZ_OFFSET))
+    local = (now or datetime.now(timezone.utc)).astimezone(tz)
+    return config.PUBLISH_WINDOW_START <= local.hour < config.PUBLISH_WINDOW_END
+
+
 def run_once(batch: int = 5) -> dict:
     stats = _empty_stats()
+    if not _within_publish_window():
+        print("[publish] 발행 윈도우 밖(현지 "
+              f"{config.PUBLISH_WINDOW_START}~{config.PUBLISH_WINDOW_END}시) — 이번 주기 건너뜀")
+        stats["skipped"] += 1
+        return stats
     with _publish_lock() as acquired:
         if not acquired:
             print("[publish] 다른 발행 프로세스가 실행 중이라 이번 주기는 건너뜀")

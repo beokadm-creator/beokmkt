@@ -6,16 +6,20 @@
   2) 발행 시각 지터 + 허용 시간대: 사람처럼 흩뿌리되 09~21시 같은 윈도우 안에서만.
 
 이 스케줄러는 발행 큐 깊이(queued+publishing)를 DAILY_PUBLISH_TARGET까지 채운다.
-일일 총 발행량은 큐 깊이가 아니라 발행 윈도우 × PUBLISH_SPACING_MIN이 결정한다
-(현재 관측치 30~40건/일). 이는 2026-07-04 운영 결정으로 확정됐다 — 무결성 감사
-(멱등키/URL 누락 0, 자연스러운 지터, 실제 200 응답) 결과 물량 자체는 문제가
-아니었고, 6/29~7/2의 중복 글 93건 프룬 사태는 badge_ops(명찰) 주제 과점 버그가
-원인으로 확인되어 pillar 쿼터로 이미 해결됐다(커밋: "break badge-topic monopoly").
-**"오늘 발행분"을 상한에 세지 않는 것은 버그가 아니라 의도다. 이 로직을 일일
-상한으로 "고치면" DAILY_PUBLISH_TARGET(기본 5) 수준으로 물량이 조용히 줄어드는
-회귀가 재발한다 — 절대 되돌리지 말 것.** 실제 발행 건수 확인은
-`tools/status_report.py`(오늘 발행분 표시)를 쓴다. 물량 조절은 PUBLISH_SPACING_MIN/
-발행 윈도우로 한다. 실제 발행은 publish 워커가 한다.
+"오늘 발행분"을 상한에 세지 않는 것은 여전히 의도다(일일 상한 방식 금지 —
+재고 적체 시 물량이 조용히 죽는 회귀가 있었다). 물량 조절은 일일 상한이 아니라
+**발행 흐름 간격**으로 한다.
+
+[2026-07-19 결정 — 흐름 간격 보장] 종전에는 보충 배치마다 offset을 now 기준
+i*SPACING부터 다시 계산해, SPACING이 "배치 안 간격"일 뿐 발행 흐름 전체 간격을
+보장하지 않았다(첫 슬롯 0~SPACING 랜덤 → 실효 간격 평균 SPACING/2 수준 →
+실측 13~26건/일). 색인 진단(사이트 단위 scaled-content 억제, sitemap 87% 404)
+결과 물량이 색인 실패의 핵심 원인으로 확인되어, 사용자 승인下에 offset 기산점을
+"현재 큐의 마지막 run_at"으로 옮겼다. 이제 SPACING=150분이 실제 발행 간격이 되고
+일일 총량은 윈도우(09~21) / SPACING ≈ 4~5건으로 수렴한다. 2026-07-04의
+"물량 유지" 결정은 이 진단으로 대체됐다(당시 감사는 무결성만 봤고 검색엔진
+반응은 보지 않았다). 실제 발행 건수 확인은 `tools/status_report.py`를 쓴다.
+실제 발행은 publish 워커가 한다(워커 쪽에도 발행 윈도우 가드가 있다).
 """
 from __future__ import annotations
 
@@ -137,6 +141,24 @@ def _select_diverse(candidates: list, n: int, avoid: set[str]) -> list:
     return out
 
 
+def _pending_run_at_max() -> datetime | None:
+    """현재 큐/발행 중 글의 next_run_at 최댓값(UTC). 흐름 간격 기산점.
+    저장 형식은 db._iso의 naive UTC 문자열("%Y-%m-%d %H:%M:%S")."""
+    latest: datetime | None = None
+    for st in ("queued", "publishing"):
+        for r in db.fetch_by_status(st, limit=50):
+            raw = r["next_run_at"]
+            if not raw:
+                continue
+            try:
+                dt = datetime.strptime(str(raw), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if latest is None or dt > latest:
+                latest = dt
+    return latest
+
+
 def _today_start_utc() -> datetime:
     """발행 로컬 타임존(PUBLISH_TZ_OFFSET) 기준 오늘 0시의 UTC 시각.
     count_published_since와 함께 status_report 등 텔레메트리 용도로만 쓴다 —
@@ -160,15 +182,22 @@ def run_once() -> int:
     avoid = _queued_anchors()
     chosen = _select_diverse(candidates, slots, avoid)
 
+    # 흐름 간격 보장(2026-07-19, 모듈 docstring): 기산점은 now가 아니라
+    # 현재 큐의 마지막 run_at. 보충 배치가 이전 배치 위에 겹쳐 실효 간격이
+    # SPACING보다 짧아지는 것을 막는다.
     now = datetime.now(timezone.utc)
+    pending_max = _pending_run_at_max()
+    base = max(now, pending_max) if pending_max else now
+
+    spacing = max(0, config.PUBLISH_SPACING_MIN)
     queued = 0
     for i, post in enumerate(chosen):
-        # 글 간 간격 + 지터로 분산
-        offset_min = random.randint(
-            i * config.PUBLISH_SPACING_MIN,
-            (i + 1) * config.PUBLISH_SPACING_MIN,
-        )
-        run_at = _within_window(now + timedelta(minutes=offset_min))
+        # 슬롯 i는 [i*S + S/2, (i+1)*S] 구간 랜덤 → 연속 발행 최소 간격 S/2,
+        # 평균 간격 ≈ S. spacing=0(셀프테스트)이면 즉시 발행.
+        lo = i * spacing + spacing // 2
+        hi = max(lo, (i + 1) * spacing)
+        offset_min = random.randint(lo, hi)
+        run_at = _within_window(base + timedelta(minutes=offset_min))
         db.enqueue(post["id"], _idem_key(dict(post)), run_at=run_at)
         queued += 1
     return queued

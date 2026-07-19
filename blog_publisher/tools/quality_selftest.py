@@ -79,16 +79,16 @@ def _test_phase_a_generation_contract() -> list[str]:
     from llm import prompts
 
     issues: list[str] = []
-    if generate._section_max_tokens() > 1500:
-        issues.append(f"phase-a: 섹션 유효 토큰 상한 > 1500 ({generate._section_max_tokens()})")
-    # 2026-07-05: 260/120은 실제 발행글이 900~1300자(발행 밴드 하단)에 몰려
-    # "본문 짧음" 감사에 전수 걸렸던 구값. 400/180으로 상향(SECTION_MAX도
-    # 4->5, prompts.SECTION_SYSTEM 목표 문구도 300~400자로 동시 변경).
-    if config.SECTION_MAX_LEN > 450:
-        issues.append(f"phase-a: SECTION_MAX_LEN > 450 ({config.SECTION_MAX_LEN})")
-    if config.SECTION_MIN_LEN < 150:
-        issues.append(f"phase-a: SECTION_MIN_LEN < 150 ({config.SECTION_MIN_LEN})")
-    for token in ["300~400자", "운영 장면 1개", "판단 기준 1개", "독자 행동 1개", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
+    # 2026-07-09 깊이 피벗: 소량·고밀도 원고로 전환. 섹션 토큰 캡 1500→4000,
+    # SECTION_MAX_LEN 400→700(코드 캡 900), 프롬프트 밀도 300~400자→500~800자.
+    # (이 계약은 depth pivot 커밋이 갱신을 누락해 2026-07-19까지 main이 FAIL이었다.)
+    if generate._section_max_tokens() > 4000:
+        issues.append(f"phase-a: 섹션 유효 토큰 상한 > 4000 ({generate._section_max_tokens()})")
+    if config.SECTION_MAX_LEN > 900:
+        issues.append(f"phase-a: SECTION_MAX_LEN > 900 ({config.SECTION_MAX_LEN})")
+    if config.SECTION_MIN_LEN < 120:
+        issues.append(f"phase-a: SECTION_MIN_LEN < 120 ({config.SECTION_MIN_LEN})")
+    for token in ["500~800자", "운영 장면 1개", "판단 기준 1개", "독자 행동 1개", "### 소소제목", "`**굵게**`", "마크다운 표", "한자"]:
         if token not in prompts.SECTION_SYSTEM:
             issues.append(f"phase-a: SECTION_SYSTEM 품질 지시 누락: {token}")
 
@@ -252,10 +252,11 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
     from tools.content_quality import external_image_count, image_count, plain_text, publish_blockers
 
     issues: list[str] = []
-    if config.SECTION_MAX_LEN > 450:
-        issues.append(f"ops-length: SECTION_MAX_LEN이 450을 초과함({config.SECTION_MAX_LEN})")
-    if config.SECTION_MIN_LEN < 150:
-        issues.append(f"ops-length: SECTION_MIN_LEN이 150 미만임({config.SECTION_MIN_LEN})")
+    # 깊이 피벗(2026-07-09) 계약: 섹션 700자(캡 900)
+    if config.SECTION_MAX_LEN > 900:
+        issues.append(f"ops-length: SECTION_MAX_LEN이 900을 초과함({config.SECTION_MAX_LEN})")
+    if config.SECTION_MIN_LEN < 120:
+        issues.append(f"ops-length: SECTION_MIN_LEN이 120 미만임({config.SECTION_MIN_LEN})")
     if generate.SECTION_MAX > 5:
         issues.append(f"ops-length: 운영 글 섹션 상한이 5를 초과함({generate.SECTION_MAX})")
 
@@ -412,8 +413,8 @@ def _test_operational_generation_length_contract_queues() -> list[str]:
             body_trusted_images = external_image_count(row["body"])
             if generated != 1:
                 issues.append(f"ops-flow: generate 처리 수 불일치({generated})")
-            if body_chars > 2600:
-                issues.append(f"ops-flow: 생성 본문 길이 계약 위반({body_chars}/2600자)")
+            if body_chars > 4000:
+                issues.append(f"ops-flow: 생성 본문 길이 계약 위반({body_chars}/4000자)")
             if body_images < 2 or body_trusted_images < 2:
                 issues.append(
                     f"ops-flow: 생성 이미지 계약 위반(images={body_images}, trusted={body_trusted_images})"
@@ -529,8 +530,8 @@ def _test_generate_final_image_contract() -> list[str]:
         "updated_at": "2099-01-01 00:00:00",
     }
     body_chars = len(plain_text(body))
-    if body_chars > 2600:
-        issues.append(f"generate-final-image: 최종 본문 길이 초과({body_chars}/2600자)")
+    if body_chars > 4000:
+        issues.append(f"generate-final-image: 최종 본문 길이 초과({body_chars}/4000자)")
     if image_count(body) < 2 or external_image_count(body) < 2:
         issues.append(
             f"generate-final-image: 최종 이미지 부족(images={image_count(body)}, trusted={external_image_count(body)}, urls={image_urls(body)})"
@@ -587,7 +588,7 @@ def _test_grounding_specific_claim_contract() -> list[str]:
 
 
 def _test_generate_final_length_band_contract() -> list[str]:
-    """운영 글 최종 plain text는 900~2600자 밴드에 안정적으로 들어와야 한다."""
+    """운영 글 최종 plain text는 900~4000자 게이트 밴드에 안정적으로 들어와야 한다."""
     from pipeline import generate
     from tools.content_quality import plain_text, publish_blockers
 
@@ -642,8 +643,9 @@ def _test_generate_final_length_band_contract() -> list[str]:
         "updated_at": "2099-01-01 00:00:00",
     }
     issues: list[str] = []
-    if not (900 <= chars <= 2600):
-        issues.append(f"generate-length-band: 최종 본문 길이 밴드 이탈({chars}/900~2600자)")
+    # 깊이 피벗(2026-07-09): 발행 게이트 밴드 900~4000자
+    if not (900 <= chars <= 4000):
+        issues.append(f"generate-length-band: 최종 본문 길이 밴드 이탈({chars}/900~4000자)")
     blockers = publish_blockers(post)
     if any("본문 부족" in blocker or "본문 과다" in blocker for blocker in blockers):
         issues.append(f"generate-length-band: 발행 길이 게이트 차단({chars}자): {blockers}")
@@ -655,8 +657,9 @@ def _test_generate_final_length_band_contract() -> list[str]:
     )
     fitted = generate._fit_operational_length_band(long_body, evidence, topic="학회 접수와 홈페이지 운영 기준")  # noqa: SLF001
     fitted_chars = len(plain_text(fitted))
-    if not (900 <= fitted_chars <= 2200):
-        issues.append(f"generate-length-band: 과긴 본문 보정 실패({fitted_chars}/900~2200자)")
+    # 깊이 피벗 트림 밴드 1600~3300자(_fit_operational_length_band 기본값)
+    if not (1600 <= fitted_chars <= 3300):
+        issues.append(f"generate-length-band: 과긴 본문 보정 실패({fitted_chars}/1600~3300자)")
     return issues
 
 
@@ -849,6 +852,8 @@ def _test_review_applies_publish_gate_before_queue() -> list[str]:
 
 def _test_publish_zero_success_fails_runbook() -> list[str]:
     from contextlib import contextmanager
+
+    import config
     from pipeline import publish
 
     class FakeDb:
@@ -884,11 +889,14 @@ def _test_publish_zero_success_fails_runbook() -> list[str]:
     original_publishers = publish.PUBLISHERS
     original_gate = publish._assert_publish_quality_gate
     original_lock = publish._publish_lock
+    original_window = (config.PUBLISH_WINDOW_START, config.PUBLISH_WINDOW_END)
     try:
         publish.db = FakeDb()
         publish.PUBLISHERS = {"selfhosted": BlockingPublisher()}
         publish._assert_publish_quality_gate = lambda _post: None
         publish._publish_lock = fake_lock
+        # 심야 CI 실행에서도 소비 윈도우 가드에 걸리지 않게 강제 개방
+        config.PUBLISH_WINDOW_START, config.PUBLISH_WINDOW_END = 0, 24
         try:
             publish.run_once(batch=1)
         except RuntimeError:
@@ -899,6 +907,7 @@ def _test_publish_zero_success_fails_runbook() -> list[str]:
         publish.PUBLISHERS = original_publishers
         publish._assert_publish_quality_gate = original_gate
         publish._publish_lock = original_lock
+        config.PUBLISH_WINDOW_START, config.PUBLISH_WINDOW_END = original_window
 
 
 def _test_image_diversity() -> list[str]:
@@ -998,7 +1007,8 @@ def _test_publish_quality_gate() -> list[str]:
 홈페이지 제작 단계에서 신청폼과 관리자 화면을 어떻게 설계했는지가 현장 운영 품질로 이어집니다. 그래서 학술대회 운영 글은 단순한 명찰 제작 안내가 아니라 접수 시스템, 결제, 데이터 검수, 출력 현장을 함께 다뤄야 합니다.
 운영 담당자는 행사 규모, 참가자 유형, 현장 등록 가능 여부, 결제 마감 시점, 명찰 양식을 한 번에 확인해야 합니다. 이 정보가 있어야 개발팀은 관리자 화면과 데이터 내보내기 형식을 맞추고, 현장팀은 접수대 배치와 출력 동선을 정할 수 있습니다.
 """
-    long_body = good_body + ("\n\n반복 설명입니다." * 260)
+    # 깊이 피벗으로 게이트 상한이 2600→4000자로 올라 4000자를 확실히 넘긴다
+    long_body = good_body + ("\n\n반복 설명입니다." * 520)
     no_image_body = re.sub(r"!\[[^\]]*]\([^)\s]+\)\n\n", "", good_body)
     duplicate_image_body = good_body.replace("https://hongcomm.kr/img/page/c1.jpg", "https://hongcomm.kr/img/page/a1.png")
     thin_body = """## 안내
@@ -1647,9 +1657,46 @@ def _test_naver_paste_contract() -> list[str]:
     return issues
 
 
+def _test_naver_provider_evidence_contract() -> list[str]:
+    """네이버 검색 폴백이 실제 근거 수집에 쓸 수 있는 형태인지(2026-07-19 보강).
+    - 웹문서(webkr) 결과가 블로그 결과보다 앞에 오고 URL 중복이 제거된다.
+    - 네이버 블로그/카페 URL은 fetch가 네트워크 없이 빈 문자열을 반환한다."""
+    from research.provider import NaverSearchProvider, SearchResult
+
+    issues: list[str] = []
+    p = NaverSearchProvider("cid", "csecret")
+
+    def fake_search_one(api_url: str, _query: str, _k: int) -> list[SearchResult]:
+        if api_url == p.WEB_URL:
+            return [
+                SearchResult(title="웹1", url="https://example.com/a", snippet="s", content="c"),
+                SearchResult(title="중복", url="https://dup.example.com/x", snippet="s", content="c"),
+            ]
+        return [
+            SearchResult(title="블로그1", url="https://blog.naver.com/b", snippet="s", content="c"),
+            SearchResult(title="중복", url="https://dup.example.com/x", snippet="s", content="c"),
+        ]
+
+    p._search_one = fake_search_one  # noqa: SLF001
+    results = p.search("학회 등록 시스템", k=10)
+    urls = [r.url for r in results]
+    if urls[:2] != ["https://example.com/a", "https://dup.example.com/x"]:
+        issues.append(f"naver-provider: 웹문서 결과가 우선되지 않음: {urls}")
+    if urls.count("https://dup.example.com/x") != 1:
+        issues.append(f"naver-provider: URL 중복 미제거: {urls}")
+    if "https://blog.naver.com/b" not in urls:
+        issues.append(f"naver-provider: 블로그 보충 결과 누락: {urls}")
+
+    for blocked in ("https://blog.naver.com/x/1", "https://post.naver.com/y", "https://cafe.naver.com/z"):
+        if p.fetch(blocked) != "":
+            issues.append(f"naver-provider: iframe 채널 fetch가 비어 있지 않음: {blocked}")
+    return issues
+
+
 def run() -> bool:
     issues = (
         _test_phase_a_generation_contract()
+        + _test_naver_provider_evidence_contract()
         + _test_naver_paste_contract()
         + _test_generate_rejects_empty_article()
         + _test_generate_hard_compacts_long_section()

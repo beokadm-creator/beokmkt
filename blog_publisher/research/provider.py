@@ -88,9 +88,13 @@ class TavilyProvider:
 
 class NaverSearchProvider:
     """
-    네이버 검색 API(블로그/웹) 구현. 기획 07.
-    - 네이버 SERP 분석용: 상위 글 제목/요약을 준다(본문은 description 스니펫 수준).
-    - 본문이 풍부하지 않으므로 '사실 수집'보다 'SERP/의도 분석'에 쓴다.
+    네이버 검색 API(웹문서/블로그) 구현. 기획 07.
+    - SERP 분석: 상위 글 제목/요약.
+    - 사실 수집(2026-07-19 보강): 종전에는 blog.json 스니펫만 반환하고
+      fetch()가 항상 빈 문자열이라, collect의 MIN_SOURCE_TEXT_LEN(300자)
+      필터에서 결과가 전부 탈락해 "키를 넣어도 근거가 안 모이는" 상태였다.
+      이제 webkr(웹문서) 결과를 우선 섞고, 네이버 블로그(iframe) 외 URL은
+      research.extract의 본문 추출로 fetch를 지원해 실제 근거 출처로 쓴다.
     """
 
     BLOG_URL = "https://openapi.naver.com/v1/search/blog.json"
@@ -111,12 +115,12 @@ class NaverSearchProvider:
 
         return re.sub(r"<[^>]+>", "", text or "").replace("&quot;", '"').strip()
 
-    def search(self, query: str, k: int = 10) -> list[SearchResult]:
+    def _search_one(self, api_url: str, query: str, k: int) -> list[SearchResult]:
         import requests
 
         out: list[SearchResult] = []
         resp = requests.get(
-            self.BLOG_URL,
+            api_url,
             headers=self.headers,
             params={"query": query, "display": min(k, 100), "sort": "sim"},
             timeout=20,
@@ -131,9 +135,37 @@ class NaverSearchProvider:
             ))
         return out
 
+    def search(self, query: str, k: int = 10) -> list[SearchResult]:
+        # 웹문서(webkr) 우선 — 본문 fetch가 가능한 일반 사이트가 많아 근거로
+        # 실제 채택될 확률이 높다. 부족분은 블로그 검색으로 채운다.
+        out: list[SearchResult] = []
+        seen: set[str] = set()
+        for api_url in (self.WEB_URL, self.BLOG_URL):
+            if len(out) >= k:
+                break
+            try:
+                results = self._search_one(api_url, query, k)
+            except Exception:  # noqa: BLE001 — 한 API 실패해도 다른 쪽은 시도
+                continue
+            for r in results:
+                if not r.url or r.url in seen:
+                    continue
+                seen.add(r.url)
+                out.append(r)
+                if len(out) >= k:
+                    break
+        return out
+
     def fetch(self, url: str) -> str:
-        # 네이버 블로그 본문은 iframe/JS라 정적 fetch로는 신뢰 어려움. 스니펫에 의존.
-        return ""
+        # 네이버 블로그/포스트 본문은 iframe/JS라 정적 fetch 신뢰 불가 → 스니펫 의존.
+        if "blog.naver.com" in url or "post.naver.com" in url or "cafe.naver.com" in url:
+            return ""
+        try:
+            from research.extract import extract
+            _, text = extract(url)
+            return text
+        except Exception:  # noqa: BLE001
+            return ""
 
 
 def get_provider(engine: str = "google") -> SearchProvider:
