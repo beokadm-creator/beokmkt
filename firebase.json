@@ -44,6 +44,7 @@
       { "source": "/blog-posts/**", "destination": "/app.html" },
       { "source": "/kaid-insight", "destination": "/app.html" },
       { "source": "/settings/**", "destination": "/app.html" },
+      { "source": "/portfolio-to-naver", "destination": "/app.html" },
       { "source": "**", "destination": "/index.html" }
     ]
   }
