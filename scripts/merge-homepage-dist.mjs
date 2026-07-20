@@ -19,10 +19,17 @@ if (!existsSync(distDir)) {
 }
 
 await stat(path.join(homepageDir, 'index.html'))
+
+// 홈페이지 merge가 SPA 셸(dist/index.html)을 덮어쓰면 프로덕션에서 관리 콘솔
+// (/login, /dashboard 등)이 접근 불가가 된다(2026-07-20 실측: /login이 홈페이지를
+// 서빙). merge 전에 SPA 셸을 app.html로 보존하고, firebase.json이 admin 경로를
+// /app.html로 rewrite한다.
+await cp(path.join(distDir, 'index.html'), path.join(distDir, 'app.html'), { force: true })
+
 await cp(homepageDir, distDir, {
   recursive: true,
   force: true,
   errorOnExist: false,
 })
 
-console.log(`[merge-homepage-dist] merged ${homepageDir} → ${distDir}`)
+console.log(`[merge-homepage-dist] merged ${homepageDir} → ${distDir} (SPA shell → app.html)`)
