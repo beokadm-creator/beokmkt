@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import StatusBadge from '../components/StatusBadge'
+import NaverPasteModal from '../components/NaverPasteModal'
 import { apiJson } from '../lib/api'
 
 function statusLabel(status?: string) {
@@ -104,6 +105,7 @@ export default function BlogPostDetailPage() {
   const [isPublishing, setIsPublishing] = useState(false)
   const [isPublishingNaver, setIsPublishingNaver] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [naverPasteOpen, setNaverPasteOpen] = useState(false)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -337,6 +339,14 @@ export default function BlogPostDetailPage() {
           </button>
           <button
             type="button"
+            onClick={() => setNaverPasteOpen(true)}
+            disabled={isSaving || isGenerating || isPublishing || isPublishingNaver || isDeleting}
+            className="h-9 rounded-lg border border-amber-600 bg-amber-900/30 px-3 text-xs font-medium text-amber-200 hover:bg-amber-900/50 disabled:opacity-60"
+          >
+            네이버 HTML 복사
+          </button>
+          <button
+            type="button"
             onClick={handleDelete}
             disabled={isDeleting || isSaving || isGenerating || isPublishing}
             className="h-9 rounded-lg border border-red-900/60 bg-red-950/20 px-3 text-sm text-red-200 disabled:opacity-60"
@@ -473,6 +483,14 @@ export default function BlogPostDetailPage() {
           </div>
         </div>
       </div>
+
+      <NaverPasteModal
+        open={naverPasteOpen}
+        onClose={() => setNaverPasteOpen(false)}
+        title={post.title}
+        content={content}
+        tags={post.tags ?? []}
+      />
     </div>
   )
 }

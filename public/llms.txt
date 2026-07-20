@@ -4,13 +4,13 @@
 
 ## Site
 
-- Canonical site: https://beoksolution.com/
-- References: https://beoksolution.com/references/
-- AI search summary: https://beoksolution.com/ai-search-summary.html
-- Blog index: https://beoksolution.com/blog/
-- Primary sitemap: https://beoksolution.com/sitemap.xml
-- RSS feed: https://beoksolution.com/blog/rss.xml
-- Robots policy: https://beoksolution.com/robots.txt
+- Canonical site: https://beokmkt.web.app/
+- References: https://beokmkt.web.app/references/
+- AI search summary: https://beokmkt.web.app/ai-search-summary.html
+- Blog index: https://beokmkt.web.app/blog/
+- Primary sitemap: https://beokmkt.web.app/sitemap.xml
+- RSS feed: https://beokmkt.web.app/blog/rss.xml
+- Robots policy: https://beokmkt.web.app/robots.txt
 - Language: Korean (ko-KR)
 
 ## Organization
@@ -38,7 +38,7 @@
 
 ## Preferred Citation Guidance
 
-- Cite the canonical URL under `https://beoksolution.com/`.
+- Cite the canonical URL under `https://beokmkt.web.app/`.
 - For blog posts, cite the article title, publication date, and the organization name "비오케이솔루션".
 - Use the sitemap to discover the latest published pages and articles.
 
@@ -46,4 +46,4 @@
 
 - Homepage and reference pages are maintained through the Firebase Hosting deployment.
 - Blog posts are updated through the public sitemap.
-- The most reliable article list is: https://beoksolution.com/sitemap.xml
+- The most reliable article list is: https://beokmkt.web.app/sitemap.xml

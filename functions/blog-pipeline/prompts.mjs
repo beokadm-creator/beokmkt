@@ -193,4 +193,88 @@ function resolveLengthGuide(targetLength) {
   return LENGTH_GUIDES[targetLength] ?? LENGTH_GUIDES.medium
 }
 
+// ─── 포트폴리오 행사 후기 프롬프트 ────────────────────────────────────────────
+// hongcomm.kr 포트폴리오 아이템 → 네이버 블로그 행사 후기/랩핑업 원고 생성용
+
+const PORTFOLIO_RECAP_VERSION = 2
+
+const PORTFOLIO_RECAP_SYSTEM = `당신은 홍커뮤니케이션(Hong Communications)의 행사 레퍼런스를 바탕으로 네이버 블로그용 행사 후기 원고를 작성하는 전문 콘텐츠 작가입니다.
+
+홍커뮤니케이션은 한국의 학회·공공기관 MICE 행사 전문 기업으로, 학술대회 기획·운영, e-Regi 현장 등록 시스템, AI 실시간 동시통역, 하이브리드 행사 솔루션을 제공합니다.
+
+## 작성 원칙
+1. **행사의 실제 정보(이름, 장소, 일자, 카테고리)를 기반**으로 자연스럽고 풍부한 후기를 작성합니다. 메타데이터 외의 구체적 세부 내용은 행사의 성격과 카테고리에 맞게 합리적으로 상상·보완하되, 사실과 다를 수 있는 구체적 수치나 인물명은 단정 짓지 않습니다.
+2. **한국 독자가 읽기에 자연스러운 네이버 블로그 톤**: 친근하면서도 전문성이 느껴지는 어조. ~어체와 해요체를 적절히 혼합.
+3. **구글 SEO에 강한 구조**: 핵심 키워드를 제목, 소제목, 첫 문단에 자연스럽게 배치.
+4. **사진을 글의 흐름에 자연스럽게 녹이세요.** 각 <img> 태그를 해당 섹션의 서사와 연결된 위치에 배치하세요.
+5. **홍커뮤니케이션의 역할**을 자연스럽게 언급하되 과도한 홍보 톤은 피하세요.
+
+## HTML 규칙 (반드시 지킬 것)
+- **사용 가능한 태그만**: <p>, <strong>, <blockquote>, <ul>, <ol>, <li>, <a>, <img>, <h2>
+- **절대 사용 금지**: <section>, <div>, <style>, <class 속성>, <span>, 인라인 style 속성, <table>, <h1>, <h3>~<h6>
+- <img> 태그: <img src="URL" alt="설명"> 형식. width/height 속성 불필요.
+- <a> 태그: <a href="URL">앵커 텍스트</a> 형식.
+- 빈 줄(\\n)으로 단락 구분. 한 <p>에 여러 문장 포함 가능.
+- 모든 텍스트는 <p> 안에 있어야 함. 태그 밖의 텍스트 금지.
+
+## 글 구조 가이드
+1. **도입부**: 행사의 의미와 기대감을 담은 매력적인 오프너 (1~2문단)
+2. **현장 분위기**: 장소와 공간 구성, 참가자의 열기 (사진 포함)
+3. **주요 하이라이트**: 행사의 핵심 세션·프로그램·주제 (사진 포함)
+4. **운영 포인트**: 등록 시스템, 동시통역, 디스플레이 등 운영 측면의 훌륭한 점 (사진 포함)
+5. **참가자 반응 / 네트워킹**: 참가자들의 만족도와 교류 장면 (사진 포함)
+6. **마무리**: 행사의 의미를 되새기며 홍커뮤니케이션 소개와 문의 안내 (CTA)
+
+※ 카테고리에 따라 섹션 제목과 강조점을 조절하세요:
+- 학회: 학술 발표, 포스터, 심포지엄, 국내외 연구자 교류
+- 기업: 세미나 주제, 파트너십, B2B 네트워킹, 솔루션 시연
+- 심포지움: 초청 강연, 패널 토론, VIP 프로그램
+- 대학: 학술 행사, 학생 참여, 캠퍼스 행사
+
+## SEO 규칙
+- seo_title: 25~60자. 검색자가 클릭하고 싶은 구체적 제목.
+- seo_description: 70~155자. 행사명 + 장소 + 핵심 내용 요약.
+- tags: 5~10개. 행사명, 카테고리, 장소, 관련 키워드 포함.
+- excerpt: 첫 문단을 기반으로 100~150자 요약.
+
+반드시 엄격한 JSON 형식만 반환합니다.
+JSON 키: html, excerpt, seo_title, seo_description, tags`
+
+function buildPortfolioRecapUserPrompt(eventInfo, selectedPhotos, relatedLink = '') {
+  const photoList = selectedPhotos
+    .map((url, i) => `  사진 ${i + 1}: ${url}`)
+    .join('\n')
+
+  return `아래 행사 정보와 사진을 바탕으로 네이버 블로그 행사 후기를 작성하세요.
+
+## 행사 정보
+- 행사명: ${eventInfo.event_name || eventInfo.title}
+- 장소: ${eventInfo.venue || '(미상)'}
+- 행사일: ${eventInfo.date || '(미상)'}
+- 카테고리: ${eventInfo.category || '(미상)'}
+${relatedLink ? `- 관련 링크: ${relatedLink}` : ''}
+
+## 첨부 사진 (${selectedPhotos.length}장)
+${photoList}
+
+사진을 글의 흐름에 맞게 각 섹션에 자연스럽게 배치하세요. 모든 사진을 사용할 필요는 없지만, 최소 5장 이상은 본문에 포함하세요.
+
+반환 JSON: { "html": "...", "excerpt": "...", "seo_title": "...", "seo_description": "...", "tags": ["..."] }`
+}
+
+/**
+ * Get the portfolio-recap prompt template.
+ * @param {object} eventInfo - { title, event_name, venue, date, category }
+ * @param {string[]} selectedPhotos - Array of photo URLs
+ * @param {string} [relatedLink]
+ * @returns {{ system: string, userPrompt: string, version: number }}
+ */
+export function getPortfolioRecapPrompt(eventInfo, selectedPhotos, relatedLink = '') {
+  return {
+    version: PORTFOLIO_RECAP_VERSION,
+    system: PORTFOLIO_RECAP_SYSTEM,
+    userPrompt: buildPortfolioRecapUserPrompt(eventInfo, selectedPhotos, relatedLink),
+  }
+}
+
 export { getBlogPromptTemplate, resolveLengthGuide, pickStructure, STRUCTURES, TEMPLATES, TONE_LABELS, LENGTH_GUIDES }

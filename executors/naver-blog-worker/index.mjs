@@ -11,6 +11,13 @@ import { writePostWithBrowser as tistoryWritePost, assertTistoryAuthenticated, T
 import { postTweet, TwitterError } from './twitter-client.mjs'
 import { generateTweetSummary } from './twitter-summary.mjs'
 import { persistSession, readJsonIfExists } from './session-helpers.mjs'
+import {
+  fetchPortfolioList,
+  fetchPortfolioDetail,
+  fetchPortfolioDetailFromUrl,
+  selectRepresentativePhotos,
+  getPortfolioRecapPrompt,
+} from './portfolio-scraper.mjs'
 
 const PORT = Number(process.env.WORKER_PORT || '8788')
 const MAIN_API_URL = (process.env.MAIN_API_URL || 'http://localhost:8787').replace(/\/+$/, '')
@@ -33,6 +40,9 @@ const WRITE_URL = process.env.NAVER_BLOG_WRITE_URL || (
 const LOGIN_URL = 'https://nid.naver.com/nidlogin.login'
 const DEBUG_DIR = path.resolve(process.env.BLOG_WORKER_DEBUG_DIR || './.session/debug')
 const TISTORY_REWRITE_REQUIRED = process.env.TISTORY_REWRITE_REQUIRED !== 'false'
+
+// ─── 포트폴리오 → 네이버 원고 생성 (워커 로컬) ─────────────────────────────
+const AI_MODEL_PORTFOLIO = process.env.AI_MODEL_PORTFOLIO || ''
 
 // 멱등성: 발행 성공 기록(post_id+platform). 재시도 시 중복 발행 방지.
 const PUBLISHED_LOG = path.resolve('./.session/published-log.json')
@@ -1024,6 +1034,153 @@ async function handlePublishAll(req, res) {
   return sendJson(res, 200, { ok: true, results })
 }
 
+// ─── 포트폴리오 목록 + 원고 생성 핸들러 ──────────────────────────────────────────
+
+async function handlePortfolioList(req, res) {
+  const url = new URL(req.url, `http://localhost:${PORT}`)
+  const page = Number(url.searchParams.get('page') || '1')
+  const category = url.searchParams.get('category') || ''
+  try {
+    const result = await fetchPortfolioList({ page, category })
+    log('info', `포트폴리오 목록 조회: page=${page} category=${category || '(전체)'} items=${result.items.length}`)
+    return sendJson(res, 200, result)
+  } catch (e) {
+    log('error', `포트폴리오 목록 조회 실패: ${e.message}`)
+    return sendJson(res, 500, { error: e.message })
+  }
+}
+
+async function handleGeneratePortfolio(req, res) {
+  let body
+  try {
+    body = await parseJsonBody(req)
+  } catch (e) {
+    return sendJson(res, 400, { error: '잘못된 JSON 본문' })
+  }
+
+  const wrId = typeof body.wr_id === 'string' || typeof body.wr_id === 'number' ? String(body.wr_id).trim() : ''
+  const detailUrl = typeof body.detailUrl === 'string' ? body.detailUrl.trim() : ''
+
+  if (!wrId && !detailUrl) {
+    return sendJson(res, 400, { error: 'wr_id 또는 detailUrl이 필요합니다.' })
+  }
+
+  log('info', `─────────────────────────────────────`)
+  log('info', `포트폴리오 원고 생성 요청: wr_id=${wrId || '(URL에서 추출)'}`)
+
+  try {
+    // 1. Scrape detail
+    const detail = detailUrl
+      ? await fetchPortfolioDetailFromUrl(detailUrl)
+      : await fetchPortfolioDetail(wrId)
+
+    if (!detail.title) {
+      return sendJson(res, 502, { error: '포트폴리오 아이템에 제목이 없습니다.' })
+    }
+
+    // 2. Select photos
+    const selectedPhotos = selectRepresentativePhotos(detail.photos, 7)
+    if (selectedPhotos.length < 3) {
+      return sendJson(res, 502, { error: `갤러리 사진이 너무 적습니다 (${selectedPhotos.length}장)` })
+    }
+
+    // 3. Build prompt + call AI (reuse channel-rewriter's AI endpoint/key)
+    const aiApiKey = process.env.AI_API_KEY || ''
+    if (!aiApiKey) {
+      return sendJson(res, 500, { error: 'AI_API_KEY가 설정되지 않았습니다. 워커 .env를 확인하세요.' })
+    }
+
+    const aiModel = AI_MODEL_PORTFOLIO || process.env.AI_MODEL || 'glm-5.1'
+    const aiEndpoint = process.env.AI_REWRITE_ENDPOINT || 'https://api.z.ai/api/coding/paas/v4/chat/completions'
+    const aiTimeout = Number(process.env.AI_REWRITE_TIMEOUT_MS || '120000')
+    const aiMaxTokens = Number(process.env.AI_REWRITE_MAX_TOKENS || '4096')
+
+    const prompt = getPortfolioRecapPrompt(detail, selectedPhotos)
+    log('info', `AI 원고 생성 호출 중… model=${aiModel} photos=${selectedPhotos.length}`)
+
+    const aiRes = await fetch(aiEndpoint, {
+      method: 'POST',
+      signal: AbortSignal.timeout(aiTimeout),
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${aiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: aiModel,
+        messages: [
+          { role: 'system', content: prompt.system },
+          { role: 'user', content: prompt.userPrompt },
+        ],
+        temperature: 0.35,
+        max_tokens: aiMaxTokens,
+      }),
+    })
+
+    if (!aiRes.ok) {
+      const errText = await aiRes.text().catch(() => '')
+      log('error', `AI API 오류: HTTP ${aiRes.status} ${errText.slice(0, 200)}`)
+      return sendJson(res, 502, { error: `AI API 오류: HTTP ${aiRes.status}` })
+    }
+
+    const aiData = await aiRes.json()
+    const aiContent = aiData.choices?.[0]?.message?.content || ''
+    if (!aiContent) {
+      log('error', 'AI 응답 content가 비어 있습니다.')
+      return sendJson(res, 502, { error: 'AI 응답이 비어 있습니다.' })
+    }
+
+    // 4. Parse JSON from AI response
+    function extractJson(text) {
+      let cleaned = String(text ?? '')
+        .replace(/<think[\s\S]*?<\/think>/gi, '')
+        .replace(/```json\s*/gi, '')
+        .replace(/```\s*/g, '')
+        .trim()
+      const start = cleaned.indexOf('{')
+      const end = cleaned.lastIndexOf('}')
+      if (start === -1 || end === -1 || end <= start) return null
+      try { return JSON.parse(cleaned.slice(start, end + 1)) } catch { return null }
+    }
+
+    const aiResult = extractJson(aiContent)
+    if (!aiResult?.html) {
+      log('error', 'AI 원고 JSON 파싱 실패')
+      return sendJson(res, 502, { error: 'AI 원고를 JSON으로 파싱하지 못했습니다.' })
+    }
+
+    log('info', `AI 원고 생성 완료: title="${aiResult.seo_title?.slice(0, 40)}" html=${aiResult.html.length}자`)
+
+    // 5. Return manuscript to console (console will save to CF)
+    const excerpt = aiResult.excerpt || aiResult.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+    return sendJson(res, 200, {
+      ok: true,
+      manuscript: {
+        html: aiResult.html,
+        excerpt,
+        seo_title: aiResult.seo_title || detail.title,
+        seo_description: aiResult.seo_description || '',
+        tags: Array.isArray(aiResult.tags) ? aiResult.tags : [detail.category, '행사후기', '홍커뮤니케이션'].filter(Boolean),
+      },
+      portfolio: {
+        wr_id: detail.wr_id,
+        title: detail.title,
+        category: detail.category,
+        venue: detail.venue,
+        date: detail.date,
+        photos_count: detail.photos.length,
+        selected_photos: selectedPhotos,
+        thumbUrl: detail.thumbUrl || null,
+        raw_url: detail.raw_url,
+        event_name: detail.event_name || detail.title,
+      },
+    })
+
+  } catch (e) {
+    log('error', `포트폴리오 원고 생성 실패: ${e.message}`)
+    return sendJson(res, 500, { error: e.message })
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -1042,6 +1199,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/publish-tistory') return handlePublish(req, res, 'tistory')
   if (req.method === 'POST' && url.pathname === '/publish-twitter') return handlePublish(req, res, 'twitter')
   if (req.method === 'POST' && url.pathname === '/publish') return handlePublishAll(req, res)
+  if (req.method === 'GET' && url.pathname === '/portfolio-list') return handlePortfolioList(req, res)
+  if (req.method === 'POST' && url.pathname === '/generate-portfolio') return handleGeneratePortfolio(req, res)
 
   sendJson(res, 404, { error: 'not found' })
 })
@@ -1097,6 +1256,8 @@ async function main() {
     log('info', `    POST /publish-tistory  - 티스토리 1건`)
     log('info', `    POST /publish-twitter  - 트위터 1건`)
     log('info', `    POST /publish          - 다중 (body: platforms 배열)`)
+    log('info', `    GET  /portfolio-list    - 포트폴리오 목록`)
+    log('info', `    POST /generate-portfolio - 포트폴리오 → 네이버 원고 생성`)
     log('info', `    GET  /health`)
     log('info', ``)
   })

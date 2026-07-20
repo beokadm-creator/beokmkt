@@ -105,7 +105,7 @@ export default function PublicBlogPage() {
         {
           '@context': 'https://schema.org',
           '@type': 'ItemList',
-          itemListElement: visiblePosts.slice(0, 20).map((post, index) => ({
+          itemListElement: visiblePosts.slice(0, 6).map((post, index) => ({
             '@type': 'ListItem',
             position: index + 1,
             url: `${BLOG_PUBLIC_BASE_URL}/blog/${encodeURIComponent(post.slug || post.id)}`,

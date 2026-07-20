@@ -8,7 +8,8 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { randomUUID } from 'crypto'
 import { ssrTemplate, assetPaths } from './ssr-template.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
-import { getBlogPromptTemplate, resolveLengthGuide } from './blog-pipeline/prompts.mjs'
+import { getBlogPromptTemplate, resolveLengthGuide, getPortfolioRecapPrompt } from './blog-pipeline/prompts.mjs'
+import { fetchPortfolioDetail, fetchPortfolioDetailFromUrl, fetchPortfolioList, selectRepresentativePhotos } from './portfolio/scraper.mjs'
 import { researchKeywords, KeywordResearchError } from './blog-pipeline/keyword-research.mjs'
 import { HONGCOMM_BLOG_IMAGES } from './blog-images.mjs'
 import {
@@ -164,14 +165,14 @@ function envValue(name) {
 }
 
 function spaBaseUrl(req) {
-  const explicit = envValue('SPA_BASE_URL')
-  if (explicit) return explicit.replace(/\/+$/, '')
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https'
   const host = String(req.headers['x-forwarded-host'] || req.get('host') || '').split(',')[0].trim()
   const hostname = host.split(':')[0].toLowerCase()
   if (hostname === 'beokmkt.web.app' || hostname === 'beokmkt.firebaseapp.com') {
-    return 'https://beoksolution.com'
+    return `${proto}://${host}`.replace(/\/+$/, '')
   }
+  const explicit = envValue('SPA_BASE_URL')
+  if (explicit) return explicit.replace(/\/+$/, '')
   return `${proto}://${host}`.replace(/\/+$/, '')
 }
 
@@ -610,6 +611,8 @@ async function sitemapHandler(req, res) {
 }
 
 app.get('/sitemap.xml', sitemapHandler)
+app.get('/blog/sitemap.xml', sitemapHandler)
+app.get('/blog/sitemap-posts.xml', sitemapHandler)
 
 // ─── IndexNow (발행 즉시 색인 요청: Bing/네이버 등 IndexNow 참여 엔진) ────────
 
@@ -5177,6 +5180,163 @@ app.post('/api/blog-posts/:id/generate-content', async (req, res) => {
   })
 })
 
+// ─── Portfolio → Naver blog generator ─────────────────────────────────────────
+// Scrapes a hongcomm.kr portfolio item, selects photos, generates a Naver-blog
+// 行사 후기 manuscript via AI, and saves it as a draft blog_post.
+
+app.get('/api/portfolio-to-naver/list', async (req, res) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1)
+    const category = typeof req.query.category === 'string' ? req.query.category.trim() : ''
+    const result = await fetchPortfolioList({ page, category })
+    ok(res, result)
+  } catch (error) {
+    return fail(res, 502, 'PORTFOLIO_FETCH_FAILED', error instanceof Error ? error.message : 'portfolio list fetch failed', {})
+  }
+})
+
+app.post('/api/portfolio-to-naver/generate', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+    const detailUrl = typeof body.detailUrl === 'string' ? body.detailUrl.trim() : ''
+    const wrId = typeof body.wr_id === 'string' || typeof body.wr_id === 'number' ? String(body.wr_id).trim() : ''
+
+    if (!detailUrl && !wrId) throw new Error('detailUrl or wr_id is required')
+
+    // 1. Fetch + scrape the portfolio detail page
+    const detail = detailUrl
+      ? await fetchPortfolioDetailFromUrl(detailUrl)
+      : await fetchPortfolioDetail(wrId)
+
+    if (!detail.title) throw new Error('portfolio item has no title')
+
+    // 2. Select 6-8 representative photos
+    const selectedPhotos = selectRepresentativePhotos(detail.photos, 7)
+
+    if (selectedPhotos.length < 3) throw new Error(`gallery has too few photos (${selectedPhotos.length})`)
+
+    // 3. Generate manuscript via AI
+    const aiConfig = await resolveAiConfig(body)
+    const aiTrace = aiTraceFromConfig(aiConfig)
+    const prompt = getPortfolioRecapPrompt(detail, selectedPhotos)
+
+    const aiText = await generateAiText(aiConfig, prompt.system, prompt.userPrompt, { max_tokens: 4096 })
+    const aiResult = maybeParseJson(aiText)
+    if (!aiResult?.html) throw new Error('ai_generation_failed: could not parse portfolio recap')
+
+    // 4. Create a draft blog_post in Firestore
+    const postId = newId()
+    const now = nowIso()
+    const title = aiResult.seo_title || detail.title
+
+    const slug = await ensureUniqueBlogSlug(title)
+    const post = {
+      title,
+      content: aiResult.html,
+      excerpt: aiResult.excerpt || aiResult.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180),
+      category: 'portfolio-recap',
+      tags: Array.isArray(aiResult.tags) ? aiResult.tags : [detail.category, '행사후기', '홍커뮤니케이션'].filter(Boolean),
+      slug,
+      featured_image: detail.thumbUrl || null,
+      status: 'draft',
+      language: 'ko',
+      tone: 'professional',
+      seo_title: aiResult.seo_title || title,
+      seo_description: aiResult.seo_description || '',
+      source_portfolio: {
+        wr_id: detail.wr_id,
+        raw_url: detail.raw_url,
+        event_name: detail.event_name,
+        venue: detail.venue,
+        date: detail.date,
+        category: detail.category,
+        photos_count: detail.photos.length,
+        selected_photos: selectedPhotos,
+      },
+      published_at: null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    }
+
+    await db.collection('blog_posts').doc(postId).set(post)
+    await addAuditLog('blog_post.portfolio_generated', 'blog_post', postId, 'admin', {
+      ai_trace: aiTrace,
+      portfolio_wr_id: detail.wr_id,
+      portfolio_title: detail.title,
+      photos_used: selectedPhotos.length,
+    })
+
+    return { data: { id: postId, ...post }, meta: { ai_trace: aiTrace, portfolio: { wr_id: detail.wr_id, photos_total: detail.photos.length, photos_selected: selectedPhotos.length } } }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'detailUrl or wr_id is required') {
+      return fail(res, 400, 'VALIDATION_ERROR', 'detailUrl or wr_id is required', {})
+    }
+    if (error instanceof Error && error.message === 'portfolio item has no title') {
+      return fail(res, 402, 'PORTFOLIO_EMPTY', 'portfolio item has no title', {})
+    }
+    if (error instanceof Error && error.message === 'ai_generation_failed: could not parse portfolio recap') {
+      return fail(res, 502, 'AI_GENERATION_FAILED', 'AI could not generate portfolio recap', {})
+    }
+    if (error instanceof Error && error.message.includes('too few photos')) {
+      return fail(res, 402, 'PORTFOLIO_FEW_PHOTOS', error.message, {})
+    }
+    return fail(res, 500, 'PORTFOLIO_GENERATE_FAILED', error instanceof Error ? error.message : 'portfolio generate failed', {})
+  })
+})
+
+// Worker save-back: accept a portfolio-generated manuscript from the publishing worker.
+// Auth: X-API-Key (BLOG_API_KEY) — same as global /api/* middleware.
+app.post('/api/portfolio-to-naver/save-generated', async (req, res) => {
+  await withIdempotency(req, res, async () => {
+    const body = req.body ?? {}
+    const title = typeof body.title === 'string' ? body.title.trim() : ''
+    if (!title) throw new Error('missing_title')
+
+    const id = newId()
+    const now = nowIso()
+    const slug = await ensureUniqueBlogSlug(title)
+
+    const post = {
+      title,
+      content: typeof body.content === 'string' ? body.content : '',
+      excerpt: typeof body.excerpt === 'string' ? body.excerpt : '',
+      category: typeof body.category === 'string' ? body.category : 'portfolio-recap',
+      tags: Array.isArray(body.tags) ? body.tags : [],
+      slug,
+      featured_image: typeof body.featured_image === 'string' ? body.featured_image : null,
+      status: 'draft',
+      language: typeof body.language === 'string' ? body.language : 'ko',
+      tone: typeof body.tone === 'string' ? body.tone : 'professional',
+      seo_title: typeof body.seo_title === 'string' ? body.seo_title : title,
+      seo_description: typeof body.seo_description === 'string' ? body.seo_description : '',
+      source_portfolio: body.source_portfolio && typeof body.source_portfolio === 'object' ? body.source_portfolio : null,
+      published_at: null,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+    }
+
+    if (!post.excerpt && post.content) {
+      post.excerpt = post.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+    }
+
+    await db.collection('blog_posts').doc(id).set(post)
+    await addAuditLog('blog_post.portfolio_generated_worker', 'blog_post', id, 'api-key', {
+      portfolio_wr_id: post.source_portfolio?.wr_id || null,
+      portfolio_title: post.title,
+      photos_used: post.source_portfolio?.selected_photos?.length || 0,
+    })
+
+    return { data: { id, ...post }, meta: {} }
+  }).catch((error) => {
+    if (error instanceof Error && error.message === 'missing_title') {
+      return fail(res, 400, 'VALIDATION_ERROR', 'title is required', {})
+    }
+    return fail(res, 400, 'SAVE_GENERATED_FAILED', error instanceof Error ? error.message : 'save-generated failed', {})
+  })
+})
+
 app.get('/api/blog-schedule', async (req, res) => {
   const limit = Math.min(Number(req.query.limit ?? 20) || 20, 100)
   const offset = Number(req.query.offset ?? 0) || 0
@@ -5411,7 +5571,7 @@ img{max-width:100%;height:auto}
     html = html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`)
   }
 
-  return html
+  return html.replace(/>\s+</g, '><').trim()
 }
 
 function stripHtml(value) {
@@ -5795,7 +5955,7 @@ function blogListBodyHtml(posts, baseUrl, page = 1) {
         `<h2 style="font-size:1.08rem;font-weight:800;line-height:1.45;margin:0 0 8px;">${title}</h2>`,
         `</a>`,
         `<div style="margin:4px 0 6px;">${sub}${date ? `<time style="font-size:0.8rem;color:#71717a;">${escapeHtml(date)}</time>` : ''}</div>`,
-        excerpt ? `<p style="font-size:0.9rem;color:#a1a1aa;margin:10px 0 0;line-height:1.65;">${excerpt.slice(0, 180)}${excerpt.length > 180 ? '…' : ''}</p>` : '',
+        excerpt ? `<p style="font-size:0.9rem;color:#a1a1aa;margin:10px 0 0;line-height:1.65;">${excerpt.slice(0, 110)}${excerpt.length > 110 ? '…' : ''}</p>` : '',
         `</div>`,
         `</li>`,
       ].filter(Boolean).join('\n')
@@ -5963,7 +6123,7 @@ function blogListJsonLd(posts, baseUrl) {
       { '@type': 'Thing', name: '맞춤형 시스템 개발' },
       { '@type': 'Thing', name: 'MICE·학술대회 운영' },
     ],
-    blogPost: visiblePosts.slice(0, 20).map((post) => ({
+    blogPost: visiblePosts.slice(0, 6).map((post) => ({
       '@type': 'BlogPosting',
       headline: post.title || '',
       url: `${baseUrl}/blog/${encodeURIComponent(post.slug || post.id)}`,
@@ -5996,10 +6156,6 @@ app.get('/blog', (req, res, next) => {
 })
 
 app.get('/blog/', async (req, res) => {
-  if (isDefaultHostingHost(req)) {
-    res.redirect(302, '/')
-    return
-  }
   try {
     const baseUrl = spaBaseUrl(req)
     const snap = await db.collection('blog_posts').where('status', '==', 'published').get()

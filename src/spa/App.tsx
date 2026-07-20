@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import PublicBlogPage from './pages/PublicBlogPage'
 import PublicBlogPostPage from './pages/PublicBlogPostPage'
 import KaidInsightPage from './pages/KaidInsightPage'
+import PortfolioToNaverPage from './pages/PortfolioToNaverPage'
 import AiProvidersPage from './pages/settings/AiProvidersPage'
 import PlatformAccountsPage from './pages/settings/PlatformAccountsPage'
 import { useAuth } from './lib/auth'
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/blog-posts" element={<BlogPostsPage />} />
           <Route path="/blog-posts/:id" element={<BlogPostDetailPage />} />
+          <Route path="/portfolio-to-naver" element={<PortfolioToNaverPage />} />
           <Route path="/kaid-insight" element={<KaidInsightPage />} />
           <Route path="/settings/ai-providers" element={<AiProvidersPage />} />
           <Route path="/settings/platform-accounts" element={<PlatformAccountsPage />} />

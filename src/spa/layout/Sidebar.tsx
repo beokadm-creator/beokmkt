@@ -23,6 +23,7 @@ export default function Sidebar() {
   const main: NavItem[] = [
     { to: '/dashboard', label: '모니터링' },
     { to: '/blog-posts', label: '블로그 글' },
+    { to: '/portfolio-to-naver', label: '포트폴리오 → 네이버' },
     { to: '/kaid-insight', label: 'KAID Insight' },
   ]
 
