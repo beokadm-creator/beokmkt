@@ -15,7 +15,6 @@ import {
   fetchPortfolioList,
   fetchPortfolioDetail,
   fetchPortfolioDetailFromUrl,
-  selectRepresentativePhotos,
   getPortfolioRecapPrompt,
 } from './portfolio-scraper.mjs'
 
@@ -43,6 +42,8 @@ const TISTORY_REWRITE_REQUIRED = process.env.TISTORY_REWRITE_REQUIRED !== 'false
 
 // ─── 포트폴리오 → 네이버 원고 생성 (워커 로컬) ─────────────────────────────
 const AI_MODEL_PORTFOLIO = process.env.AI_MODEL_PORTFOLIO || ''
+// 레이턴시로 끊기거나 5xx/429/빈 응답이면 지수 백오프로 재시도할 최대 횟수.
+const AI_GENERATE_MAX_ATTEMPTS = Math.max(1, Number(process.env.AI_REWRITE_MAX_RETRIES || '3'))
 
 // 멱등성: 발행 성공 기록(post_id+platform). 재시도 시 중복 발행 방지.
 const PUBLISHED_LOG = path.resolve('./.session/published-log.json')
@@ -1050,6 +1051,70 @@ async function handlePortfolioList(req, res) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// 포트폴리오 원고 생성 AI 호출 — 레이턴시로 끊기거나 5xx/429/빈 응답이면 지수 백오프로 재시도.
+// 재시도 대상: 타임아웃(AbortSignal), 네트워크 오류(fetch failed 등), HTTP 5xx·429, 빈 content.
+// 재시도 제외: 4xx(429 제외) — 클라이언트 오류는 재시도해도 회복 불가 → 즉시 중단.
+async function callPortfolioAiWithRetry({ endpoint, apiKey, model, system, userPrompt, timeout, maxTokens, temperature = 0.35 }) {
+  const backoffsMs = [0, 2000, 5000, 10000]
+  let lastError = ''
+  for (let attempt = 1; attempt <= AI_GENERATE_MAX_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) {
+      const wait = backoffsMs[Math.min(attempt - 1, backoffsMs.length - 1)]
+      log('warn', `AI 원고 생성 재시도 ${attempt}/${AI_GENERATE_MAX_ATTEMPTS} (${wait}ms 대기) — 직전 실패: ${lastError}`)
+      await sleep(wait)
+    }
+    try {
+      const aiRes = await fetch(endpoint, {
+        method: 'POST',
+        signal: AbortSignal.timeout(timeout),
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature,
+          max_tokens: maxTokens,
+        }),
+      })
+
+      if (!aiRes.ok) {
+        const errText = await aiRes.text().catch(() => '')
+        if (aiRes.status >= 400 && aiRes.status < 500 && aiRes.status !== 429) {
+          throw new WorkerError('AI_HTTP_CLIENT_ERROR', `AI API 오류(재시도 불가): HTTP ${aiRes.status} ${errText.slice(0, 200)}`)
+        }
+        lastError = `HTTP ${aiRes.status} ${errText.slice(0, 120)}`
+        log('warn', `AI API 재시도 대상 응답: ${lastError}`)
+        continue
+      }
+
+      const aiData = await aiRes.json()
+      const content = aiData.choices?.[0]?.message?.content || ''
+      if (!content) {
+        lastError = '빈 응답(content 없음)'
+        log('warn', `AI API ${lastError} — 재시도`)
+        continue
+      }
+      if (attempt > 1) log('info', `AI 원고 생성 ${attempt}회차에서 성공`)
+      return content
+    } catch (e) {
+      if (e instanceof WorkerError) throw e   // 재시도 불가 오류는 그대로 전파
+      const isTimeout = e?.name === 'TimeoutError' || e?.name === 'AbortError'
+      lastError = isTimeout ? `타임아웃(${timeout}ms 초과)` : (e?.message || String(e))
+      log('warn', `AI API 호출 오류 — 재시도 대상: ${lastError}`)
+    }
+  }
+  throw new WorkerError('AI_RETRY_EXHAUSTED', `AI 원고 생성 ${AI_GENERATE_MAX_ATTEMPTS}회 시도 모두 실패: ${lastError}`)
+}
+
 async function handleGeneratePortfolio(req, res) {
   let body
   try {
@@ -1078,11 +1143,9 @@ async function handleGeneratePortfolio(req, res) {
       return sendJson(res, 502, { error: '포트폴리오 아이템에 제목이 없습니다.' })
     }
 
-    // 2. Select photos
-    const selectedPhotos = selectRepresentativePhotos(detail.photos, 7)
-    if (selectedPhotos.length < 3) {
-      return sendJson(res, 502, { error: `갤러리 사진이 너무 적습니다 (${selectedPhotos.length}장)` })
-    }
+    // 2. 사진 장수 제한 없음: 스크랩된 사진을 전부 사용한다.
+    //    사진이 1장이거나 0장이어도 실패시키지 않고, 프롬프트가 분량을 알아서 줄여 간결하게라도 생성한다.
+    const selectedPhotos = Array.isArray(detail.photos) ? detail.photos : []
 
     // 3. Build prompt + call AI (reuse channel-rewriter's AI endpoint/key)
     const aiApiKey = process.env.AI_API_KEY || ''
@@ -1093,40 +1156,28 @@ async function handleGeneratePortfolio(req, res) {
     const aiModel = AI_MODEL_PORTFOLIO || process.env.AI_MODEL || 'glm-5.1'
     const aiEndpoint = process.env.AI_REWRITE_ENDPOINT || 'https://api.z.ai/api/coding/paas/v4/chat/completions'
     const aiTimeout = Number(process.env.AI_REWRITE_TIMEOUT_MS || '120000')
-    const aiMaxTokens = Number(process.env.AI_REWRITE_MAX_TOKENS || '4096')
+    // 사진 장수 상한을 없앴으므로, 사진 많은 행사에서 JSON이 잘리지 않도록 기본 토큰을 넉넉히 둔다.
+    const aiMaxTokens = Number(process.env.AI_REWRITE_MAX_TOKENS || '8192')
 
     const prompt = getPortfolioRecapPrompt(detail, selectedPhotos)
     log('info', `AI 원고 생성 호출 중… model=${aiModel} photos=${selectedPhotos.length}`)
 
-    const aiRes = await fetch(aiEndpoint, {
-      method: 'POST',
-      signal: AbortSignal.timeout(aiTimeout),
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${aiApiKey}`,
-      },
-      body: JSON.stringify({
+    let aiContent
+    try {
+      aiContent = await callPortfolioAiWithRetry({
+        endpoint: aiEndpoint,
+        apiKey: aiApiKey,
         model: aiModel,
-        messages: [
-          { role: 'system', content: prompt.system },
-          { role: 'user', content: prompt.userPrompt },
-        ],
-        temperature: 0.35,
-        max_tokens: aiMaxTokens,
-      }),
-    })
-
-    if (!aiRes.ok) {
-      const errText = await aiRes.text().catch(() => '')
-      log('error', `AI API 오류: HTTP ${aiRes.status} ${errText.slice(0, 200)}`)
-      return sendJson(res, 502, { error: `AI API 오류: HTTP ${aiRes.status}` })
-    }
-
-    const aiData = await aiRes.json()
-    const aiContent = aiData.choices?.[0]?.message?.content || ''
-    if (!aiContent) {
-      log('error', 'AI 응답 content가 비어 있습니다.')
-      return sendJson(res, 502, { error: 'AI 응답이 비어 있습니다.' })
+        system: prompt.system,
+        userPrompt: prompt.userPrompt,
+        timeout: aiTimeout,
+        maxTokens: aiMaxTokens,
+      })
+    } catch (e) {
+      const code = e instanceof WorkerError ? e.code : 'AI_CALL_FAILED'
+      const status = code === 'AI_HTTP_CLIENT_ERROR' ? 502 : 504
+      log('error', `AI 원고 생성 실패 [${code}]: ${e.message}`)
+      return sendJson(res, status, { error: e.message, code })
     }
 
     // 4. Parse JSON from AI response

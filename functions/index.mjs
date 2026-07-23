@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto'
 import { ssrTemplate, assetPaths } from './ssr-template.mjs'
 import { executeBlogPipeline, PipelineError } from './blog-pipeline/executor.mjs'
 import { getBlogPromptTemplate, resolveLengthGuide, getPortfolioRecapPrompt } from './blog-pipeline/prompts.mjs'
-import { fetchPortfolioDetail, fetchPortfolioDetailFromUrl, fetchPortfolioList, selectRepresentativePhotos } from './portfolio/scraper.mjs'
+import { fetchPortfolioDetail, fetchPortfolioDetailFromUrl, fetchPortfolioList } from './portfolio/scraper.mjs'
 import { researchKeywords, KeywordResearchError } from './blog-pipeline/keyword-research.mjs'
 import { HONGCOMM_BLOG_IMAGES } from './blog-images.mjs'
 import {
@@ -5210,17 +5210,17 @@ app.post('/api/portfolio-to-naver/generate', async (req, res) => {
 
     if (!detail.title) throw new Error('portfolio item has no title')
 
-    // 2. Select 6-8 representative photos
-    const selectedPhotos = selectRepresentativePhotos(detail.photos, 7)
-
-    if (selectedPhotos.length < 3) throw new Error(`gallery has too few photos (${selectedPhotos.length})`)
+    // 2. 사진 장수 제한 없음: 스크랩된 사진을 전부 사용한다.
+    //    사진이 1장이거나 0장이어도 실패시키지 않고, 프롬프트가 분량을 알아서 줄여 간결하게라도 생성한다.
+    const selectedPhotos = Array.isArray(detail.photos) ? detail.photos : []
 
     // 3. Generate manuscript via AI
     const aiConfig = await resolveAiConfig(body)
     const aiTrace = aiTraceFromConfig(aiConfig)
     const prompt = getPortfolioRecapPrompt(detail, selectedPhotos)
 
-    const aiText = await generateAiText(aiConfig, prompt.system, prompt.userPrompt, { max_tokens: 4096 })
+    // 사진 장수 상한을 없앴으므로 토큰을 넉넉히 두어 사진 많은 행사에서 JSON 잘림을 방지한다.
+    const aiText = await generateAiText(aiConfig, prompt.system, prompt.userPrompt, { max_tokens: 8192 })
     const aiResult = maybeParseJson(aiText)
     if (!aiResult?.html) throw new Error('ai_generation_failed: could not parse portfolio recap')
 

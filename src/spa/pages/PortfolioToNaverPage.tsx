@@ -81,7 +81,7 @@ export default function PortfolioToNaverPage() {
   async function handleGenerate(item: PortfolioItem) {
     if (
       !window.confirm(
-        '이 행사로 네이버 원고를 생성할까요?\n6~8장 사진 포함, 약 15~20초 소요'
+        '이 행사로 네이버 원고를 생성할까요?\n행사 사진을 모두 포함해 작성합니다. 보통 20초 안팎이며, 응답이 지연되면 자동 재시도로 최대 수 분 걸릴 수 있어요.'
       )
     ) {
       return
@@ -200,7 +200,7 @@ export default function PortfolioToNaverPage() {
             />
           </svg>
           <span className="text-sm text-amber-200">
-            AI 원고 생성 중… (15~20초 소요)
+            AI 원고 생성 중… (보통 20초 안팎, 지연 시 자동 재시도)
           </span>
         </div>
       ) : null}
