@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import StatusBadge from '../components/StatusBadge'
 import NaverPasteModal from '../components/NaverPasteModal'
+import TistoryPasteModal from '../components/TistoryPasteModal'
 import { apiJson } from '../lib/api'
 
 function statusLabel(status?: string) {
@@ -106,6 +107,7 @@ export default function BlogPostDetailPage() {
   const [isPublishingNaver, setIsPublishingNaver] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [naverPasteOpen, setNaverPasteOpen] = useState(false)
+  const [tistoryPasteOpen, setTistoryPasteOpen] = useState(false)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -347,6 +349,14 @@ export default function BlogPostDetailPage() {
           </button>
           <button
             type="button"
+            onClick={() => setTistoryPasteOpen(true)}
+            disabled={isSaving || isGenerating || isPublishing || isPublishingNaver || isDeleting}
+            className="h-9 rounded-lg border border-orange-600 bg-orange-900/30 px-3 text-xs font-medium text-orange-200 hover:bg-orange-900/50 disabled:opacity-60"
+          >
+            티스토리 HTML 복사
+          </button>
+          <button
+            type="button"
             onClick={handleDelete}
             disabled={isDeleting || isSaving || isGenerating || isPublishing}
             className="h-9 rounded-lg border border-red-900/60 bg-red-950/20 px-3 text-sm text-red-200 disabled:opacity-60"
@@ -487,6 +497,14 @@ export default function BlogPostDetailPage() {
       <NaverPasteModal
         open={naverPasteOpen}
         onClose={() => setNaverPasteOpen(false)}
+        title={post.title}
+        content={content}
+        tags={post.tags ?? []}
+      />
+
+      <TistoryPasteModal
+        open={tistoryPasteOpen}
+        onClose={() => setTistoryPasteOpen(false)}
         title={post.title}
         content={content}
         tags={post.tags ?? []}
