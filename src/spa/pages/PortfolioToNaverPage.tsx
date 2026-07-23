@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiJson } from '../lib/api'
 
-const workerUrl = (import.meta.env.VITE_BLOG_WORKER_URL as string | undefined) || 'http://localhost:8788'
+
 
 type PortfolioItem = {
   wr_id: string
@@ -58,9 +58,9 @@ export default function PortfolioToNaverPage() {
     setError(null)
     try {
       const categoryParam = activeCategory !== '전체' ? `&category=${encodeURIComponent(activeCategory)}` : ''
-      const res = await fetch(`${workerUrl}/portfolio-list?page=${p}${categoryParam}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      const data = await apiJson<{ items: PortfolioItem[]; page: number }>(
+        '/api/portfolio-to-naver/list?page=' + p + categoryParam
+      )
       setItems(data.items ?? [])
       setPage(data.page ?? p)
     } catch (e) {
@@ -88,56 +88,25 @@ export default function PortfolioToNaverPage() {
     }
     setGeneratingId(item.wr_id)
     setError(null)
-    try {
-      const res = await fetch(`${workerUrl}/generate-portfolio`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ wr_id: item.wr_id }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
-        throw new Error(err.error || `HTTP ${res.status}`)
-      }
-      const result = await res.json()
-      if (!result.ok || !result.manuscript || !result.portfolio) {
-        throw new Error('응답에 manuscript 또는 portfolio가 없습니다.')
-      }
-      
-      // Save to Cloud Functions using Firebase auth
-      const saveResult = await apiJson<{ data: { id: string } }>(
-        '/api/portfolio-to-naver/save-generated',
-        {
+    const maxAttempts = 4
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const result = await apiJson<{ id: string }>('/api/portfolio-to-naver/generate', {
           method: 'POST',
-          idempotencyKey: `portfolio-save-${item.wr_id}-${Date.now()}`,
-          body: JSON.stringify({
-            title: result.manuscript.seo_title || result.portfolio.title,
-            content: result.manuscript.html,
-            excerpt: result.manuscript.excerpt,
-            category: 'portfolio-recap',
-            tags: result.manuscript.tags,
-            featured_image: result.portfolio.thumbUrl,
-            seo_title: result.manuscript.seo_title,
-            seo_description: result.manuscript.seo_description,
-            source_portfolio: {
-              wr_id: result.portfolio.wr_id,
-              raw_url: result.portfolio.raw_url,
-              event_name: result.portfolio.event_name || result.portfolio.title,
-              venue: result.portfolio.venue,
-              date: result.portfolio.date,
-              category: result.portfolio.category,
-              photos_count: result.portfolio.photos_count,
-              selected_photos: result.portfolio.selected_photos,
-            },
-          }),
+          idempotencyKey: `portfolio-${item.wr_id}`,
+          body: JSON.stringify({ wr_id: item.wr_id }),
+        })
+        navigate(`/blog-posts/${result.id}`)
+        return
+      } catch (e) {
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 15000))
+        } else {
+          setError(e instanceof Error ? e.message : '원고 생성에 실패했습니다.')
         }
-      )
-      
-      navigate(`/blog-posts/${saveResult.data.id}`)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '원고 생성에 실패했습니다.')
-    } finally {
-      setGeneratingId(null)
+      }
     }
+    setGeneratingId(null)
   }
 
   const isGenerating = generatingId !== null
