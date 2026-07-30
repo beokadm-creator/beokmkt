@@ -18,6 +18,7 @@ import {
   selectClaimablePipelineCommand,
 } from './pipeline-command-queue.mjs'
 
+// Firebase Admin init
 initializeApp()
 const db = getFirestore()
 
@@ -49,6 +50,16 @@ function isAllowedAdminUser(user = {}) {
 
 const app = express()
 app.use(express.json({ limit: '1mb' }))
+
+// 301 redirect: beokmkt.web.app → beoksolution.com (SEO 도메인 통합)
+app.use((req, res, next) => {
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || '').split(',')[0].trim().toLowerCase()
+  if (host === 'beokmkt.web.app' || host === 'beokmkt.firebaseapp.com') {
+    const target = 'https://beoksolution.com' + req.originalUrl
+    return res.redirect(301, target)
+  }
+  next()
+})
 
 const PIPELINE_COMMAND_TASKS = new Set([
   'status',
@@ -170,15 +181,9 @@ function envValue(name) {
 }
 
 function spaBaseUrl(req) {
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https'
-  const host = String(req.headers['x-forwarded-host'] || req.get('host') || '').split(',')[0].trim()
-  const hostname = host.split(':')[0].toLowerCase()
-  if (hostname === 'beokmkt.web.app' || hostname === 'beokmkt.firebaseapp.com') {
-    return `${proto}://${host}`.replace(/\/+$/, '')
-  }
   const explicit = envValue('SPA_BASE_URL')
   if (explicit) return explicit.replace(/\/+$/, '')
-  return `${proto}://${host}`.replace(/\/+$/, '')
+  return 'https://beoksolution.com'
 }
 
 function requestHostname(req) {
