@@ -6414,17 +6414,19 @@ app.post('/api/kaid-newsletters/translate', async (req, res) => {
   }
 })
 
-export const api = onRequest({ timeoutSeconds: 300, memory: '512Mi' }, app)
+export const api = onRequest({ timeoutSeconds: 300, memory: '1Gi' }, app)
 
-// ─── 기존 스케줄드 펑션 ──────────────────────────────────────────
+// ─── 기존 스케줄드 펑션 (자동발행 폐지로 비활성화) ─────────────────
 
-export const aiRetrySweep = onSchedule({ schedule: 'every 10 minutes' }, async () => {
-  await runRetrySweep({ job_type: 'all', only_due: true, limit: 20 }, 'system')
-})
+// DISABLED: 자동발행 폐지로 불필요
+// export const aiRetrySweep = onSchedule({ schedule: 'every 10 minutes' }, async () => {
+//   await runRetrySweep({ job_type: 'all', only_due: true, limit: 20 }, 'system')
+// })
 
-export const aiPlatformAccountSweep = onSchedule({ schedule: 'every 30 minutes' }, async () => {
-  await runPlatformAccountSweep({ limit: 50, warning_window_minutes: 60 }, 'system')
-})
+// DISABLED: 연동된 플랫폼 계정 없음
+// export const aiPlatformAccountSweep = onSchedule({ schedule: 'every 30 minutes' }, async () => {
+//   await runPlatformAccountSweep({ limit: 50, warning_window_minutes: 60 }, 'system')
+// })
 
 // blogPipelineScheduler(주1회 자동 생성·발행) 제거됨 — 자동발행 정책 폐지.
 // 블로그 글은 수동 생성·검토 후 발행만 사용한다. (blog_schedule 수동 API는 유지)
