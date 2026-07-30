@@ -23,6 +23,8 @@ const db = getFirestore()
 
 let _portfolioListCache = { key: '', data: null, ts: 0 }
 const PORTFOLIO_CACHE_TTL_MS = 5 * 60 * 1000
+let _blogListCache = { key: '', html: '', ts: 0 }
+const BLOG_CACHE_TTL_MS = 2 * 60 * 1000
 
 const adminEmailAllowlist = String(process.env.ADMIN_EMAILS ?? process.env.ALLOWED_ADMIN_EMAILS ?? '')
   .split(',')
@@ -6174,6 +6176,12 @@ app.get('/blog', (req, res, next) => {
 })
 
 app.get('/blog/', async (req, res) => {
+  const _blogCacheKey = String(req.query.page ?? '1')
+  if (_blogListCache.html && _blogListCache.key === _blogCacheKey && (Date.now() - _blogListCache.ts) < BLOG_CACHE_TTL_MS) {
+    res.set('Content-Type', 'text/html; charset=utf-8')
+    res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800')
+    return res.send(_blogListCache.html)
+  }
   try {
     const baseUrl = spaBaseUrl(req)
     const snap = await db.collection('blog_posts').where('status', '==', 'published').get()
@@ -6214,6 +6222,7 @@ app.get('/blog/', async (req, res) => {
       bodyHtml: blogListBodyHtml(posts, baseUrl, page),
     })
 
+    _blogListCache = { key: _blogCacheKey, html, ts: Date.now() }
     res.set('Content-Type', 'text/html; charset=utf-8')
     res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800')
     res.send(html)
