@@ -21,6 +21,9 @@ import {
 initializeApp()
 const db = getFirestore()
 
+let _portfolioListCache = { key: '', data: null, ts: 0 }
+const PORTFOLIO_CACHE_TTL_MS = 5 * 60 * 1000
+
 const adminEmailAllowlist = String(process.env.ADMIN_EMAILS ?? process.env.ALLOWED_ADMIN_EMAILS ?? '')
   .split(',')
   .map((value) => value.trim().toLowerCase())
@@ -695,6 +698,15 @@ async function withIdempotency(req, res, handler) {
       .doc(key)
       .set({ data: result.data ?? null, meta: result.meta ?? {}, updated_at: FieldValue.serverTimestamp() }, { merge: true })
   }
+
+  // Opportunistic cleanup: delete idempotency entries older than 24h (fire-and-forget)
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const oldDocs = await db.collection('idempotency').where('updated_at', '<', cutoff).limit(50).get()
+    const batch = db.batch()
+    oldDocs.forEach((doc) => batch.delete(doc.ref))
+    if (!oldDocs.empty) await batch.commit()
+  } catch { /* ignore cleanup errors */ }
 
   return ok(res, result.data, result.meta)
 }
@@ -5188,7 +5200,13 @@ app.get('/api/portfolio-to-naver/list', async (req, res) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1)
     const category = typeof req.query.category === 'string' ? req.query.category.trim() : ''
+    const cacheKey = `${page}-${category || ''}`
+    const now = Date.now()
+    if (_portfolioListCache.data && _portfolioListCache.key === cacheKey && (now - _portfolioListCache.ts) < PORTFOLIO_CACHE_TTL_MS) {
+      return ok(res, _portfolioListCache.data)
+    }
     const result = await fetchPortfolioList({ page, category })
+    _portfolioListCache = { key: cacheKey, data: result, ts: now }
     ok(res, result)
   } catch (error) {
     return fail(res, 502, 'PORTFOLIO_FETCH_FAILED', error instanceof Error ? error.message : 'portfolio list fetch failed', {})
