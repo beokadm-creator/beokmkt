@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import StatusBadge from '../components/StatusBadge'
 import NaverPasteModal from '../components/NaverPasteModal'
 import TistoryPasteModal from '../components/TistoryPasteModal'
+import InstagramCardModal from '../components/InstagramCardModal'
 import { apiJson } from '../lib/api'
 
 function statusLabel(status?: string) {
@@ -108,6 +109,7 @@ export default function BlogPostDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [naverPasteOpen, setNaverPasteOpen] = useState(false)
   const [tistoryPasteOpen, setTistoryPasteOpen] = useState(false)
+  const [instagramCardOpen, setInstagramCardOpen] = useState(false)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -317,27 +319,19 @@ export default function BlogPostDetailPage() {
           </button>
           <button
             type="button"
-            onClick={() => handlePublishExternal('naver')}
-            disabled={isSaving || isGenerating || isPublishing || isPublishingNaver || isDeleting}
-            className="h-9 rounded-lg border border-green-700 bg-green-900/40 px-3 text-xs font-medium text-green-200 disabled:opacity-60"
-          >
-            {isPublishingNaver ? '발행 중…' : '네이버만'}
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePublishExternal('tistory')}
-            disabled={isSaving || isGenerating || isPublishing || isPublishingNaver || isDeleting}
-            className="h-9 rounded-lg border border-orange-700 bg-orange-900/40 px-3 text-xs font-medium text-orange-200 disabled:opacity-60"
-          >
-            {isPublishingNaver ? '발행 중…' : '티스토리만'}
-          </button>
-          <button
-            type="button"
             onClick={() => handlePublishExternal('twitter')}
             disabled={isSaving || isGenerating || isPublishing || isPublishingNaver || isDeleting}
             className="h-9 rounded-lg border border-sky-600 bg-sky-900/40 px-3 text-xs font-medium text-sky-200 disabled:opacity-60"
           >
             {isPublishingNaver ? '발행 중…' : 'X(트위터)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setInstagramCardOpen(true)}
+            disabled={isSaving || isGenerating || isPublishing || isPublishingNaver || isDeleting}
+            className="h-9 rounded-lg border border-pink-600 bg-pink-900/30 px-3 text-xs font-medium text-pink-200 hover:bg-pink-900/50 disabled:opacity-60"
+          >
+            인스타그램 카드
           </button>
           <button
             type="button"
@@ -508,6 +502,16 @@ export default function BlogPostDetailPage() {
         title={post.title}
         content={content}
         tags={post.tags ?? []}
+      />
+
+      <InstagramCardModal
+        open={instagramCardOpen}
+        onClose={() => setInstagramCardOpen(false)}
+        title={post.title}
+        excerpt={excerpt}
+        content={content}
+        tags={post.tags ?? []}
+        link={`${window.location.origin}/blog-posts/${post.id}`}
       />
     </div>
   )
