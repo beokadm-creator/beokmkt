@@ -119,7 +119,7 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
     // Footer
     ctx.fillStyle = '#64748b'
     ctx.font = '500 28px -apple-system, "Pretendard", "Malgun Gothic", sans-serif'
-    ctx.fillText('beokmkt.web.app', 96, CARD_SIZE - 80)
+    ctx.fillText('beoksolution.com', 96, CARD_SIZE - 80)
   }, [title, excerpt, content])
 
   useEffect(() => {
