@@ -212,31 +212,56 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
 
   const [isRecording, setIsRecording] = useState(false)
   const [recordProgress, setRecordProgress] = useState(0)
-  const [photos, setPhotos] = useState<HTMLImageElement[]>([])
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [videoError, setVideoError] = useState<string | null>(null)
 
-  const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []).slice(0, 6 - photos.length)
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) continue
-      const url = URL.createObjectURL(file)
-      const img = new Image()
-      img.src = url
-      await new Promise<void>((r) => { img.onload = () => r() })
-      setPhotos(prev => [...prev, img])
-      setPhotoPreviews(prev => [...prev, url])
+  useEffect(() => {
+    setVideoError(null)
+  }, [content])
+
+  // Extract image URLs from content HTML
+  const contentImages = useMemo(() => {
+    if (!content) return [] as string[]
+    const matches = content.match(/<img[^>]*src=["']([^"']+)["']/gi) ?? []
+    return matches
+      .map(m => m.match(/src=["']([^"']+)["']/i)?.[1] ?? '')
+      .filter(url => url.startsWith('http'))
+      .slice(0, 6)
+  }, [content])
+
+  // Load images as HTMLImageElement[]
+  const [loadedImages, setLoadedImages] = useState<HTMLImageElement[]>([])
+
+  useEffect(() => {
+    if (!open || contentImages.length === 0) {
+      setLoadedImages([])
+      return
     }
-    e.target.value = ''
-  }, [photos.length])
-
-  const removePhoto = useCallback((index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index))
-    setPhotoPreviews(prev => {
-      const removed = prev[index]
-      if (removed) URL.revokeObjectURL(removed)
-      return prev.filter((_, i) => i !== index)
+    const imgs: HTMLImageElement[] = []
+    let loaded = 0
+    contentImages.forEach((url, i) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onerror = () => {
+        const fallback = new Image()
+        fallback.onload = () => {
+          imgs[i] = fallback
+          loaded++
+          if (loaded === contentImages.length) setLoadedImages(imgs.filter(Boolean))
+        }
+        fallback.onerror = () => {
+          loaded++
+          if (loaded === contentImages.length) setLoadedImages(imgs.filter(Boolean))
+        }
+        fallback.src = url
+      }
+      img.onload = () => {
+        imgs[i] = img
+        loaded++
+        if (loaded === contentImages.length) setLoadedImages(imgs.filter(Boolean))
+      }
+      img.src = url
     })
-  }, [])
+  }, [open, contentImages])
 
   const generateVideoCard = useCallback(() => {
     const canvas = document.createElement('canvas')
@@ -262,20 +287,31 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
 
     const mime = pickVideoMime()
     const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm'
-    const stream = canvas.captureStream(VIDEO_FPS)
-    const recorder = new MediaRecorder(stream, { mimeType: mime })
-    const chunks: Blob[] = []
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data)
-    }
 
-    const isSlideshow = photos.length > 0
-    const photoCount = photos.length
+    const isSlideshow = loadedImages.length > 0
+    const photoCount = loadedImages.length
     const SLIDE_DURATION_S = 2.5
     const FADE_FRAMES = Math.round(0.3 * VIDEO_FPS)
     const totalDuration = isSlideshow ? photoCount * SLIDE_DURATION_S : VIDEO_DURATION_S
     const totalFrames = Math.round(totalDuration * VIDEO_FPS)
     const framesPerSlide = Math.round(SLIDE_DURATION_S * VIDEO_FPS)
+
+    let stream: MediaStream
+    let recorder: MediaRecorder
+    const chunks: Blob[] = []
+
+    try {
+      stream = canvas.captureStream(VIDEO_FPS)
+      recorder = new MediaRecorder(stream, { mimeType: mime })
+    } catch {
+      setVideoError('이 브라우저에서는 사진 영상 생성이 제한됩니다. Chrome에서 시도해 주세요.')
+      setIsRecording(false)
+      return
+    }
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data)
+    }
 
     let frame = 0
     let rafId: number
@@ -293,8 +329,8 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
       const frameInSlide = frame - slideIndex * framesPerSlide
       const slideT = frameInSlide / framesPerSlide
 
-      const currentImg = photos[slideIndex]
-      const nextImg = slideIndex < photoCount - 1 ? photos[slideIndex + 1] : null
+      const currentImg = loadedImages[slideIndex]
+      const nextImg = slideIndex < photoCount - 1 ? loadedImages[slideIndex + 1] : null
 
       const kenBurnsZoom = 1 + slideT * 0.08
       ctx.save()
@@ -519,7 +555,7 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
     stopped = false
     recorder.start(100)
     rafId = requestAnimationFrame(isSlideshow ? drawSlideshowFrame : drawTextFrame)
-  }, [title, excerpt, content, tags, photos])
+  }, [title, excerpt, content, tags, loadedImages])
 
   if (!open) return null
 
@@ -553,43 +589,23 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
             >
               {imgDownloaded ? '✓ 이미지 저장됨' : '이미지 다운로드 (PNG)'}
             </button>
-            <div>
-              <div className="text-xs text-zinc-500 mb-2">슬라이드쇼 사진 (선택, 최대 6장)</div>
-              <div className="flex flex-wrap gap-2">
-                {photoPreviews.map((url, i) => (
-                  <div key={i} className="relative">
-                    <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                    <button
-                      onClick={() => removePhoto(i)}
-                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-xs text-zinc-300 hover:bg-zinc-700"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                {photos.length < 6 && (
-                  <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-500 hover:border-zinc-500 hover:text-zinc-400">
-                    + 사진
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handlePhotoSelect}
-                    />
-                  </label>
-                )}
+            {loadedImages.length > 0 && (
+              <div className="text-xs text-zinc-500">
+                블로그 글에서 {loadedImages.length}장 사진 발견 — 슬라이드쇼로 생성
               </div>
-            </div>
+            )}
+            {videoError && (
+              <div className="text-xs text-red-400">{videoError}</div>
+            )}
             <button
               onClick={generateVideoCard}
               disabled={isRecording || imgDownloaded}
               className="flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {isRecording
-                ? `영상 생성 중... ${Math.round(recordProgress * (photos.length > 0 ? photos.length * 2.5 : 5))}/${photos.length > 0 ? (photos.length * 2.5).toFixed(0) : 5}초`
-                : photos.length > 0
-                  ? `영상 카드 만들기 (${photos.length}장 사진, ${(photos.length * 2.5).toFixed(0)}초)`
+                ? `영상 생성 중... ${Math.round(recordProgress * (loadedImages.length > 0 ? loadedImages.length * 2.5 : 5))}/${loadedImages.length > 0 ? (loadedImages.length * 2.5).toFixed(0) : 5}초`
+                : loadedImages.length > 0
+                  ? `영상 카드 만들기 (${loadedImages.length}장 사진, ${(loadedImages.length * 2.5).toFixed(0)}초)`
                   : '영상 카드 만들기 (5초)'}
             </button>
           </div>
