@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sqlite3
 import webbrowser
 from datetime import datetime, timezone, timedelta
@@ -21,11 +22,6 @@ DB_PATH = Path(os.environ.get(
     "BLOG_DB_PATH",
     str(_THIS_DIR.parent.parent / "db" / "blog.db"),
 ))
-STATUS_DIR = Path(os.environ.get(
-    "SESSION_STATUS_DIR",
-    r"C:\Users\Aaron\Claude\Projects\beokmkt\status",
-))
-HEALTH_FILE = STATUS_DIR / "health.json"
 COUPANG_HEARTBEAT = Path(os.environ.get(
     "COUPANG_HEARTBEAT_FILE",
     r"C:\Users\Aaron\Claude\Projects\coupang\.runtime\heartbeat.json",
@@ -35,6 +31,48 @@ STATUSES = [
     "draft", "generating", "factchecking", "reviewing", "reviewed",
     "queued", "publishing", "published", "needs_human", "failed",
 ]
+
+PUBLISHER_DIR = _THIS_DIR.parent.parent
+ENV_FILE = PUBLISHER_DIR / ".env"
+CONFIG_FILE = PUBLISHER_DIR / "config.py"
+
+
+def _setting_int(name: str, default: int) -> int:
+    """.env 우선, 없으면 config.py의 os.getenv("NAME", "값") 기본값을 읽는다.
+
+    config 모듈 import는 dotenv 상대경로에 의존해 대시보드 프로세스에서 깨질 수
+    있으므로 텍스트 파싱만 한다.
+    """
+    try:
+        for line in ENV_FILE.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = re.match(rf"^\s*{name}\s*=\s*(.+?)\s*$", line)
+            if m:
+                return int(m.group(1).strip().strip("\"'"))
+    except Exception:
+        pass
+    try:
+        text = CONFIG_FILE.read_text(encoding="utf-8", errors="replace")
+        m = re.search(rf'os\.getenv\(\s*"{name}"\s*,\s*"(\d+)"\s*\)', text)
+        if m:
+            return int(m.group(1))
+    except Exception:
+        pass
+    return default
+
+
+def _publish_window() -> dict:
+    """발행 윈도우(시간대) 정보. 야간에 발행이 0건인 것은 정상이므로,
+    화면에서 '정체'와 '윈도우 닫힘'을 구분하기 위해 내려준다."""
+    start = _setting_int("PUBLISH_WINDOW_START", 9)
+    end = _setting_int("PUBLISH_WINDOW_END", 21)
+    spacing = _setting_int("PUBLISH_SPACING_MIN", 150)
+    hour = datetime.now(tz=KST).hour
+    return {
+        "start": start,
+        "end": end,
+        "spacing_min": spacing,
+        "open": start <= hour < end,
+    }
 
 
 def _pipeline_data() -> dict:
@@ -97,13 +135,6 @@ def _pipeline_data() -> dict:
         return {"ok": False, "error": str(e), "counts": {s: 0 for s in STATUSES}}
 
 
-def _health_data() -> dict:
-    try:
-        return {"ok": True, **json.loads(HEALTH_FILE.read_text(encoding="utf-8"))}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-
 LOG_DIR = Path(os.environ.get("BLOG_LOG_DIR", r"C:\beokmkt\logs"))
 _ACTIVITY_TASKS = ("publish", "generate", "factcheck", "review", "schedule")
 
@@ -142,7 +173,7 @@ def _status() -> dict:
     return {
         "timestamp": datetime.now(tz=KST).isoformat(),
         "pipeline": _pipeline_data(),
-        "health": _health_data(),
+        "publish_window": _publish_window(),
         "coupang": _coupang_data(),
         "activity": _ops_activity(),
     }
@@ -197,29 +228,18 @@ h1{font-size:1.1rem;font-weight:600;letter-spacing:.06em;color:#64748b;margin-bo
 <h1>BEOK 블로그 자동화</h1>
 <div class="ts">마지막 갱신: <span id="ts">—</span><span class="cd" id="cd">30s</span></div>
 
-<div class="grid3">
+<div class="grid2" style="margin-bottom:14px">
   <div class="card">
-    <div class="card-title">워커</div>
-    <div class="badge" id="w-b"><span class="dot"></span><span>—</span></div>
-    <div class="sub" id="w-s">—</div>
+    <div class="card-title">발행 윈도우</div>
+    <div class="badge" id="pw-b"><span class="dot"></span><span>—</span></div>
+    <div class="sub" id="pw-s">—</div>
   </div>
   <div class="card">
-    <div class="card-title">티스토리 세션</div>
-    <div class="badge" id="s-b"><span class="dot"></span><span>—</span></div>
-    <div class="sub" id="s-s">—</div>
+    <div class="card-title">쿠팡 스크래퍼</div>
+    <div class="badge" id="cp-b"><span class="dot"></span><span>—</span></div>
+    <div class="sub" id="cp-s">—</div>
+    <div class="extras" id="cp-x"></div>
   </div>
-  <div class="card">
-    <div class="card-title">Keepalive</div>
-    <div class="badge" id="k-b"><span class="dot"></span><span>—</span></div>
-    <div class="sub" id="k-s">—</div>
-  </div>
-</div>
-
-<div class="card" style="margin-bottom:14px">
-  <div class="card-title">쿠팡 스크래퍼</div>
-  <div class="badge" id="cp-b"><span class="dot"></span><span>—</span></div>
-  <div class="sub" id="cp-s">—</div>
-  <div class="extras" id="cp-x"></div>
 </div>
 
 <div class="card" style="margin-bottom:14px">
@@ -229,8 +249,8 @@ h1{font-size:1.1rem;font-weight:600;letter-spacing:.06em;color:#64748b;margin-bo
 </div>
 
 <div class="grid2">
-  <div class="card"><div class="card-title">selfhosted</div><div id="ch-selfhosted">—</div></div>
-  <div class="card"><div class="card-title">tistory</div><div id="ch-tistory">—</div></div>
+  <div class="card"><div class="card-title">selfhosted (자동 발행)</div><div id="ch-selfhosted">—</div></div>
+  <div class="card"><div class="card-title">네이버 · 티스토리</div><div id="ch-manual">—</div></div>
 </div>
 
 <div class="card" style="margin-top:14px">
@@ -272,37 +292,25 @@ function badge(id,cls,txt){
 
 function render(data){
   document.getElementById('ts').textContent=kst(data.timestamp);
-  const h=data.health||{};
   const p=data.pipeline||{};
   const counts=p.counts||{};
 
-  // Worker
-  const w=h.worker_health||{};
-  if(w.ok){badge('w-b','ok','정상');document.getElementById('w-s').textContent='http://127.0.0.1:8788';}
-  else{badge('w-b','err','오프라인');document.getElementById('w-s').textContent=w.error||'응답 없음';}
-
-  // Session
-  const sess=h.tistory_session||null;
-  if(sess&&sess.valid){
-    const d=sess.days_to_expiry;
-    const cls=d>7?'ok':d>3?'warn':'err';
-    badge('s-b',cls,`D-${Math.floor(d)} 유효`);
-    const exp=sess.min_cookie_expiry?kst(sess.min_cookie_expiry).split(' ')[0]:'—';
-    document.getElementById('s-s').textContent=`만료 ${exp}`;
-  } else if(sess){
-    badge('s-b','err','만료/없음');
-    document.getElementById('s-s').textContent=sess.error||'세션 없음';
+  // 발행 윈도우 — 야간(윈도우 밖) 0건은 정상이므로 '정체'와 구분해서 보여준다.
+  // (네이버/티스토리는 수동 발행으로 전환돼 워커·세션·keepalive 카드는 제거됨)
+  const pw=data.publish_window||{};
+  const todayCount=p.published_today||0;
+  if(pw.open===true){
+    badge('pw-b','ok','발행 시간대');
+    document.getElementById('pw-s').textContent=
+      `${pw.start}~${pw.end}시 · 간격 ${pw.spacing_min}분 · 오늘 ${todayCount}건`;
+  } else if(pw.open===false){
+    badge('pw-b','ok','야간 대기(정상)');
+    document.getElementById('pw-s').textContent=
+      `${pw.start}시 발행 재개 · 어제/오늘 ${todayCount}건`;
   } else {
-    badge('s-b','warn','—');
-    document.getElementById('s-s').textContent='health.json 없음';
+    badge('pw-b','warn','설정 확인 불가');
+    document.getElementById('pw-s').textContent='PUBLISH_WINDOW 값을 읽지 못함';
   }
-
-  // Keepalive
-  const kOk=h.keepalive_ok;const kAt=h.keepalive_last_run;
-  if(kOk===true)badge('k-b','ok','정상');
-  else if(kOk===false)badge('k-b','err','실패');
-  else badge('k-b','warn','미실행');
-  document.getElementById('k-s').textContent=kAt?kst(kAt):'—';
 
   // Coupang scraper (로컬 heartbeat.json 기반)
   const cp=data.coupang||{};
@@ -345,9 +353,16 @@ function render(data){
   const nh=counts.needs_human||0,fa=counts.failed||0;
   const nq=p.next_queued;
   let ex='';
-  // liveness: 중간 단계 카운트가 전부 0이어도 오늘 실제로 돌았는지 보여준다
+  // liveness: 중간 단계 카운트가 전부 0이어도 오늘 실제로 돌았는지 보여준다.
+  // 0건이어도 야간(윈도우 밖)이거나 다음 예약을 기다리는 중이면 정상 — 경고로 칠하지 않는다.
   const today=p.published_today||0;
-  ex+=`<span class="${today>0?'c-pub':'c-warn'}">오늘 발행 ${today}건</span>`;
+  let todayCls='c-pub',todayNote='';
+  if(today===0){
+    if(pw.open===false){todayCls='';todayNote=' (야간 대기)';}
+    else if(nq){todayCls='';todayNote=' (다음 예약 대기)';}
+    else todayCls='c-warn';
+  }
+  ex+=`<span class="${todayCls}"${todayCls?'':' style="color:#64748b"'}>오늘 발행 ${today}건${todayNote}</span>`;
   const lastPub=ago(p.last_published_at,true);
   if(lastPub)ex+=`<span style="color:#64748b">마지막 발행 ${lastPub}</span>`;
   if(nh)ex+=`<span class="c-err">⚠ needs_human: ${nh}</span>`;
@@ -362,8 +377,13 @@ function render(data){
   else ex+=`<span class="c-err" style="flex-basis:100%">⚠ 예약 작업 실행 로그 없음 — 스케줄러 확인 필요</span>`;
   extras.innerHTML=ex;
 
-  // Channels
-  ['selfhosted','tistory'].forEach(ch=>{
+  // Channels — 자동 발행은 selfhosted 뿐. 네이버/티스토리는 콘솔에서 수동 발행하므로
+  // 이 DB 카운트로 표시하면 0/0/0이라 '고장'처럼 보인다 → 발행 방식 안내로 대체.
+  document.getElementById('ch-manual').innerHTML=
+    `<div class="cs"><span>발행 방식</span><span>수동 (콘솔 복사·붙여넣기)</span></div>`+
+    `<div class="cs"><span>자동 발행</span><span style="color:#64748b">사용 안 함</span></div>`+
+    `<div class="cs"><span>워커</span><span style="color:#64748b">은퇴 (2026-07-23)</span></div>`;
+  ['selfhosted'].forEach(ch=>{
     const el=document.getElementById('ch-'+ch);
     const row=(p.by_channel||{})[ch]||{};
     const inv=INV.reduce((s,k)=>s+(row[k]||0),0);
@@ -452,7 +472,6 @@ if __name__ == "__main__":
     url = f"http://localhost:{args.port}"
     print(f"대시보드: {url}")
     print(f"DB: {DB_PATH}")
-    print(f"health.json: {HEALTH_FILE}")
     print("종료: Ctrl+C")
     if not args.no_browser:
         Timer(1.0, lambda: webbrowser.open(url)).start()

@@ -49,22 +49,11 @@ if (!$NoPull -and (Test-Path $GitUpdate)) {
 $actions = @()
 $checks  = @{}
 
-# 1) node publish worker (8788): restart Worker task if its /health is down.
-$workerUrl = $env:NAVER_WORKER_URL
-if (!$workerUrl) { $workerUrl = Read-DotEnvValue "NAVER_WORKER_URL" }
-if (!$workerUrl) { $workerUrl = "http://127.0.0.1:8788" }
-$workerHealthUrl = "$($workerUrl.TrimEnd('/'))/health"
-$workerOk = $false
-try {
-  $h = Invoke-RestMethod -Uri $workerHealthUrl -Method Get -TimeoutSec 5
-  $workerOk = [bool]$h.ok
-} catch { $workerOk = $false }
-$checks["worker"] = $workerOk
-if (!$workerOk) {
-  Write-Log "worker DOWN ($workerHealthUrl) -> starting BEOK Blog Worker"
-  schtasks /Run /TN "BEOK Blog Worker" 2>&1 | Tee-Object -FilePath $logPath -Append | Out-Null
-  $actions += "worker_restarted"
-}
+# 1) (제거됨) node publish worker(8788) health + 재시작.
+#    2026-07-23 네이버/티스토리를 콘솔 복사·붙여넣기 수동 발행으로 전환하면서
+#    워커와 관련 태스크를 의도적으로 Disabled 처리했다. 그 뒤에도 이 블록이 매 주기
+#    "worker DOWN" 로그를 남기고 schtasks /Run 을 시도했지만 disabled 태스크라 항상
+#    실패했다. 자동 발행을 되살릴 때 워커 태스크를 Enable 하면 되므로 블록을 제거한다.
 
 # 2) local dashboard (7070): relaunch hidden if the port is not listening.
 $dashOk = $false
@@ -118,16 +107,10 @@ try {
   Write-Log "stall check failed: $($_.Exception.Message)"
 }
 
-# 4) refresh health.json (tistory session + worker) via the existing reporter.
-if (Test-Path $MonitorPy) {
-  try {
-    Set-Location $OpsDir
-    $env:REPO_ROOT = $RepoRoot
-    $env:SESSION_STATUS_DIR = $StatusDir
-    & $Python $MonitorPy 2>&1 | Out-Null
-    Set-Location $RepoRoot
-  } catch { Write-Log "session-monitor failed: $($_.Exception.Message)" }
-}
+# 4) (제거됨) session-monitor.py 로 health.json 갱신(티스토리 세션 + 워커 health).
+#    사용자가 "BEOK Session Monitor" 태스크를 의도적으로 Disabled 했는데도 이 블록이
+#    같은 스크립트를 15분마다 대신 실행해 disable 의도를 무력화하고 있었다.
+#    워커·세션은 은퇴했고 대시보드도 더 이상 health.json 을 표시하지 않으므로 제거한다.
 
 # 5) write our own healthcheck.json summary (checks + recovery actions taken).
 $summary = [ordered]@{
@@ -140,5 +123,5 @@ try {
 } catch { }
 
 $actionText = if ($actions.Count) { ($actions -join ",") } else { "none" }
-Write-Log "healthcheck done worker=$workerOk dashboard=$dashOk actions=$actionText"
+Write-Log "healthcheck done dashboard=$dashOk actions=$actionText"
 exit 0
