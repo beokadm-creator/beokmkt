@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+const VIDEO_W = 1080
+const VIDEO_H = 1920
+const VIDEO_DURATION_S = 5
+const VIDEO_FPS = 30
+const VIDEO_FRAMES = VIDEO_DURATION_S * VIDEO_FPS
+
 interface InstagramCardModalProps {
   open: boolean
   onClose: () => void
@@ -45,6 +51,32 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
     lines[maxLines - 1] = `${last}…`
   }
   return lines
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.arcTo(x + w, y, x + w, y + r, r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+  ctx.lineTo(x + r, y + h)
+  ctx.arcTo(x, y + h, x, y + h - r, r)
+  ctx.lineTo(x, y + r)
+  ctx.arcTo(x, y, x + r, y, r)
+  ctx.closePath()
+}
+
+function pickVideoMime(): string {
+  const types = ['video/mp4;codecs=h264', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+  for (const t of types) {
+    if (MediaRecorder.isTypeSupported(t)) return t
+  }
+  return 'video/webm'
+}
+
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 }
 
 /** Build Instagram caption: excerpt + link + hashtags. */
@@ -169,6 +201,196 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
     }
   }, [caption])
 
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordProgress, setRecordProgress] = useState(0)
+
+  const generateVideoCard = useCallback(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = VIDEO_W
+    canvas.height = VIDEO_H
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const FONT = '-apple-system, "Pretendard", "Malgun Gothic", sans-serif'
+    const body = excerpt?.trim() || htmlToText(content).slice(0, 160)
+    const titleText = title.trim()
+    const tagsList = tags.map((t) => `#${t.replace(/\s+/g, '')}`).filter((t) => t.length > 1)
+
+    ctx.font = `800 48px ${FONT}`
+    const titleLines = wrapLines(ctx, titleText, VIDEO_W - 160, 6)
+    ctx.font = `400 28px ${FONT}`
+    const excerptLines = body ? wrapLines(ctx, body, VIDEO_W - 160, 4) : []
+
+    let tagTotalWidth = 0
+    for (const tag of tagsList) {
+      tagTotalWidth += ctx.measureText(tag).width + 48
+    }
+
+    const mime = pickVideoMime()
+    const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm'
+    const stream = canvas.captureStream(VIDEO_FPS)
+    const recorder = new MediaRecorder(stream, { mimeType: mime })
+    const chunks: Blob[] = []
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data)
+    }
+
+    let frame = 0
+    let rafId: number
+    let stopped = false
+
+    const drawFrame = () => {
+      if (stopped) return
+      const t = frame / VIDEO_FRAMES
+      setRecordProgress(t)
+
+      // Ken-burns scale at the end
+      const scale = t > 0.9 ? 1 + (t - 0.9) * 0.2 : 1
+      ctx.save()
+      ctx.clearRect(0, 0, VIDEO_W, VIDEO_H)
+      if (scale !== 1) {
+        const cx = VIDEO_W / 2
+        const cy = VIDEO_H / 2
+        ctx.translate(cx, cy)
+        ctx.scale(scale, scale)
+        ctx.translate(-cx, -cy)
+      }
+
+      // Background gradient
+      const grad = ctx.createLinearGradient(0, 0, VIDEO_W, VIDEO_H)
+      grad.addColorStop(0, '#0a0a0b')
+      grad.addColorStop(0.5, '#18181b')
+      grad.addColorStop(1, '#0a0a0b')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, VIDEO_W, VIDEO_H)
+
+      // Amber accent bar (top)
+      const accentAlpha = t < 0.1 ? easeInOut(t / 0.1) : 1
+      ctx.globalAlpha = accentAlpha
+      ctx.fillStyle = '#facc15'
+      ctx.fillRect(80, 240, 90, 10)
+      ctx.globalAlpha = 1
+
+      // Brand label
+      ctx.globalAlpha = accentAlpha
+      ctx.fillStyle = '#facc15'
+      ctx.font = `600 28px ${FONT}`
+      ctx.textBaseline = 'alphabetic'
+      ctx.fillText(BRAND_LABEL, 80, 220)
+      ctx.globalAlpha = 1
+
+      // Title
+      if (t >= 0.1) {
+        const titleProgress = Math.min(1, (t - 0.1) / 0.2)
+        const titleAlpha = easeInOut(titleProgress)
+        const titleOffset = (1 - easeInOut(titleProgress)) * 40
+        ctx.globalAlpha = titleAlpha
+        ctx.fillStyle = '#ffffff'
+        ctx.font = `800 48px ${FONT}`
+        let y = 380 + titleOffset
+        for (const line of titleLines) {
+          ctx.fillText(line, 80, y)
+          y += 64
+        }
+        ctx.globalAlpha = 1
+      }
+
+      // Excerpt
+      if (t >= 0.2) {
+        const excerptProgress = Math.min(1, (t - 0.2) / 0.2)
+        const excerptAlpha = easeInOut(excerptProgress)
+        const excerptOffset = (1 - easeInOut(excerptProgress)) * 40
+        ctx.globalAlpha = excerptAlpha
+        ctx.fillStyle = '#cbd5e1'
+        ctx.font = `400 28px ${FONT}`
+        let y = 380 + titleLines.length * 64 + 40 + excerptOffset
+        for (const line of excerptLines) {
+          ctx.fillText(line, 80, y)
+          y += 42
+        }
+        ctx.globalAlpha = 1
+      }
+
+      // Tags
+      const tagStartT = 0.4
+      const tagSpacing = 0.03 // 0.03 * 5s = 0.15s apart
+      if (tagsList.length > 0 && t >= tagStartT) {
+        const tagY = VIDEO_H - 280
+        const tagHeight = 40
+        const tagGap = 12
+        const totalTagW = tagTotalWidth + (tagsList.length - 1) * tagGap
+        let tagX = (VIDEO_W - totalTagW) / 2
+
+        for (let i = 0; i < tagsList.length; i++) {
+          const tagT = tagStartT + i * tagSpacing
+          if (t < tagT) continue
+          const tagProgress = Math.min(1, (t - tagT) / 0.05)
+          const tagAlpha = easeInOut(tagProgress)
+
+          ctx.globalAlpha = tagAlpha
+          const tw = ctx.measureText(tagsList[i]).width + 32
+          ctx.fillStyle = 'rgba(250, 204, 21, 0.15)'
+          roundRect(ctx, tagX, tagY, tw, tagHeight, 20)
+          ctx.fill()
+
+          ctx.fillStyle = '#facc15'
+          ctx.font = `600 20px ${FONT}`
+          ctx.textBaseline = 'middle'
+          ctx.fillText(tagsList[i], tagX + 16, tagY + tagHeight / 2)
+          ctx.textBaseline = 'alphabetic'
+          tagX += tw + tagGap
+        }
+        ctx.globalAlpha = 1
+      }
+
+      // Footer
+      if (t >= 0.6) {
+        const footerProgress = Math.min(1, (t - 0.6) / 0.2)
+        const footerAlpha = easeInOut(footerProgress)
+        ctx.globalAlpha = footerAlpha
+        ctx.fillStyle = '#facc15'
+        ctx.font = `500 24px ${FONT}`
+        ctx.textAlign = 'center'
+        ctx.fillText('beoksolution.com', VIDEO_W / 2, VIDEO_H - 160)
+        ctx.textAlign = 'left'
+        ctx.globalAlpha = 1
+      }
+
+      ctx.restore()
+
+      frame++
+      if (frame <= VIDEO_FRAMES) {
+        rafId = requestAnimationFrame(drawFrame)
+      } else {
+        recorder.stop()
+        stream.getTracks().forEach((track) => track.stop())
+      }
+    }
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: mime })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const slug = title.trim().replace(/[^\w가-힣]+/g, '-').slice(0, 20) || 'instagram-video'
+      a.href = url
+      a.download = `인스타영상_${slug}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      setIsRecording(false)
+      setRecordProgress(0)
+      stopped = true
+    }
+
+    setIsRecording(true)
+    setRecordProgress(0)
+    frame = 0
+    stopped = false
+    recorder.start(100)       // collect chunks
+    rafId = requestAnimationFrame(drawFrame)
+  }, [title, excerpt, content, tags])
+
   if (!open) return null
 
   return (
@@ -200,6 +422,13 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
               className="flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 text-base font-bold text-white transition-opacity hover:opacity-90"
             >
               {imgDownloaded ? '✓ 이미지 저장됨' : '이미지 다운로드 (PNG)'}
+            </button>
+            <button
+              onClick={generateVideoCard}
+              disabled={isRecording || imgDownloaded}
+              className="flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {isRecording ? `영상 생성 중... ${Math.round(recordProgress * 5)}/5초` : '영상 카드 만들기 (5초)'}
             </button>
           </div>
 
