@@ -511,7 +511,7 @@ export default function BlogPostDetailPage() {
         excerpt={excerpt}
         content={content}
         tags={post.tags ?? []}
-        link={`https://beoksolution.com/blog-posts/${post.id}`}
+        link={`https://beoksolution.com/blog/${post.slug}`}
       />
     </div>
   )
