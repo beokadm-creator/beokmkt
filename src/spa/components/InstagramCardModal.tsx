@@ -239,27 +239,19 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
     const imgs: HTMLImageElement[] = []
     let loaded = 0
     contentImages.forEach((url, i) => {
+      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`
       const img = new Image()
       img.crossOrigin = 'anonymous'
-      img.onerror = () => {
-        const fallback = new Image()
-        fallback.onload = () => {
-          imgs[i] = fallback
-          loaded++
-          if (loaded === contentImages.length) setLoadedImages(imgs.filter(Boolean))
-        }
-        fallback.onerror = () => {
-          loaded++
-          if (loaded === contentImages.length) setLoadedImages(imgs.filter(Boolean))
-        }
-        fallback.src = url
-      }
       img.onload = () => {
         imgs[i] = img
         loaded++
         if (loaded === contentImages.length) setLoadedImages(imgs.filter(Boolean))
       }
-      img.src = url
+      img.onerror = () => {
+        loaded++
+        if (loaded === contentImages.length) setLoadedImages(imgs.filter(Boolean))
+      }
+      img.src = proxyUrl
     })
   }, [open, contentImages])
 

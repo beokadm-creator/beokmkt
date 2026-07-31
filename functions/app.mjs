@@ -6462,3 +6462,20 @@ export default app
 
 // blogPipelineScheduler(주1회 자동 생성·발행) 제거됨 — 자동발행 정책 폐지.
 // 블로그 글은 수동 생성·검토 후 발행만 사용한다. (blog_schedule 수동 API는 유지)
+
+// Image proxy: hongcomm.kr 이미지를 same-origin으로 가져와서 CORS 헤더 추가
+app.get('/api/image-proxy', async (req, res) => {
+  const url = String(req.query.url ?? '')
+  if (!url.startsWith('http')) return res.status(400).json({ error: 'invalid url' })
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) })
+    const contentType = response.headers.get('content-type') ?? 'image/jpeg'
+    const buffer = Buffer.from(await response.arrayBuffer())
+    res.set('Access-Control-Allow-Origin', '*')
+    res.set('Content-Type', contentType)
+    res.set('Cache-Control', 'public, max-age=86400')
+    res.send(buffer)
+  } catch {
+    res.status(502).json({ error: 'image fetch failed' })
+  }
+})
