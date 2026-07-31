@@ -79,6 +79,15 @@ function easeInOut(t: number): number {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 }
 
+function drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: number, h: number, zoom = 1) {
+  const scale = Math.max(w / img.width, h / img.height) * zoom
+  const sw = img.width * scale
+  const sh = img.height * scale
+  const dx = (w - sw) / 2
+  const dy = (h - sh) / 2
+  ctx.drawImage(img, dx, dy, sw, sh)
+}
+
 /** Build Instagram caption: excerpt + link + hashtags. */
 function buildCaption(title: string, excerpt: string, content: string, tags: string[], link?: string): string {
   const body = excerpt?.trim() || htmlToText(content).slice(0, 180)
@@ -203,6 +212,31 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
 
   const [isRecording, setIsRecording] = useState(false)
   const [recordProgress, setRecordProgress] = useState(0)
+  const [photos, setPhotos] = useState<HTMLImageElement[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+
+  const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).slice(0, 6 - photos.length)
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue
+      const url = URL.createObjectURL(file)
+      const img = new Image()
+      img.src = url
+      await new Promise<void>((r) => { img.onload = () => r() })
+      setPhotos(prev => [...prev, img])
+      setPhotoPreviews(prev => [...prev, url])
+    }
+    e.target.value = ''
+  }, [photos.length])
+
+  const removePhoto = useCallback((index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviews(prev => {
+      const removed = prev[index]
+      if (removed) URL.revokeObjectURL(removed)
+      return prev.filter((_, i) => i !== index)
+    })
+  }, [])
 
   const generateVideoCard = useCallback(() => {
     const canvas = document.createElement('canvas')
@@ -235,16 +269,119 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
       if (e.data.size > 0) chunks.push(e.data)
     }
 
+    const isSlideshow = photos.length > 0
+    const photoCount = photos.length
+    const SLIDE_DURATION_S = 2.5
+    const FADE_FRAMES = Math.round(0.3 * VIDEO_FPS)
+    const totalDuration = isSlideshow ? photoCount * SLIDE_DURATION_S : VIDEO_DURATION_S
+    const totalFrames = Math.round(totalDuration * VIDEO_FPS)
+    const framesPerSlide = Math.round(SLIDE_DURATION_S * VIDEO_FPS)
+
     let frame = 0
     let rafId: number
     let stopped = false
 
-    const drawFrame = () => {
+    function drawSlideshowFrame() {
+      if (stopped) return
+      const t = frame / totalFrames
+      setRecordProgress(t)
+
+      ctx.save()
+      ctx.clearRect(0, 0, VIDEO_W, VIDEO_H)
+
+      const slideIndex = Math.min(Math.floor(frame / framesPerSlide), photoCount - 1)
+      const frameInSlide = frame - slideIndex * framesPerSlide
+      const slideT = frameInSlide / framesPerSlide
+
+      const currentImg = photos[slideIndex]
+      const nextImg = slideIndex < photoCount - 1 ? photos[slideIndex + 1] : null
+
+      const kenBurnsZoom = 1 + slideT * 0.08
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(0, 0, VIDEO_W, VIDEO_H)
+      ctx.clip()
+
+      if (currentImg) {
+        drawImageCover(ctx, currentImg, VIDEO_W, VIDEO_H, kenBurnsZoom)
+      }
+
+      if (frameInSlide >= framesPerSlide - FADE_FRAMES && nextImg) {
+        const fadeT = (frameInSlide - (framesPerSlide - FADE_FRAMES)) / FADE_FRAMES
+        ctx.globalAlpha = easeInOut(fadeT)
+        drawImageCover(ctx, nextImg, VIDEO_W, VIDEO_H, 1)
+        ctx.globalAlpha = 1
+      }
+
+      if (frameInSlide < FADE_FRAMES && slideIndex > 0) {
+        const fadeT = 1 - easeInOut(frameInSlide / FADE_FRAMES)
+        ctx.globalAlpha = fadeT
+        ctx.fillStyle = '#0a0a0b'
+        ctx.fillRect(0, 0, VIDEO_W, VIDEO_H)
+        ctx.globalAlpha = 1
+      }
+      if (slideIndex === 0 && frameInSlide < FADE_FRAMES) {
+        const fadeT = 1 - easeInOut(frameInSlide / FADE_FRAMES)
+        ctx.globalAlpha = fadeT
+        ctx.fillStyle = '#0a0a0b'
+        ctx.fillRect(0, 0, VIDEO_W, VIDEO_H)
+        ctx.globalAlpha = 1
+      }
+
+      ctx.restore()
+
+      const gradH = VIDEO_H * 0.35
+      const grad = ctx.createLinearGradient(0, VIDEO_H - gradH, 0, VIDEO_H)
+      grad.addColorStop(0, 'rgba(10, 10, 11, 0)')
+      grad.addColorStop(1, 'rgba(10, 10, 11, 0.85)')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, VIDEO_H - gradH, VIDEO_W, gradH)
+
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `800 48px ${FONT}`
+      ctx.textBaseline = 'alphabetic'
+      let ty = VIDEO_H - gradH * 0.55
+      for (const line of titleLines) {
+        ctx.fillText(line, 60, ty)
+        ty += 64
+      }
+
+      ctx.fillStyle = '#facc15'
+      ctx.font = `500 22px ${FONT}`
+      ctx.fillText('beoksolution.com', 60, VIDEO_H - 100)
+
+      if (tagsList.length > 0) {
+        const tagY = VIDEO_H - 60
+        const tagGap = 12
+        ctx.font = `600 18px ${FONT}`
+        let tx = 60
+        for (let i = 0; i < tagsList.length; i++) {
+          const tw = ctx.measureText(tagsList[i]).width + 24
+          if (tx + tw > VIDEO_W - 60) break
+          ctx.globalAlpha = 0.6
+          ctx.fillStyle = tagsList[i]
+          ctx.fillText(tagsList[i], tx, tagY)
+          ctx.globalAlpha = 1
+          tx += tw + tagGap
+        }
+      }
+
+      ctx.restore()
+
+      frame++
+      if (frame <= totalFrames) {
+        rafId = requestAnimationFrame(drawSlideshowFrame)
+      } else {
+        recorder.stop()
+        stream.getTracks().forEach((track) => track.stop())
+      }
+    }
+
+    const drawTextFrame = () => {
       if (stopped) return
       const t = frame / VIDEO_FRAMES
       setRecordProgress(t)
 
-      // Ken-burns scale at the end
       const scale = t > 0.9 ? 1 + (t - 0.9) * 0.2 : 1
       ctx.save()
       ctx.clearRect(0, 0, VIDEO_W, VIDEO_H)
@@ -256,7 +393,6 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
         ctx.translate(-cx, -cy)
       }
 
-      // Background gradient
       const grad = ctx.createLinearGradient(0, 0, VIDEO_W, VIDEO_H)
       grad.addColorStop(0, '#0a0a0b')
       grad.addColorStop(0.5, '#18181b')
@@ -264,14 +400,12 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
       ctx.fillStyle = grad
       ctx.fillRect(0, 0, VIDEO_W, VIDEO_H)
 
-      // Amber accent bar (top)
       const accentAlpha = t < 0.1 ? easeInOut(t / 0.1) : 1
       ctx.globalAlpha = accentAlpha
       ctx.fillStyle = '#facc15'
       ctx.fillRect(80, 240, 90, 10)
       ctx.globalAlpha = 1
 
-      // Brand label
       ctx.globalAlpha = accentAlpha
       ctx.fillStyle = '#facc15'
       ctx.font = `600 28px ${FONT}`
@@ -279,7 +413,6 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
       ctx.fillText(BRAND_LABEL, 80, 220)
       ctx.globalAlpha = 1
 
-      // Title
       if (t >= 0.1) {
         const titleProgress = Math.min(1, (t - 0.1) / 0.2)
         const titleAlpha = easeInOut(titleProgress)
@@ -295,7 +428,6 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
         ctx.globalAlpha = 1
       }
 
-      // Excerpt
       if (t >= 0.2) {
         const excerptProgress = Math.min(1, (t - 0.2) / 0.2)
         const excerptAlpha = easeInOut(excerptProgress)
@@ -311,9 +443,8 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
         ctx.globalAlpha = 1
       }
 
-      // Tags
       const tagStartT = 0.4
-      const tagSpacing = 0.03 // 0.03 * 5s = 0.15s apart
+      const tagSpacing = 0.03
       if (tagsList.length > 0 && t >= tagStartT) {
         const tagY = VIDEO_H - 280
         const tagHeight = 40
@@ -343,7 +474,6 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
         ctx.globalAlpha = 1
       }
 
-      // Footer
       if (t >= 0.6) {
         const footerProgress = Math.min(1, (t - 0.6) / 0.2)
         const footerAlpha = easeInOut(footerProgress)
@@ -360,7 +490,7 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
 
       frame++
       if (frame <= VIDEO_FRAMES) {
-        rafId = requestAnimationFrame(drawFrame)
+        rafId = requestAnimationFrame(drawTextFrame)
       } else {
         recorder.stop()
         stream.getTracks().forEach((track) => track.stop())
@@ -387,9 +517,9 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
     setRecordProgress(0)
     frame = 0
     stopped = false
-    recorder.start(100)       // collect chunks
-    rafId = requestAnimationFrame(drawFrame)
-  }, [title, excerpt, content, tags])
+    recorder.start(100)
+    rafId = requestAnimationFrame(isSlideshow ? drawSlideshowFrame : drawTextFrame)
+  }, [title, excerpt, content, tags, photos])
 
   if (!open) return null
 
@@ -423,12 +553,44 @@ export default function InstagramCardModal({ open, onClose, title, excerpt, cont
             >
               {imgDownloaded ? '✓ 이미지 저장됨' : '이미지 다운로드 (PNG)'}
             </button>
+            <div>
+              <div className="text-xs text-zinc-500 mb-2">슬라이드쇼 사진 (선택, 최대 6장)</div>
+              <div className="flex flex-wrap gap-2">
+                {photoPreviews.map((url, i) => (
+                  <div key={i} className="relative">
+                    <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                    <button
+                      onClick={() => removePhoto(i)}
+                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-xs text-zinc-300 hover:bg-zinc-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {photos.length < 6 && (
+                  <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-500 hover:border-zinc-500 hover:text-zinc-400">
+                    + 사진
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handlePhotoSelect}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
             <button
               onClick={generateVideoCard}
               disabled={isRecording || imgDownloaded}
               className="flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-base font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {isRecording ? `영상 생성 중... ${Math.round(recordProgress * 5)}/5초` : '영상 카드 만들기 (5초)'}
+              {isRecording
+                ? `영상 생성 중... ${Math.round(recordProgress * (photos.length > 0 ? photos.length * 2.5 : 5))}/${photos.length > 0 ? (photos.length * 2.5).toFixed(0) : 5}초`
+                : photos.length > 0
+                  ? `영상 카드 만들기 (${photos.length}장 사진, ${(photos.length * 2.5).toFixed(0)}초)`
+                  : '영상 카드 만들기 (5초)'}
             </button>
           </div>
 
