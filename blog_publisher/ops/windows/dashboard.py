@@ -9,6 +9,7 @@ import json
 import os
 import re
 import sqlite3
+import time
 import webbrowser
 from datetime import datetime, timezone, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -139,24 +140,48 @@ LOG_DIR = Path(os.environ.get("BLOG_LOG_DIR", r"C:\beokmkt\logs"))
 _ACTIVITY_TASKS = ("publish", "generate", "factcheck", "review", "schedule")
 
 
+_ACTIVITY_CACHE: dict = {"at": 0.0, "value": {}}
+_ACTIVITY_TTL_SEC = 60.0
+
+
 def _ops_activity() -> dict:
     """예약 작업별 마지막 실행 시각(로그 파일 mtime). 파이프라인 카운트가 전부
-    0인 순간에도 시스템이 살아 도는지를 보여주는 liveness 신호."""
-    out: dict = {}
+    0인 순간에도 시스템이 살아 도는지를 보여주는 liveness 신호.
+
+    logs 디렉터리에는 실행마다 타임스탬프 로그가 쌓여 파일 수가 수만 개가 된다.
+    작업별로 glob 하면 디렉터리를 작업 수만큼 훑어 요청 하나가 20초 넘게 걸리고
+    대시보드가 통째로 타임아웃된다. scandir 로 한 번만 훑고, 폴링 주기(30초)를
+    고려해 짧게 캐시한다.
+    """
+    now = time.time()
+    if now - _ACTIVITY_CACHE["at"] < _ACTIVITY_TTL_SEC:
+        return _ACTIVITY_CACHE["value"]
+
+    latest: dict[str, float] = {}
     try:
-        for task in _ACTIVITY_TASKS:
-            latest = 0.0
-            for f in LOG_DIR.glob(f"blog-{task}-*.log"):
-                try:
-                    mt = f.stat().st_mtime
-                    if mt > latest:
-                        latest = mt
-                except OSError:
+        with os.scandir(LOG_DIR) as it:
+            for entry in it:
+                name = entry.name
+                if not name.startswith("blog-") or not name.endswith(".log"):
                     continue
-            if latest:
-                out[task] = datetime.fromtimestamp(latest, tz=KST).isoformat()
+                for task in _ACTIVITY_TASKS:
+                    if name.startswith(f"blog-{task}-"):
+                        try:
+                            mt = entry.stat().st_mtime
+                        except OSError:
+                            break
+                        if mt > latest.get(task, 0.0):
+                            latest[task] = mt
+                        break
     except Exception:
-        pass
+        return _ACTIVITY_CACHE["value"]
+
+    out = {
+        task: datetime.fromtimestamp(mt, tz=KST).isoformat()
+        for task, mt in latest.items()
+    }
+    _ACTIVITY_CACHE["at"] = now
+    _ACTIVITY_CACHE["value"] = out
     return out
 
 
