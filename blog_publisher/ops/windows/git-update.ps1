@@ -7,7 +7,12 @@ function Invoke-BlogGitUpdate {
     [string]$LogPath,
 
     [int]$TimeoutSeconds = 120,
-    [int]$StaleMinutes = 10
+    [int]$StaleMinutes = 10,
+
+    # 저사양 PC 최적화: 예약 작업이 실행마다 git fetch 하면 시간당 150회 이상
+    # 네트워크·디스크를 친다(2코어 i3에서 체감 부하). 최근 이 시간(분) 안에
+    # fetch 했으면 건너뛴다. BEOK_GIT_UPDATE_MIN_INTERVAL 로 조정 가능.
+    [int]$MinIntervalMinutes = $(if ($env:BEOK_GIT_UPDATE_MIN_INTERVAL) { [int]$env:BEOK_GIT_UPDATE_MIN_INTERVAL } else { 30 })
   )
 
   function Write-GitUpdateLog([string]$Message) {
@@ -18,6 +23,15 @@ function Invoke-BlogGitUpdate {
   if (!(Test-Path $gitDir)) {
     Write-GitUpdateLog "git update skipped: .git directory not found"
     return
+  }
+
+  # 스로틀: 마지막 성공 fetch 시각 스탬프가 충분히 최신이면 통째로 건너뛴다.
+  $stampFile = Join-Path $gitDir "beok-last-fetch"
+  if ($MinIntervalMinutes -gt 0 -and (Test-Path $stampFile)) {
+    $age = (Get-Date) - (Get-Item $stampFile).LastWriteTime
+    if ($age.TotalMinutes -lt $MinIntervalMinutes) {
+      return
+    }
   }
 
   $lockDir = Join-Path $gitDir "beok-update.lock"
@@ -64,6 +78,9 @@ function Invoke-BlogGitUpdate {
       Write-GitUpdateLog "WARN: git merge failed (exit=$mergeExit); continuing with current checkout"
       return
     }
+
+    # 성공한 경우에만 스탬프를 갱신해, 실패 시에는 다음 실행에서 곧바로 재시도한다.
+    Set-Content -LiteralPath $stampFile -Value (Get-Date -Format 'o') -Encoding utf8 -ErrorAction SilentlyContinue
   } finally {
     $ErrorActionPreference = $prevEAP
     Remove-Item -Recurse -Force $lockDir -ErrorAction SilentlyContinue

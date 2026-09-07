@@ -112,6 +112,33 @@ try {
 #    같은 스크립트를 15분마다 대신 실행해 disable 의도를 무력화하고 있었다.
 #    워커·세션은 은퇴했고 대시보드도 더 이상 health.json 을 표시하지 않으므로 제거한다.
 
+# 4b) 로그 보관 정책: 예약 작업이 실행마다 타임스탬프 로그를 만들어 파일이 무한정
+#     쌓인다(실측 17만 개 -> 디렉터리 스캔이 20초 넘어 대시보드가 멈췄다).
+#     하루 한 번만, 보관기간이 지난 blog-*.log 를 지운다.
+#     BEOK_LOG_RETENTION_DAYS 로 조정(기본 14일, 0 이하면 정리 안 함).
+$retentionDays = if ($env:BEOK_LOG_RETENTION_DAYS) { [int]$env:BEOK_LOG_RETENTION_DAYS } else { 14 }
+$logStamp = Join-Path $StatusDir "log-cleanup.stamp"
+$needCleanup = $retentionDays -gt 0 -and (
+  !(Test-Path $logStamp) -or ((Get-Date) - (Get-Item $logStamp).LastWriteTime).TotalHours -ge 24
+)
+if ($needCleanup) {
+  try {
+    $cut = (Get-Date).AddDays(-$retentionDays)
+    $removed = 0
+    # 스트리밍 열거: 전체를 배열로 모으면 저사양(RAM 8GB) PC에서 메모리를 크게 먹는다.
+    Get-ChildItem -LiteralPath $LogDir -Filter 'blog-*.log' -File -ErrorAction SilentlyContinue | ForEach-Object {
+      if ($_.LastWriteTime -lt $cut) {
+        try { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop; $removed++ } catch {}
+      }
+    }
+    Set-Content -LiteralPath $logStamp -Value (Get-Date -Format 'o') -Encoding utf8 -ErrorAction SilentlyContinue
+    if ($removed -gt 0) {
+      Write-Log "log cleanup: removed $removed files older than $retentionDays days"
+      $actions += "logs_pruned"
+    }
+  } catch { Write-Log "log cleanup failed: $($_.Exception.Message)" }
+}
+
 # 5) write our own healthcheck.json summary (checks + recovery actions taken).
 $summary = [ordered]@{
   checked_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
