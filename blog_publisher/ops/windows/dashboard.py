@@ -343,19 +343,29 @@ function render(data){
     const st=cp.status||'unknown';
     const upd=cp.updatedAt?new Date(cp.updatedAt):null;
     const ageMin=upd?((Date.now()-upd.getTime())/60000):null;
-    // max-interval 7200s(2h) 기준: 150분 넘게 갱신 없으면 정지로 간주
+    // 정지 판정은 스크래퍼의 실제 스캔 주기(heartbeat 의 intervalHours)를 기준으로 한다.
+    // 과거엔 150분 고정이었는데 실제 주기가 8시간(480분)이라, 정상 동작 중에도
+    // 스캔 사이 대부분의 시간에 "정지"로 빨갛게 뜨는 오탐이 났다.
+    // 한 주기를 통째로 건너뛴 수준(1.5배 + 30분 여유)일 때만 정지로 본다.
+    const ivMin=(Number(cp.intervalHours)>0?Number(cp.intervalHours):2)*60;
+    const staleMin=ivMin*1.5+30;
     let cls='ok',label=st;
     if(st==='stopped'){cls='warn';label='중지됨';}
     else if(st==='scanning'){cls='ok';label='스캔 중';}
     else if(st==='idle'){cls='ok';label='대기';}
     else if(st==='starting'){cls='ok';label='시작 중';}
-    if(ageMin!==null&&ageMin>150){cls='err';label='정지(갱신 끊김)';}
+    else if(st==='scheduled'){cls='ok';label='예약 대기';}
+    if(cp.errorCount>0){cls='warn';label=label+' (에러 '+cp.errorCount+')';}
+    if(ageMin!==null&&ageMin>staleMin){cls='err';label='정지(갱신 끊김)';}
     badge('cp-b',cls,label);
-    document.getElementById('cp-s').textContent='갱신 '+(upd?kst(cp.updatedAt):'—');
+    const agoTxt=ageMin!==null?` (${ago(cp.updatedAt)})`:'';
+    document.getElementById('cp-s').textContent='갱신 '+(upd?kst(cp.updatedAt):'—')+agoTxt;
     let ex='';
     if(cp.scanCount!=null)ex+=`<span>스캔 ${cp.scanCount}회</span>`;
-    if(cp.errorCount)ex+=`<span class="c-err">에러 ${cp.errorCount}</span>`;
+    ex+=`<span class="${cp.errorCount?'c-err':''}">에러 ${cp.errorCount||0}</span>`;
+    if(cp.intervalHours)ex+=`<span style="color:#475569">주기 ${cp.intervalHours}시간</span>`;
     if(cp.nextScanAt)ex+=`<span style="color:#334155">다음 ${kst(cp.nextScanAt)}</span>`;
+    if(cp.host)ex+=`<span style="color:#475569">${cp.host}</span>`;
     document.getElementById('cp-x').innerHTML=ex;
   } else {
     badge('cp-b','err','미실행/없음');
